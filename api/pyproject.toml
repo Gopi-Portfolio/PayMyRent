@@ -1,0 +1,16 @@
+[project]
+name = "paymyrent-api"
+version = "1.0.0"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit", "tests/integration"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 140
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["F", "E9", "B", "S"]
+ignore = ["B008", "S101", "S608"]   # FastAPI Depends defaults; asserts in tests; SQL is parameterised (f-strings only splice constants)

@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "PayMyRent",
+    "slug": "paymyrent",
+    "scheme": "paymyrent",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "in.paymyrent.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "supportsTablet": false,
+      "icon": "./assets/icon.png"
+    },
+    "android": {
+      "package": "in.paymyrent.app",
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B6E5F"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "backgroundColor": "#0B6E5F",
+          "resizeMode": "contain"
+        }
+      ],
+      "expo-secure-store",
+      "expo-localization",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "PayMyRent uses the microphone only when you tap the mic to dictate a note or question.",
+          "speechRecognitionPermission": "PayMyRent converts your speech to text so you can review it before saving."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "icon": "./assets/icon.png",
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

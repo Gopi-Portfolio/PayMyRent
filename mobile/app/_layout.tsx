@@ -1,0 +1,49 @@
+import 'expo-crypto';
+import '@/i18n';
+
+import { QueryClientProvider } from '@tanstack/react-query';
+
+import { queryClient } from '@/lib/queryClient';
+import { Stack } from 'expo-router';
+import React from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { PaperProvider } from 'react-native-paper';
+
+import { LANGUAGES } from '@/i18n';
+import i18n from '@/i18n';
+import { AuthProvider, useAuth } from '@/lib/auth';
+import { loadLanguage } from '@/lib/language';
+import { setBrandRole, themeFor } from '@/theme';
+
+
+/** Owner screens are teal, renter screens are blue: the role in use picks the colour set (before anything is drawn) and the Paper theme. */
+function RoleThemed({ children }: { children: React.ReactNode }) {
+  const { me, activeRole } = useAuth();
+  const role = me ? (activeRole ?? me.roles[0] ?? 'owner') : 'owner';
+  setBrandRole(role);
+  return <PaperProvider theme={themeFor(role)} settings={{ icon: (props) => <MaterialCommunityIcons {...(props as any)} /> }}>{children}</PaperProvider>;
+}
+
+export default function RootLayout() {
+  React.useEffect(() => {   // the language chosen last time on this phone, applied as the app opens
+    loadLanguage().then((c) => { if (c && LANGUAGES.some((l) => l.code === c) && c !== i18n.language) i18n.changeLanguage(c); });
+  }, []);
+  React.useEffect(() => {   // whatever the server wrote in the old language (bell items, updates, statements) is fetched again in the new one
+    const refetch = () => { queryClient.invalidateQueries(); };
+    i18n.on('languageChanged', refetch);
+    return () => { i18n.off('languageChanged', refetch); };
+  }, []);
+  return (
+    <QueryClientProvider client={queryClient}>
+      <PaperProvider theme={themeFor('owner')} settings={{ icon: (props) => <MaterialCommunityIcons {...(props as any)} /> }}>
+        <StatusBar style="light" />
+        <AuthProvider>
+          <RoleThemed>
+            <Stack screenOptions={{ headerShown: false, gestureEnabled: false, fullScreenGestureEnabled: false }} />
+          </RoleThemed>
+        </AuthProvider>
+      </PaperProvider>
+    </QueryClientProvider>
+  );
+}

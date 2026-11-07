@@ -1,0 +1,43 @@
+# Production-style stack. Secrets come from the environment / a secrets manager, never from files in git.
+#   docker compose -f docker-compose.prod.yml --env-file /secure/paymyrent.env up -d
+# Put a TLS-terminating proxy (ALB / nginx / Caddy) in front; the API is not published to the internet directly.
+services:
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:?set DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-paymyrent}
+      TZ: UTC
+    # no "ports": the database is reachable only from the api container
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"], interval: 5s, retries: 20}
+    mem_limit: 1g
+    security_opt: ["no-new-privileges:true"]
+
+  api:
+    # on the server the image comes from the registry (API_IMAGE); building here is only for a one-off
+    image: ${API_IMAGE:-paymyrent-api:latest}
+    build: ./api
+    restart: always
+    env_file: ${API_ENV_FILE:?set API_ENV_FILE (copy api/.env.production.example)}
+    environment:
+      RG_APP_ENV: production
+      RG_DATABASE_URL: postgresql+psycopg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME:-paymyrent}
+      RG_APP_DATABASE_URL: postgresql+psycopg://pmr_app:${APP_DB_PASSWORD:?set APP_DB_PASSWORD}@db:5432/${DB_NAME:-paymyrent}
+      RG_APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      FORWARDED_ALLOW_IPS: ${PROXY_IP:?set PROXY_IP to your load balancer address}
+      WEB_CONCURRENCY: "2"
+    ports: ["127.0.0.1:8000:8000"]     # reachable only from the proxy on this host
+    depends_on: {db: {condition: service_healthy}}
+    mem_limit: 768m
+    read_only: true
+    tmpfs: [/tmp]
+    volumes: [apistorage:/srv/.storage]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  pgdata:
+  apistorage:

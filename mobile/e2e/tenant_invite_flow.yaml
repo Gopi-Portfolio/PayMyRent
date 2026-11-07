@@ -1,0 +1,15 @@
+# Imran (invited, not accepted) sees only the invitation; after accepting, S-08 appears.
+appId: in.paymyrent.app
+---
+- launchApp: { clearState: true }
+- tapOn: { id: "cta-start" }
+- tapOn: { id: "phone-input" }
+- inputText: "9000000005"
+- tapOn: "Send OTP"
+- tapOn: { id: "otp-input" }
+- inputText: "123456"
+- tapOn: "Verify"
+- assertVisible: "Invitations"
+- assertNotVisible: "₹9,500"
+- tapOn: { id: "accept-invite" }
+- assertVisible: "S-08"

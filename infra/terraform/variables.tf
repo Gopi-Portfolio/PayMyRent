@@ -1,0 +1,11 @@
+variable "region"          { default = "ap-south-1" }
+variable "env"             { default = "prod" }
+variable "domain"          { description = "e.g. paymyrent.in — SES sending domain and API custom domain" }
+variable "api_hostname"    { description = "e.g. api.paymyrent.in" }
+variable "github_repo"     { description = "owner/repo allowed to deploy via OIDC" }
+variable "container_power" { default = "micro" }   # nano | micro | small | medium …
+variable "container_scale" { default = 1 }
+variable "db_bundle"       { default = "micro_2_0" }   # verify current bundle ids: aws lightsail get-relational-database-bundles
+variable "db_blueprint"    { default = "postgres_16" } # verify: aws lightsail get-relational-database-blueprints
+variable "alert_email"     { description = "receives CloudWatch/Budget alerts" }
+variable "monthly_budget_usd" { default = 60 }

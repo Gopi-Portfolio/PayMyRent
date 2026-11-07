@@ -1,0 +1,36 @@
+# Local development: PostgreSQL 16 + API (sandbox payments, console messaging, mock AI, dev OTP).
+name: paymyrent
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: paymyrent
+      POSTGRES_PASSWORD: paymyrent
+      POSTGRES_DB: paymyrent
+      TZ: UTC
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./api/app/db/seed:/seed:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paymyrent"]
+      interval: 3s
+      retries: 20
+
+  api:
+    build: ./api
+    env_file: ./api/.env.example
+    environment:
+      FORWARDED_ALLOW_IPS: "*"      # local Docker network only; production uses docker-compose.prod.yml
+      RG_DATABASE_URL: postgresql+psycopg://paymyrent:paymyrent@db:5432/paymyrent            # system: migrations, jobs, webhooks, admin
+      RG_APP_DATABASE_URL: postgresql+psycopg://pmr_app:pmr_app@db:5432/paymyrent # signed-in requests: limited role + row-level security
+      RG_APP_DB_PASSWORD: pmr_app
+      RG_DEMO_AUTO_VERIFY_PROPERTIES: "on"     # local demo only: a developer can add a property without a reviewer. Refused in production.
+      RG_PUBLIC_BASE_URL: http://${LAN_IP:-localhost}:8000
+    ports: ["8000:8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

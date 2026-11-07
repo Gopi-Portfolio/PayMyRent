@@ -1,0 +1,27 @@
+# Maestro E2E (https://maestro.mobile.dev): `maestro test e2e/owner_cash_flow.yaml`
+# Requires: `make up && make seed`, app running in dev auth mode against the local API.
+appId: in.paymyrent.app
+---
+- launchApp: { clearState: true }
+- assertVisible: "Starter"
+- assertVisible: "₹1"
+- assertVisible: "₹50"
+- assertVisible: "₹100"
+- tapOn: { id: "cta-start" }
+- tapOn: { id: "phone-input" }
+- inputText: "9000000001"
+- tapOn: "Send OTP"
+- tapOn: { id: "otp-input" }
+- inputText: "123456"
+- tapOn: "Verify"
+- assertVisible: "Collected"
+- tapOn: { id: "record-payment" }
+- tapOn: { id: "select-tenancy" }
+- inputText: "S-01"
+- tapOn: "S-01 · Ravi Kumar"
+- tapOn: { id: "amount" }
+- inputText: "3000"
+- tapOn: "Continue"
+- tapOn: { id: "confirm-cash" }
+- assertVisible: "Payment confirmed · ₹3,000"
+- assertVisible: "Cash — recorded by owner"

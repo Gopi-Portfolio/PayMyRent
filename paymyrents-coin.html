@@ -1,0 +1,107 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paymyrents Coin Options</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: a grid of six wordmark options. Each is shown the way the app uses it: under the sunrise icon on the teal landing screen, and on white. */
+  :root {
+    --bg: #F3F6F5; --fg: #0F2A26; --muted: #5B6B67; --card: #FFFFFF; --line: #D8E2DF;
+    --teal900: #064E45; --teal700: #0B6E5F; --amber: #F59E0B; --sun: #FCD34D;
+    --chip: #E6F2EF;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0C1A18; --fg: #E8F2EF; --muted: #93A8A3; --card: #13251F; --line: #234039; --chip: #17332D; color-scheme: dark; } }
+  :root[data-theme="dark"] { --bg: #0C1A18; --fg: #E8F2EF; --muted: #93A8A3; --card: #13251F; --line: #234039; --chip: #17332D; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         padding-block: 28px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  main { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px; }
+  h1 { font-size: 26px; margin: 0; letter-spacing: -0.4px; text-wrap: balance; }
+  .lead { margin: 6px 0 0; color: var(--muted); max-width: 62ch; line-height: 1.5; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 18px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; min-width: 0; }
+  .card header { padding: 14px 16px 10px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .card h2 { margin: 0; font-size: 16px; }
+  .tag { font-size: 12px; color: var(--muted); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 420px) { .pair { grid-template-columns: 1fr; } }
+  .stage { padding: 26px 10px 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 230px; }
+  .dark { background: linear-gradient(160deg, #0B6E5F, #064E45); --body: #FFFFFF; --door: #0B6E5F; --roof: #064E45; --pay: #FFFFFF; --my: var(--sun); --on-my: #064E45; }
+  .light { background: #FFFFFF; --body: #0B6E5F; --door: #FFFFFF; --roof: #064E45; --pay: #0B6E5F; --my: var(--amber); --on-my: #FFFFFF; }
+  .icon { width: 84px; height: 67px; }
+  .mark { font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: var(--pay); white-space: nowrap; }
+  .note { padding: 12px 16px 16px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .note b { color: var(--fg); }
+
+  .w { display: flex; align-items: center; font-size: 22px; gap: 0.14em; }
+  .coin { display: grid; place-items: center; border-radius: 50%; font-weight: 800; letter-spacing: 0; position: relative; flex: none; }
+  /* a: classic gold coin */
+  .a .coin { font-size: 1.15em; width: 2.1em; height: 2.1em; background: linear-gradient(135deg, #FCD34D, #F59E0B); color: #064E45; box-shadow: 0 2px 0 rgba(0,0,0,.15); }
+  /* b: minted rim, a ring inside the edge */
+  .b .coin { font-size: 1.15em; width: 2.2em; height: 2.2em; background: linear-gradient(135deg, #FCD34D, #F59E0B); color: #064E45; box-shadow: inset 0 0 0 0.09em #B45309, inset 0 0 0 0.16em #FDE68A, 0 2px 0 rgba(0,0,0,.18); }
+  /* c: bigger coin, the small words tuck into its edge */
+  .c { gap: 0; }
+  .c .coin { font-size: 1.45em; width: 2.1em; height: 2.1em; background: linear-gradient(135deg, #FCD34D, #F59E0B); color: #064E45; box-shadow: 0 2px 0 rgba(0,0,0,.15); z-index: 1; }
+  .c .pay { margin-right: -0.5em; padding-right: 0.5em; } .c .rents { margin-left: -0.5em; padding-left: 0.5em; }
+  /* d: sunrise rays around the coin */
+  .d .coin { font-size: 1.15em; width: 2.1em; height: 2.1em; background: linear-gradient(135deg, #FCD34D, #F59E0B); color: #064E45; box-shadow: 0 0 0 0.12em rgba(252,211,77,.35), 0 0 0 0.26em rgba(252,211,77,.18); margin: 0 0.18em; }
+  /* e: inverse coin: white on teal screens, teal on white, gold letters */
+  .e .coin { font-size: 1.15em; width: 2.1em; height: 2.1em; background: var(--pay); color: var(--my); border: 0.08em solid var(--my); }
+  .dark .e .coin { color: #064E45; background: #FFFFFF; border-color: #FCD34D; }
+  .light .e .coin { background: #0B6E5F; color: #FCD34D; border-color: #F59E0B; }
+  /* f: coin with a small rupee badge */
+  .f .coin { font-size: 1.15em; width: 2.1em; height: 2.1em; background: linear-gradient(135deg, #FCD34D, #F59E0B); color: #064E45; box-shadow: 0 2px 0 rgba(0,0,0,.15); }
+  .f .coin::after { content: "₹"; position: absolute; top: -0.2em; right: -0.25em; font-size: 0.55em; width: 1.5em; height: 1.5em; border-radius: 50%; display: grid; place-items: center; background: #064E45; color: #FCD34D; border: 0.12em solid var(--badge-ring, #fff); }
+  .dark .f .coin::after { --badge-ring: #0B6E5F; } .light .f .coin::after { --badge-ring: #fff; }
+  /* g: a stack of coins, MY on the top one */
+  .g .stack { position: relative; width: 2.6em; height: 2.55em; flex: none; margin: 0 0.1em; }
+  .g .stack i { position: absolute; left: 0.25em; width: 2.1em; height: 2.1em; border-radius: 50%; background: linear-gradient(135deg, #F7C23A, #D98A06); box-shadow: 0 2px 0 rgba(0,0,0,.2); }
+  .g .stack i:nth-child(1) { top: 0.45em; } .g .stack i:nth-child(2) { top: 0.25em; } .g .stack i:nth-child(3) { top: 0; background: linear-gradient(135deg, #FCD34D, #F59E0B); display: grid; place-items: center; color: #064E45; font-style: normal; font-weight: 800; font-size: 1.15em; letter-spacing: 0; }
+  /* h: coin under a roof line, so house and coin read as one idea */
+  .h .wrapc { position: relative; padding-top: 0.45em; flex: none; }
+  .h .coin { font-size: 1.1em; width: 2.1em; height: 2.1em; background: linear-gradient(135deg, #FCD34D, #F59E0B); color: #064E45; box-shadow: 0 2px 0 rgba(0,0,0,.15); }
+  .h .roof { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 2.8em; height: 1em; }
+  .h .roof path { stroke: var(--pay); }
+  .row { display: flex; align-items: center; gap: 14px; padding: 4px 16px 0; flex-wrap: wrap; }
+  .chip { font-size: 12px; background: var(--chip); color: var(--fg); padding: 4px 9px; border-radius: 99px; }
+</style>
+
+<main>
+  <div>
+    <h1>paymyrents: more coin designs</h1>
+    <p class="lead">Eight takes on the coin of option 5 (“MY” on a coin between small “pay” and “rents”), with the same sunrise icon. Each is shown as it would sit on the teal landing screen (left) and on white (right). Only the name changes; the icon, colors and weight stay as they are.</p>
+  </div>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="sun" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FDE68A"/><stop offset="1" stop-color="#F59E0B"/></linearGradient>
+      <symbol id="mark" viewBox="0 0 120 96">
+        <circle cx="60" cy="52" r="30" fill="url(#sun)"/>
+        <path d="M60 8V16M22 22L28 28M98 22L92 28M8 52H16M104 52H112" stroke="#FCD34D" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <path d="M30 62L60 38L90 62V90H30Z" style="fill:var(--body)"/>
+        <path d="M26 64L60 36L94 64" fill="none" style="stroke:var(--roof)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="52" y="68" width="16" height="22" rx="3" style="fill:var(--door)"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="grid">
+    <section class="card" aria-label="Option 5a"><header><h2>5a · Classic coin</h2><span class="tag">what you picked</span></header>
+      <div class="pair"><div class="stage dark"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w a"><span>pay</span><span class=coin>MY</span><span>rents</span></div></div><div class="stage light"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w a"><span>pay</span><span class=coin>MY</span><span>rents</span></div></div></div><p class="note">The gold coin as in option 5. Plain and clean.</p></section>
+    <section class="card" aria-label="Option 5b"><header><h2>5b · Minted rim</h2><span class="tag">looks like a real coin</span></header>
+      <div class="pair"><div class="stage dark"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w b"><span>pay</span><span class=coin>MY</span><span>rents</span></div></div><div class="stage light"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w b"><span>pay</span><span class=coin>MY</span><span>rents</span></div></div></div><p class="note">A thin ring inside the edge, so it reads as a stamped rupee coin.</p></section>
+    <section class="card" aria-label="Option 5c"><header><h2>5c · Big coin, tucked words</h2><span class="tag">coin leads</span></header>
+      <div class="pair"><div class="stage dark"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w c"><span>pay</span><span class=coin>MY</span><span>rents</span></div></div><div class="stage light"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w c"><span>pay</span><span class=coin>MY</span><span>rents</span></div></div></div><p class="note">A larger coin with “pay” and “rents” tucked against its edges, so the name reads as one tight piece.</p></section>
+    <section class="card" aria-label="Option 5d"><header><h2>5d · Sunrise glow</h2><span class="tag">ties to the icon</span></header>
+      <div class="pair"><div class="stage dark"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w d"><span>pay</span><span class=coin>MY</span><span>rents</span></div></div><div class="stage light"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w d"><span>pay</span><span class=coin>MY</span><span>rents</span></div></div></div><p class="note">Soft gold halos around the coin, like the sun in the icon above it.</p></section>
+    <section class="card" aria-label="Option 5e"><header><h2>5e · Inverse coin</h2><span class="tag">calmer</span></header>
+      <div class="pair"><div class="stage dark"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w e"><span>pay</span><span class=coin>MY</span><span>rents</span></div></div><div class="stage light"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w e"><span>pay</span><span class=coin>MY</span><span>rents</span></div></div></div><p class="note">A white coin (on teal) or teal coin (on white) with a gold rim. Less loud than the gold coin.</p></section>
+    <section class="card" aria-label="Option 5f"><header><h2>5f · Rupee badge</h2><span class="tag">says “rent” at a glance</span></header>
+      <div class="pair"><div class="stage dark"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w f"><span>pay</span><span class=coin>MY</span><span>rents</span></div></div><div class="stage light"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w f"><span>pay</span><span class=coin>MY</span><span>rents</span></div></div></div><p class="note">A small ₹ badge on the coin’s corner, so the coin clearly means money.</p></section>
+    <section class="card" aria-label="Option 5g"><header><h2>5g · Coin stack</h2><span class="tag">savings feel</span></header>
+      <div class="pair"><div class="stage dark"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w g"><span>pay</span><span class="stack"><i></i><i></i><i>MY</i></span><span>rents</span></div></div><div class="stage light"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w g"><span>pay</span><span class="stack"><i></i><i></i><i>MY</i></span><span>rents</span></div></div></div><p class="note">MY is on the top coin of a short stack. Suggests rent paid month after month.</p></section>
+    <section class="card" aria-label="Option 5h"><header><h2>5h · Coin under a roof</h2><span class="tag">house + money</span></header>
+      <div class="pair"><div class="stage dark"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w h"><span>pay</span><span class="wrapc"><svg class="roof" viewBox="0 0 56 20" aria-hidden="true"><path d="M3 18 L28 3 L53 18" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="coin">MY</span></span><span>rents</span></div></div><div class="stage light"><svg class="icon" aria-hidden="true"><use href="#mark"/></svg><div class="mark w h"><span>pay</span><span class="wrapc"><svg class="roof" viewBox="0 0 56 20" aria-hidden="true"><path d="M3 18 L28 3 L53 18" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="coin">MY</span></span><span>rents</span></div></div></div><p class="note">A roof line over the coin, so the house and the coin read as one idea.</p></section>
+  </div>
+  <p class="note" style="padding:0">Pick a number (5a to 5h), or combine, for example 5b with the rupee badge from 5f. I will then apply it to the landing, sign-in and top bar. The app name and logo are not changed yet.</p>
+</main>

@@ -1,0 +1,4 @@
+domain       = "paymyrent.example.in"
+api_hostname = "api.paymyrent.example.in"
+github_repo  = "your-org/paymyrent"
+alert_email  = "ops@example.in"

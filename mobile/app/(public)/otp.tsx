@@ -1,0 +1,66 @@
+import { Redirect, router } from 'expo-router';
+import React, { useState } from 'react';
+import { View } from 'react-native';
+import { Text, TextInput } from 'react-native-paper';
+import { useTranslation } from 'react-i18next';
+
+import { sanitize } from '@/lib/inputs';
+import { AppButton } from '@/components/Buttons';
+import { AuthShell, ErrorBanner, goBack } from '@/components/ui';
+import { brand, radius } from '@/theme';
+import { useAuth } from '@/lib/auth';
+import { otpSession } from '@/lib/otpSession';
+
+export default function Otp() {
+  const { t } = useTranslation();
+  const { verifyOtp, requestOtp } = useAuth();
+  const [note, setNote] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>(null);
+  const s = otpSession.current;
+  if (!s) return <Redirect href="/(public)/phone" />;   // navigating while rendering is not allowed; Redirect does it safely
+
+  async function verify() {
+    setBusy(true); setErr(null);
+    try {
+      await verifyOtp(s, code);
+      otpSession.current = null;
+      router.replace('/');
+    } catch (e) { setErr(friendly(e)); } finally { setBusy(false); }
+  }
+
+  /** Server messages are in English; show the reason in the user's language. */
+  function friendly(e: any) {
+    const m = String(e?.message ?? '').toLowerCase();
+    if (e?.code === 'VALIDATION' && m.includes('incorrect')) return new Error(t('error.otp_incorrect'));
+    if (e?.code === 'VALIDATION' && (m.includes('expired') || m.includes('attempts'))) return new Error(t('error.otp_expired'));
+    if (e?.code === 'RATE_LIMITED') return new Error(t('error.otp_rate'));
+    return e;
+  }
+
+  async function resend() {
+    setBusy(true); setErr(null); setNote(null);
+    try {
+      otpSession.current = await requestOtp(s.phoneE164);
+      setCode(''); setNote(t('auth.resent'));
+    } catch (e) { setErr(friendly(e)); } finally { setBusy(false); }
+  }
+
+  return (
+    <AuthShell title={t('auth.verify')} subtitle={t('auth.enterOtp', { phone: s.phoneE164.replace('+91', '+91 ') })}>
+      {s.demoCode ? (
+        <View style={{ backgroundColor: brand.amber100, borderRadius: radius.md, padding: 12 }}>
+          <Text testID="demo-code" style={{ color: '#92400E', fontWeight: '700', textAlign: 'center' }}>{t('auth.demoCode', { code: s.demoCode })}</Text>
+        </View>
+      ) : null}
+      <TextInput mode="outlined" outlineStyle={{ borderRadius: radius.md }} style={{ backgroundColor: '#fff', fontSize: 26, letterSpacing: 10, textAlign: 'center', height: 64 }} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="sms-otp" maxLength={6}
+                 value={code} onChangeText={(v) => setCode(sanitize('otp', v))} accessibilityLabel="OTP" testID="otp-input" />
+      <ErrorBanner error={err} />
+      {note ? <Text style={{ color: brand.green600, fontWeight: '700', textAlign: 'center' }}>{note}</Text> : null}
+      <AppButton label={t('auth.verify')} icon="check-decagram" disabled={code.length !== 6} loading={busy} onPress={verify} />
+      <AppButton variant="outline" label={t('auth.resend')} icon="message-text-outline" disabled={busy} onPress={resend} />
+      <AppButton variant="outline" label={t('common.back')} icon="arrow-left" disabled={busy} onPress={goBack} testID="back-below" />
+    </AuthShell>
+  );
+}
