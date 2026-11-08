@@ -1,0 +1,88 @@
+name: backend
+
+on:
+  pull_request:
+    paths: ["api/**", "deploy/**", "docker-compose.prod.yml", "scripts/**", ".github/workflows/backend.yml"]
+  push:
+    branches: [main]
+    paths: ["api/**", "deploy/**", "docker-compose.prod.yml", "scripts/**", ".github/workflows/backend.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      # Starts a throwaway Postgres 16, runs the whole suite (unit, SQL invariants, API end-to-end), then removes it.
+      - run: bash scripts/build-backend.sh --test-only
+
+  image:
+    # Only main builds and publishes the image, and only after the tests passed.
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.name.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: name
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/paymyrent-api:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: api
+          platforms: linux/arm64,linux/amd64     # the Oracle server is ARM (A1); amd64 is for other machines
+          push: true
+          tags: |
+            ${{ steps.name.outputs.image }}
+
+  deploy:
+    # Manual approval: create an environment named "production" in the repository settings and add yourself as a required reviewer.
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to the Oracle server over SSH
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.ORACLE_KNOWN_HOSTS }}
+          HOST: ${{ secrets.ORACLE_HOST }}
+          SSH_USER: ${{ secrets.ORACLE_USER }}
+          IMAGE: ${{ needs.image.outputs.image }}
+        run: |
+          set -euo pipefail
+          for v in SSH_KEY KNOWN_HOSTS HOST SSH_USER; do [ -n "${!v}" ] || { echo "Missing secret for $v"; exit 1; }; done
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$SSH_USER@$HOST" \
+            "cd /opt/paymyrent/app && git fetch --quiet origin main && git reset --hard origin/main && API_IMAGE='$IMAGE' scripts/deploy-backend.sh"
+      - name: Check the live API
+        env:
+          URL: ${{ secrets.API_HEALTH_URL }}
+        run: |
+          [ -n "$URL" ] || { echo "API_HEALTH_URL not set; skipping the external check"; exit 0; }
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 "$URL"
