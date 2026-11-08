@@ -12,6 +12,7 @@ const TOPICS = [
   { k: 'places', icon: 'home-city-outline', bg: brand.teal100, fg: brand.teal700 },
   { k: 'bills', icon: 'file-document-outline', bg: brand.teal100, fg: brand.teal700 },
   { k: 'pay', icon: 'cash-fast', bg: brand.amber100, fg: '#B45309' },
+  { k: 'upi', icon: 'cellphone-check', bg: brand.green100, fg: brand.green600 },
   { k: 'relief', icon: 'hand-heart-outline', bg: brand.amber100, fg: '#B45309' },
   { k: 'vacate', icon: 'door-open', bg: brand.red100, fg: brand.red600 },
   { k: 'agree', icon: 'file-sign', bg: brand.blue100, fg: brand.blue600 },

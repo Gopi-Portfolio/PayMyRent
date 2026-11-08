@@ -15,6 +15,7 @@ import { Button } from '@/components/Buttons';
 import { brand, radius, shadow } from '@/theme';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { FloorSelect } from '@/components/FloorSelect';
+import { EMPTY_PAY_HOW, PayHow, type PayHowValue, payHowBody, payHowReady, useKnownUpi } from '@/components/PayHow';
 import { PlaceSelect } from '@/components/PlaceSelect';
 import { KIND_GROUPS, type KindGroup, floorChip, floorLabel, kindIcon } from '@/lib/units';
 import { addressSchema, amountSchema, dueDaySchema, mobileSchema, nameSchema, placeSchema } from '@/lib/validation';
@@ -41,6 +42,15 @@ export default function AddTenant() {
   const [floor, setFloor] = useState<number | null>(null);        // the floor of a NEW unit: Ground to 10th, optional
   const [kind, setKind] = useState<KindGroup>('commercial');          // the type of a NEW unit; an existing unit keeps its own type
   const [more, setMore] = useState(false);
+  const [payHow, setPayHow] = useState<PayHowValue>(EMPTY_PAY_HOW);     // how the owner wants to receive rent from THIS tenant (asked every time)
+  const knownQ = useKnownUpi().data;
+  const knownUpi = knownQ?.upi_ids ?? [];
+  const defaultUpi = knownQ?.default_upi_id ?? null;
+  // the owner's last choice is already selected (they can still pick another); nothing is chosen for a first-time owner
+  React.useEffect(() => {
+    const m = knownQ?.default_pay_method ?? knownQ?.last_pay_method;       // the owner's usual way (Profile), else their last choice
+    if (m && !(m === 'online' && !knownQ?.online_available)) setPayHow((x) => (x.method ? x : { ...x, method: m as PayHowValue['method'] }));
+  }, [knownQ?.default_pay_method, knownQ?.last_pay_method]);     // the UPI ID in the owner's profile: used for every tenant unless this one gets its own
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
@@ -62,7 +72,7 @@ export default function AddTenant() {
   const needFloor = floor === null && sameNumber.length > 1;
   const occupied = exact && !exact.vacant && exact.tenancy_id ? exact : undefined;
   const step1ok = !e1.unit && !!props.data?.items?.length && !occupied && !needFloor;
-  const step2ok = Object.values(e2).every((x) => !x);
+  const step2ok = Object.values(e2).every((x) => !x) && payHowReady(payHow, knownUpi, defaultUpi);
   const serverField = (name: string) => (err instanceof ApiError ? err.fields?.find((x) => x.field === name)?.code : undefined);
 
   async function submit() {
@@ -75,8 +85,9 @@ export default function AddTenant() {
         unit_identifier: vacantUnit ? '' : unit,
         tenant_name: f.name, tenant_mobile: f.mobile, monthly_rent: f.rent, due_day: Number(f.due), start_date: dmyToIso(f.start),
         increment_percent: f.increase ? Number(f.increase) : null, unit_kind: kind, unit_floor: floor, items_provided: f.items.trim() || null,
-        security_deposit: f.deposit || '0', tenant_email: f.email || null, opening_arrears: f.arrears || null } });
+        security_deposit: f.deposit || '0', tenant_email: f.email || null, opening_arrears: f.arrears || null, ...payHowBody(payHow, knownUpi, defaultUpi) } });
       qc.invalidateQueries({ queryKey: ['tenancies'] });
+      qc.invalidateQueries({ queryKey: ['upi-ids'] });
       qc.invalidateQueries({ queryKey: ['dash'] });
       qc.invalidateQueries({ queryKey: ['units'] });
       qc.invalidateQueries({ queryKey: ['vacant'] });
@@ -163,6 +174,7 @@ export default function AddTenant() {
           <Field label={t('tenancy.deposit')} value={f.deposit} onChangeText={set('deposit')} kind="amount" error={touched ? e2.deposit : undefined} />
           <Field label={t('tenancy.itemsProvided')} value={f.items} onChangeText={set('items')} multiline lines={4} maxLength={2000} testID="items-provided-input" />
           <Text variant="bodySmall" style={{ color: brand.muted, marginTop: -6 }}>{t('tenancy.itemsHelp')}</Text>
+          <PayHow value={payHow} onChange={setPayHow} showErrors={touched} />
           <List.Accordion title={t('common.optional')} expanded={more} onPress={() => setMore(!more)}>
             <View style={{ gap: 12, paddingVertical: 12 }}>
               <Field label={t('agreement.yearlyIncrease')} value={f.increase} onChangeText={set('increase')} kind="percent" maxNumber={100} testID="yearly-increase" />

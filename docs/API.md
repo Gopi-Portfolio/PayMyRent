@@ -104,7 +104,7 @@ Two **separate** endpoints, secrets and order tables: `POST /webhooks/payments/s
 | POST | `/owner/tenancies/{tenancy_id}/payments/cash` | owner member | Select tenant → amount → confirm |
 | POST | `/owner/payments/{payment_id}/reverse` | owner member |  |
 | POST | `/owner/payments/{payment_id}/confirm-transfer` | owner member |  |
-| POST | `/tenant/tenancies/{tenancy_id}/payments/manual-transfer` | signed-in user | A UPI/bank transfer made outside the app |
+| POST | `/tenant/tenancies/{tenancy_id}/payments/manual-transfer` | signed-in user | A UPI/bank transfer made outside the app. Needs the UPI reference (UTR); the same reference is refused twice for one owner; reports still waiting for the owner count against the amount due. The owner is notified. |
 | POST | `/tenant/tenancies/{tenancy_id}/payments/checkout` | signed-in user |  |
 | POST | `/tenant/payments/{payment_id}/refresh` | signed-in user | 'Check status' on the pending screen: server-to-server status check, never the client's word. |
 | POST | `/webhooks/payments/rent` | PSP signature |  |
@@ -113,6 +113,10 @@ Two **separate** endpoints, secrets and order tables: `POST /webhooks/payments/s
 | GET | `/receipts/{receipt_id}` | signed-in user |  |
 | POST | `/owner/tenancies/{tenancy_id}/deposit` | owner member |  |
 | GET | `/tenancies/{tenancy_id}/deposit` | signed-in user |  |
+| GET | `/owner/upi-ids` | owner member | UPI IDs this owner has already approved with a code (a known ID needs no new code) |
+| PUT | `/owner/tenancies/{tenancy_id}/payment-method` | owner member | How rent is received from THIS tenant: `upi` (direct, free), `online` or `cash`. A UPI ID the owner has not used before needs a fresh OTP (`payout`) and the account owner role. The tenant is told when it changes. `POST /owner/tenancies` accepts the same `pay_method`, `pay_upi_id`, `otp_code`. |
+| GET | `/owner/payments/pending-transfers` | owner member | UPI / bank transfers tenants reported, waiting for the owner |
+| POST | `/owner/payments/{payment_id}/reject-transfer` | owner member | The owner did not receive it: the report is closed as failed, nothing reaches the ledger, the tenant is told |
 | POST | `/owner/payout-account` | owner member | Sensitive: requires a fresh OTP sign-in (step-up) and notifies the owner on every change |
 
 ### Notes, disputes, attachments
