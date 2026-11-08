@@ -30,7 +30,13 @@ EXPO_PUBLIC_API_URL=https://api.yourdomain scripts/build-mobile.sh ios        # 
 EXPO_PUBLIC_API_URL=https://api.yourdomain scripts/build-mobile.sh android    # production Android build
 scripts/build-mobile.sh all --submit        # build both and send to the stores
 ```
-Before the first build: `npx eas login`, add `mobile/GoogleService-Info.plist` and `mobile/google-services.json`, and replace the app icon and splash with the new logo.
+Before the first build: `npx eas login` (or set `EXPO_TOKEN`), add `mobile/GoogleService-Info.plist` and `mobile/google-services.json`, and replace the app icon and splash with the new logo.
+Those two Firebase files are git-ignored and EAS Build only uploads tracked files, so give EAS the files once (from `mobile/`):
+```bash
+eas env:create --name GOOGLE_SERVICES_PLIST --type file --visibility secret --environment development --environment preview --environment production --value ./GoogleService-Info.plist
+eas env:create --name GOOGLE_SERVICES_JSON  --type file --visibility secret --environment development --environment preview --environment production --value ./google-services.json
+```
+`mobile/app.config.js` picks them up in firebase mode. A first test build for Android needs no store account: `EXPO_PUBLIC_API_URL=https://<API_DOMAIN> eas build --profile development --platform android`.
 On GitHub, every change under `mobile/` runs the checks; pushing a tag such as `mobile-v1.0.0` also builds both apps with EAS
 (add the `EXPO_TOKEN` secret and the `EXPO_PUBLIC_API_URL` variable in the repository settings).
 
