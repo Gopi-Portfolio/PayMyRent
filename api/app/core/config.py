@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     whatsapp_provider: str = "console"
     email_provider: str = "console"              # console | ses
     push_provider: str = "console"               # console | fcm
+    fcm_service_account_json: str = ""           # the Firebase service account key (the whole JSON); only with push_provider=fcm. Never in git.
     ses_from_address: str = "no-reply@example.in"
 
     # AI
@@ -106,6 +107,8 @@ class Settings(BaseSettings):
                 problems.append("RG_CORS_ORIGINS must be explicit https origins")
             if self.subscription_provider == "sandbox" or self.rent_provider == "sandbox":
                 problems.append("sandbox payment providers are not allowed in production")
+            if self.push_provider == "fcm" and not self.fcm_service_account_json:
+                problems.append("RG_FCM_SERVICE_ACCOUNT_JSON required when RG_PUSH_PROVIDER=fcm")
             if self.ai_provider == "mock" and self.ai_enabled:
                 problems.append("configure a real AI provider or set RG_AI_ENABLED=false")
             if problems:

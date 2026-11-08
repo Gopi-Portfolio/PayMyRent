@@ -2,9 +2,10 @@
 // ID token on every request. Local: a DEMO OTP simulator served by the API (never in production).
 import * as SecureStore from 'expo-secure-store';
 import { markRegistered } from './landing';
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ApiError, api } from './api';
+import { registerPush, unregisterPush } from './push';
 import { queryClient } from './queryClient';
 
 const MODE = (process.env.EXPO_PUBLIC_AUTH_MODE ?? 'dev') as 'dev' | 'firebase';
@@ -86,6 +87,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const roleRef = useRef<'owner' | 'tenant' | null>(null);
+  roleRef.current = activeRole;
+  useEffect(() => { if (me?.id) registerPush(() => roleRef.current); }, [me?.id]);     // this phone's push token goes to the server once signed in
+
   useEffect(() => {
     (async () => {
       if (await getIdToken()) await refresh();
@@ -131,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const signOut = useCallback(async () => {
+    await unregisterPush();            // while still signed in: this phone stops getting this person's alerts
     if (MODE === 'firebase') await firebaseAuth().signOut();
     devToken = null;
     await SecureStore.deleteItemAsync(DEV_TOKEN_KEY);

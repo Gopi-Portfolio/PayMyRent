@@ -13,3 +13,5 @@ openpyxl>=3.1
 defusedxml>=0.7          # openpyxl uses it automatically to block XML entity attacks
 regex>=2024.5,<2025.12   # full UAX #29 grapheme clusters for the 250-character note limit; 2026.x splits Hindi conjuncts (क्ष) into two
 boto3>=1.34              # SES, S3, Bedrock (only imported when those backends are enabled)
+google-auth>=2.29      # FCM push (service account token); only imported when RG_PUSH_PROVIDER=fcm
+requests>=2.31         # transport used by google-auth

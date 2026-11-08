@@ -113,6 +113,8 @@ Two **separate** endpoints, secrets and order tables: `POST /webhooks/payments/s
 | GET | `/receipts/{receipt_id}` | signed-in user |  |
 | POST | `/owner/tenancies/{tenancy_id}/deposit` | owner member |  |
 | GET | `/tenancies/{tenancy_id}/deposit` | signed-in user |  |
+| POST | `/me/push-token` | signed-in user | Registers this phone's Firebase Cloud Messaging token for the signed-in person (a token belongs to one person: signing in on the phone moves it; at most 10 devices each). |
+| POST | `/me/push-token/remove` | signed-in user | Sign-out on this phone. Only the person's own token is removed. |
 | GET | `/owner/upi-ids` | owner member | UPI IDs this owner has already approved with a code (a known ID needs no new code) |
 | PUT | `/owner/tenancies/{tenancy_id}/payment-method` | owner member | How rent is received from THIS tenant: `upi` (direct, free), `online` or `cash`. A UPI ID the owner has not used before needs a fresh OTP (`payout`) and the account owner role. The tenant is told when it changes. `POST /owner/tenancies` accepts the same `pay_method`, `pay_upi_id`, `otp_code`. |
 | GET | `/owner/payments/pending-transfers` | owner member | UPI / bank transfers tenants reported, waiting for the owner |

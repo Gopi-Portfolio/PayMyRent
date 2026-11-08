@@ -7,7 +7,7 @@ Production notes (blocking, external):
   • WhatsApp: Business Platform via an approved BSP; only pre-approved templates outside
     the 24-hour window; explicit opt-in recorded in consent_records.
   • Email: Amazon SES out of sandbox in ap-south-1 with verified domain (SPF/DKIM/DMARC).
-  • Push: FCM HTTP v1 with a service account kept in AWS Secrets Manager / SSM.
+  • Push: FCM HTTP v1 with a service account kept in AWS Secrets Manager / SSM (RG_FCM_SERVICE_ACCOUNT_JSON).
 """
 from __future__ import annotations
 
@@ -28,6 +28,7 @@ class SendResult:
     provider: str
     provider_message_id: str | None
     error: str | None = None
+    dead_tokens: tuple[str, ...] = ()      # push: tokens FCM says are no longer valid (the app was removed): the caller stops using them
 
 
 class Sender(Protocol):
@@ -60,6 +61,54 @@ class SesEmailSender:
             return SendResult("failed", "ses", None, type(e).__name__)
 
 
+class FcmSender:
+    """Firebase Cloud Messaging HTTP v1. `to` is one or more device tokens separated by commas.
+    The message carries a short text and the template name only; the app opens the right screen from the template.
+    Never payee IDs, references or bank details."""
+    SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
+
+    def __init__(self, service_account_json: str) -> None:
+        import json
+        self.info = json.loads(service_account_json)
+        self.project = self.info["project_id"]
+        self._cred = None
+
+    def _token(self) -> str:
+        from google.auth.transport.requests import Request
+        from google.oauth2 import service_account
+        if self._cred is None:
+            self._cred = service_account.Credentials.from_service_account_info(self.info, scopes=[self.SCOPE])
+        if not self._cred.valid:
+            self._cred.refresh(Request())
+        return self._cred.token
+
+    def send(self, *, to: str, template: str, language: str, params: dict, body: str, subject: str | None = None) -> SendResult:
+        import httpx
+        try:
+            auth = {"Authorization": f"Bearer {self._token()}"}
+        except Exception as e:  # noqa: BLE001
+            return SendResult("failed", "fcm", None, "auth_" + type(e).__name__)
+        ok, dead, last_id, err = 0, [], None, None
+        for tok in [t for t in to.split(",") if t]:
+            msg = {"message": {"token": tok, "notification": {"title": subject or "PayMyRent", "body": body[:240]},
+                               "data": {"template": template}, "android": {"priority": "HIGH"}}}
+            try:
+                r = httpx.post(f"https://fcm.googleapis.com/v1/projects/{self.project}/messages:send", json=msg, headers=auth, timeout=10)
+            except httpx.HTTPError as e:
+                err = type(e).__name__
+                continue
+            if r.status_code == 200:
+                ok += 1
+                last_id = r.json().get("name")
+            elif r.status_code in (400, 404) and ("UNREGISTERED" in r.text or "INVALID_ARGUMENT" in r.text and "token" in r.text.lower()):
+                dead.append(tok)
+            else:
+                err = f"http_{r.status_code}"
+        if ok:
+            return SendResult("sent", "fcm", last_id, None, tuple(dead))
+        return SendResult("failed", "fcm", None, err or ("no_valid_device" if dead else "no_device"), tuple(dead))
+
+
 class NotConfiguredSender:
     def __init__(self, name: str) -> None:
         self.name = name
@@ -74,6 +123,8 @@ def get_sender(channel: str, s: Settings) -> Sender:
         return ConsoleSender(channel)
     if channel == "email" and choice == "ses":
         return SesEmailSender(s.aws_region, s.ses_from_address)
+    if channel == "push" and choice == "fcm" and s.fcm_service_account_json:
+        return FcmSender(s.fcm_service_account_json)
     # SMS (DLT provider), WhatsApp BSP and FCM adapters are added once accounts exist;
     # until then messages are recorded as failed with a clear reason instead of pretending.
     return NotConfiguredSender(choice)

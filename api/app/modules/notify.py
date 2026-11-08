@@ -96,15 +96,19 @@ def dispatch_pending(db: Db, limit: int = 200) -> dict:
         consents = {r["channel"]: r["granted"] for r in db.all(
             """SELECT DISTINCT ON (channel) channel, granted FROM consent_records WHERE user_id = :u
                ORDER BY channel, created_at DESC""", u=ev["user_id"])}
-        dest, reason = resolve_destination(ev["channel"], prefs, contacts, consents, has_push_token=False)
+        tokens = [r["token"] for r in db.all("SELECT token FROM push_tokens WHERE user_id = :u AND disabled_at IS NULL", u=ev["user_id"])] if ev["channel"] == "push" else []
+        dest, reason = resolve_destination(ev["channel"], prefs, contacts, consents, has_push_token=bool(tokens))
         if dest is None:
             db.exec("UPDATE notification_events SET status='skipped', skip_reason=:r WHERE id=:i", r=reason, i=ev["id"])
             skipped += 1
             continue
         params = ev["payload"]
         body = render(ev["template"], ev["language"], **params) if "body" not in params else params["body"]
-        res = get_sender(ev["channel"], s).send(to=dest, template=ev["template"], language=ev["language"], params=params, body=body)
-        masked = mask_email(dest) if "@" in dest else mask_phone(dest)
+        res = get_sender(ev["channel"], s).send(to=",".join(tokens) if ev["channel"] == "push" else dest, template=ev["template"],
+                                                language=ev["language"], params=params, body=body)
+        if res.dead_tokens:      # the app was removed from those phones: stop sending to them
+            db.exec("UPDATE push_tokens SET disabled_at = now() WHERE token = ANY(:t)", t=list(res.dead_tokens))
+        masked = f"{len(tokens)} device(s)" if ev["channel"] == "push" else mask_email(dest) if "@" in dest else mask_phone(dest)
         db.exec("""UPDATE notification_events SET status = :st, provider = :pv, provider_message_id = :m, destination_masked = :d,
                    attempts = attempts + 1, sent_at = CASE WHEN :st = 'sent' THEN now() END, skip_reason = :e WHERE id = :i""",
                 st="sent" if res.status == "sent" else ("failed" if ev["attempts"] >= 4 else "queued"), pv=res.provider,
