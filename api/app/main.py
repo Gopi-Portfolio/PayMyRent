@@ -24,7 +24,8 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="PayMyRent API", version="1.0.0",
                   description="Indian rental billing & collection. All money in integer paise (INR).",
-                  docs_url="/docs" if s.app_env != "production" else None, redoc_url=None)
+                  docs_url="/docs" if s.app_env != "production" else None, redoc_url=None,
+                  openapi_url="/openapi.json" if s.app_env != "production" else None)   # the route list is not public in production
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(BodyLimitMiddleware, max_bytes=s.max_body_bytes)
     if s.allowed_hosts:

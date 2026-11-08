@@ -345,6 +345,9 @@ def report_transfer(tenancy_id: UUID, body: TransferIn, user: CurrentUser = Depe
     ref = body.reference.strip()
     if not db.scalar("SELECT 1 FROM payments WHERE tenancy_id = :t AND idempotency_key = :k", t=tenancy_id, k=body.idempotency_key):
         _within_due(db, tenancy_id, amount, body.idempotency_key)
+        # Serialise reports per owner until this transaction commits: without it two simultaneous requests (a double tap, two phones)
+        # both pass the duplicate check below and the same reference is recorded twice.
+        db.scalar("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))", k=f"utr:{t['owner_account_id']}")
         # the same UPI reference (UTR) cannot be used twice for one owner, and reports waiting for the owner count against what is due
         if db.scalar("""SELECT 1 FROM payment_events e JOIN payments p ON p.id = e.payment_id
                         WHERE p.owner_account_id = :o AND e.type = 'tenant_reference' AND lower(e.data->>'reference') = lower(:r)
