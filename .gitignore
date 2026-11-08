@@ -1,0 +1,38 @@
+# Dependencies and build output
+node_modules/
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Secrets and local configuration: never commit these
+.env
+.env.*
+!.env.example
+!.env.production.example
+*.pem
+*.key
+*.p8
+*.p12
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+
+# OS / editor / archives
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.zip
