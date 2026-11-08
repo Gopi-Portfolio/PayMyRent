@@ -44,20 +44,20 @@ BEGIN
   INSERT INTO identity_verifications(user_id, status, provider, provider_session_id, method, liveness_passed, face_matched, name_matched, consent_version, expires_at) VALUES
     (u_gopi, 'verified', 'sandbox', 'seed_kyc_gopi', 'sandbox', true, true, true, 'kyc-v1', now() + interval '1 year'),
     (u_lak, 'verified', 'sandbox', 'seed_kyc_lak', 'sandbox', true, true, true, 'kyc-v1', now() + interval '1 year');
-  INSERT INTO owner_verifications(owner_account_id, legal_name, pan, address, proof_type, proof_ref, status, reviewed_at) VALUES
-    (o_gopi, 'Gopi Raghu', 'ABCPR1234A', '12 Market Road, Madurai', 'property_tax', 'PT-MDU-001', 'verified', now()),
-    (o_lak, 'Lakshmi Narayanan', 'ABCPN5678B', '4 Temple Street, Madurai', 'electricity_bill', 'EB-778899', 'verified', now()),
-    (o_kav, 'Kavya Iyer', 'ABCPI9012C', '9 Lake Road, Madurai', 'sale_deed', 'SD-2019-4412', 'submitted', NULL);
+  INSERT INTO owner_verifications(owner_account_id, legal_name, pan_masked, address, proof_type, proof_ref, status, reviewed_at) VALUES
+    (o_gopi, 'Gopi Raghu', 'XXXXXX234A', '12 Market Road, Madurai', 'property_tax', 'PT-MDU-001', 'verified', now()),
+    (o_lak, 'Lakshmi Narayanan', 'XXXXXX678B', '4 Temple Street, Madurai', 'electricity_bill', 'EB-778899', 'verified', now()),
+    (o_kav, 'Kavya Iyer', 'XXXXXX012C', '9 Lake Road, Madurai', 'sale_deed', 'SD-2019-4412', 'submitted', NULL);
 
   INSERT INTO subscription_orders(owner_account_id, plan_id, purpose, amount_paise, provider, provider_order_id, idempotency_key, is_demo)
   SELECT o_gopi, id, 'new', price_paise, 'sandbox', 'seed_order_gopi', 'seed-gopi', true FROM subscription_plans WHERE code = 'growth' AND status = 'active' RETURNING id INTO ord;
   PERFORM rg_activate_subscription(ord, 'seed_pay_gopi', 5000, 'demo');
   INSERT INTO subscription_orders(owner_account_id, plan_id, purpose, amount_paise, provider, provider_order_id, idempotency_key, is_demo)
   SELECT o_lak, id, 'new', price_paise, 'sandbox', 'seed_order_lak', 'seed-lak', true FROM subscription_plans WHERE code = 'starter' AND status = 'active' RETURNING id INTO ord;
-  PERFORM rg_activate_subscription(ord, 'seed_pay_lak', 100, 'demo');
+  PERFORM rg_activate_subscription(ord, 'seed_pay_lak', 1000, 'demo');
   INSERT INTO subscription_orders(owner_account_id, plan_id, purpose, amount_paise, provider, provider_order_id, idempotency_key, is_demo)
   SELECT o_kav, id, 'new', price_paise, 'sandbox', 'seed_order_kav', 'seed-kav', true FROM subscription_plans WHERE code = 'starter' AND status = 'active' RETURNING id INTO ord;
-  PERFORM rg_activate_subscription(ord, 'seed_pay_kav', 100, 'demo');
+  PERFORM rg_activate_subscription(ord, 'seed_pay_kav', 1000, 'demo');
   -- backdate the demo periods so last two months' bills can exist
   UPDATE owner_subscriptions SET period_start = m2, period_end = m2 + interval '4 months', grace_until = m2 + interval '4 months 7 days';
   UPDATE ai_usage_balances SET period_start = m2, period_end = m2 + interval '4 months';
@@ -131,7 +131,7 @@ BEGIN
   PERFORM rg_generate_monthly_invoice(t, m0);
 
   -- Kavya (Both): owns one house, rented to a tenant who pays online (demo gateway)
-  INSERT INTO units(owner_account_id, property_id, identifier, kind) VALUES (o_kav, p_kav, 'H-1', 'house');
+  INSERT INTO units(owner_account_id, property_id, identifier, kind) VALUES (o_kav, p_kav, 'H-1', 'residential');
   INSERT INTO users(firebase_uid, full_name, profile_completed_at) VALUES ('dev:+919000000011', 'Arjun Menon', now()) RETURNING id INTO tenant_user;
   INSERT INTO user_contacts(user_id, kind, value, is_primary, verified_at) VALUES (tenant_user, 'mobile', '+919000000011', true, now());
   INSERT INTO notification_preferences(user_id, sms_contact_id) SELECT tenant_user, id FROM user_contacts WHERE user_id = tenant_user;

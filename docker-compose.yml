@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: paymyrent
       POSTGRES_DB: paymyrent
       TZ: UTC
-    ports: ["5432:5432"]
+    ports: ["${DB_PORT:-5432}:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./api/app/db/seed:/seed:ro
@@ -26,8 +26,8 @@ services:
       RG_APP_DATABASE_URL: postgresql+psycopg://pmr_app:pmr_app@db:5432/paymyrent # signed-in requests: limited role + row-level security
       RG_APP_DB_PASSWORD: pmr_app
       RG_DEMO_AUTO_VERIFY_PROPERTIES: "on"     # local demo only: a developer can add a property without a reviewer. Refused in production.
-      RG_PUBLIC_BASE_URL: http://${LAN_IP:-localhost}:8000
-    ports: ["8000:8000"]
+      RG_PUBLIC_BASE_URL: http://${LAN_IP:-localhost}:${API_PORT:-8000}
+    ports: ["${API_PORT:-8000}:8000"]
     depends_on:
       db:
         condition: service_healthy
