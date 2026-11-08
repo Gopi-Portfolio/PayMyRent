@@ -32,5 +32,21 @@ services:
       db:
         condition: service_healthy
 
+  # Local stand-in for the production scheduler (EventBridge): bills the months, queues the rent reminders and sends the queued messages.
+  # Each job is safe to repeat (one run per day / per 15 minutes), so this simply checks every 15 minutes.
+  scheduler:
+    build: ./api
+    env_file: ./api/.env.example
+    environment:
+      RG_DATABASE_URL: postgresql+psycopg://paymyrent:paymyrent@db:5432/paymyrent
+      RG_APP_DATABASE_URL: postgresql+psycopg://pmr_app:pmr_app@db:5432/paymyrent
+      RG_PUBLIC_BASE_URL: http://${LAN_IP:-localhost}:8000
+    command: ["sh", "-c", "while true; do for j in generate_invoices send_reminders dispatch_notifications; do python -m app.cli $$j || true; done; sleep 900; done"]
+    healthcheck:
+      disable: true
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   pgdata:

@@ -3,15 +3,18 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, SectionList, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, SectionList, View } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { AppButton } from '@/components/Buttons';
 import { DownloadButtons } from '@/components/DownloadButtons';
+import { PayFlow } from '@/components/PayFlow';
 import { ReliefChip } from '@/components/RentRelief';
+import { RoleIcon } from '@/components/RoleIcon';
 import { KIND_GROUPS, floorLabel, kindGroup, kindIcon } from '@/lib/units';
-import { Avatar, DemoBanner, ErrorBanner, FilterBar, ListFilter, Metric, NO_FILTER, SlideIn, applyFilter } from '@/components/ui';
+import { DemoBanner, ErrorBanner, Metric, SlideIn } from '@/components/ui';
+import { SearchableSelect } from '@/components/SearchableSelect';
 import { api } from '@/lib/api';
 import { fmtDate } from '@/lib/dates';
 import { formatINR, payNow } from '@/lib/format';
@@ -33,26 +36,31 @@ function VerifyBadge({ status }: { status?: string }) {
 export default function TenantHome() {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
-  const [filter, setFilter] = useState<ListFilter>(NO_FILTER);
+  const [pickKey, setPickKey] = useState(0);                // the Rentals tile opens the dropdown
+  const [sel, setSel] = useState<string | null>(null);     // the rental shown when there are several (a dropdown picks it)
+  const [paying, setPaying] = useState<any>(null);   // the rental being paid: the Pay sheet opens over this page, no new screen
   const rentals = useQuery({ queryKey: ['rentals'], refetchInterval: 30000, queryFn: () => api<any>('/api/v1/tenant/rentals') });   // the owner's answer and changes show up by themselves
-  const updates = useQuery({ queryKey: ['updates'], refetchInterval: 30000, queryFn: () => api<any>('/api/v1/tenant/updates') });   // owner's rent / advance / cash changes
   const invites = useQuery({ queryKey: ['invites'], queryFn: () => api<any>('/api/v1/tenant/invitations') });
   const decide = async (id: string, d: 'accept' | 'reject') => {
     await api(`/api/v1/tenant/invitations/${id}/${d}`, { method: 'POST' });
     qc.invalidateQueries();
   };
 
-  // group by owner, keeping a stable colour per owner
-  const groups: { owner: any; color: (typeof OWNER_COLORS)[number]; data: any[] }[] = [];
+  // one rental on screen at a time. With one rental there is nothing to choose; with several a dropdown picks it, opening on the first that has a balance due.
   const allRentals: any[] = rentals.data?.items ?? [];
-  const shown = applyFilter(allRentals, filter);   // totals, tiles and the list all follow the filter chips
-  for (const r of shown) {
-    let g = groups.find((x) => x.owner.id === r.owner_ref);
-    if (!g) { g = { owner: { id: r.owner_ref, name: r.owner_name, verification: r.owner_verification, yours: r.your_mobile },
-                    color: OWNER_COLORS[groups.length % OWNER_COLORS.length], data: [] }; groups.push(g); }
-    g.data.push(r);
-  }
-  const multi = groups.length > 1;
+  const firstDue = allRentals.find((r) => r.status === 'active' && payNow(r) > 0) ?? allRentals[0];
+  const current = allRentals.find((r) => r.id === sel) ?? firstDue;
+  const ownerIds: string[] = [];
+  for (const r of allRentals) if (!ownerIds.includes(r.owner_ref)) ownerIds.push(r.owner_ref);
+  const groups: { owner: any; color: (typeof OWNER_COLORS)[number]; data: any[] }[] = current ? [{
+    owner: { id: current.owner_ref, name: current.owner_name, verification: current.owner_verification, yours: current.your_mobile },
+    color: OWNER_COLORS[Math.max(ownerIds.indexOf(current.owner_ref), 0) % OWNER_COLORS.length], data: [current] }] : [];
+  const multi = false;
+  const shown = allRentals;                                    // the totals and tiles cover ALL my rentals
+  const rentalOptions = allRentals.map((r) => ({
+    value: r.id as string, label: `${r.owner_name} · ${r.identifier}`,
+    subtitle: r.status === 'ended' ? t('tenant.endedTag') : payNow(r) > 0 ? formatINR(payNow(r)) : '✓',
+  }));
 
   // totals across all my rentals, split between shops and houses (the split lines show only when I rent both kinds)
   const all: any[] = shown.filter((r: any) => r.status !== 'ended');
@@ -72,35 +80,30 @@ export default function TenantHome() {
         keyExtractor={(r) => r.id}
         stickySectionHeadersEnabled={false}
         refreshing={rentals.isFetching}
-        onRefresh={() => { rentals.refetch(); invites.refetch(); updates.refetch(); }}
+        onRefresh={() => { rentals.refetch(); invites.refetch(); }}
         contentContainerStyle={{ padding: 16, gap: 8, paddingBottom: 32 }}
         ListHeaderComponent={
           <View style={{ gap: 12, marginBottom: 4 }}>
             {allRentals.length > 0 ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                 <Metric label={have.length > 1 ? t('owner.allUnits') : t(have[0]?.label ?? 'owner.units')} count={all.length}
+                        onPress={() => (allRentals.length > 1 ? setPickKey((k) => k + 1) : current ? router.push(`/(app)/tenant/rental/${current.id}`) : undefined)}
                         icon={have.length === 1 ? kindIcon(have[0].group) : 'home-city-outline'} tone="blue"
                         detail={have.length > 1 ? have.map((g) => `${all.filter((r) => kindGroup(r.kind) === g.group).length} ${t(g.label)}`).join('\n') : undefined} />
-                <Metric label={t('bill.totalDue')} paise={sum(null, due)} icon="clock-outline" tone="amber" detail={two(due)} />
-                <Metric label={t('tenant.deposit')} paise={sum(null, dep)} icon="shield-lock-outline" tone="green" detail={two(dep)} />
+                <Metric label={t('bill.totalDue')} paise={sum(null, due)} icon="clock-outline" tone="amber" detail={two(due)}
+                        onPress={() => {
+                          const owing = all.filter((r) => r.status === 'active' && due(r) > 0);
+                          if (owing.length === 1) setPaying({ id: owing[0].id, unit: owing[0].identifier, owner: owing[0].owner_name });   // one rental owes: the Pay sheet
+                          else if (owing.length > 1) router.push('/(app)/tenant/pay');                                                     // several: pay them together
+                        }} />
+                <Metric label={t('tenant.deposit')} paise={sum(null, dep)} icon="shield-lock-outline" tone="green" detail={two(dep)}
+                        onPress={() => (current ? router.push(`/(app)/tenant/rental/${current.id}`) : undefined)} />
               </View>
             ) : null}
-            {allRentals.length > 0 ? <FilterBar items={allRentals} value={filter} onChange={setFilter} /> : null}
+            {allRentals.length > 1 ? (
+              <SearchableSelect label={t('tenant.chooseRental', { defaultValue: 'Choose a rental' })} value={current?.id ?? null} options={rentalOptions} onChange={setSel} testID="rental-select" openKey={pickKey} />
+            ) : null}
             {allRentals.length > 0 ? <DownloadButtons path="/api/v1/tenant/report/export" fileName="paymyrent-my-rentals" /> : null}
-            {(updates.data?.items ?? []).length > 0 ? (
-              <View style={[card, shadow, { borderLeftWidth: 5, borderLeftColor: brand.teal700, gap: 8 }]} testID="owner-updates">
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Icon source="bell-ring-outline" size={20} color={brand.teal700} />
-                  <Text variant="titleSmall" style={{ fontWeight: '800', flex: 1 }}>{t('tenant.updates')}</Text>
-                </View>
-                {(updates.data.items as any[]).slice(0, 3).map((u) => (
-                  <View key={u.id} style={{ gap: 2 }}>
-                    <Text variant="bodyMedium">{u.text}</Text>
-                    <Text variant="labelSmall" style={{ color: brand.muted }}>{fmtDate(u.created_at)}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
             {(invites.data?.items ?? []).map((i: any) => (
               <View key={i.id} style={[card, shadow, { borderLeftWidth: 5, borderLeftColor: brand.amber500 }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -129,21 +132,13 @@ export default function TenantHome() {
             <Text style={{ color: brand.muted, textAlign: 'center', lineHeight: 22 }}>{t('tenant.waiting')}</Text>
           </View>
         )}
+        // the owner on ONE line: the owner's own icon (not the first letter of the name), the name, and the mobile number this rental is locked to in small type
         renderSectionHeader={({ section }: any) => (
-          <View style={[ownerHeader, { backgroundColor: section.color.bg, borderColor: section.color.fg }]}>
-            <Avatar name={section.owner.name} size={44} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text variant="labelSmall" style={{ color: section.color.fg, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' }}>{t('role.switchOwner')}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <Text variant="titleSmall" style={{ fontWeight: '800', color: section.color.fg }}>{section.owner.name}</Text>
-                <VerifyBadge status={section.owner.verification} />
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Icon source="lock" size={13} color={section.color.fg} />
-                <Text variant="bodySmall" style={{ color: section.color.fg }}>{section.owner.yours}</Text>
-              </View>
-            </View>
-            {multi ? <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: section.color.fg }} /> : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, marginTop: 8, marginBottom: 8 }} testID="owner-line">
+            <RoleIcon role="owner" gender={null} size={24} />
+            <Text variant="titleSmall" style={{ fontWeight: '800', color: section.color.fg, flexShrink: 1 }} numberOfLines={1}>{section.owner.name}</Text>
+            <Icon source="lock" size={11} color={brand.muted} />
+            <Text style={{ fontSize: 11, color: brand.muted, flexShrink: 0 }} numberOfLines={1}>{section.owner.yours}</Text>
           </View>
         )}
         renderItem={({ item, section }: any) => (
@@ -161,18 +156,34 @@ export default function TenantHome() {
             <ReliefChip relief={item.relief} who="renter" />
             <Text style={{ fontSize: 30, fontWeight: '800', marginTop: 12, color: payNow(item) > 0 ? '#B45309' : brand.green600 }}>{formatINR(payNow(item))}</Text>
             {Number(item.balance_paise) > payNow(item) ? <Text variant="bodySmall" style={{ color: '#B45309', fontWeight: '700' }}>{t('relief.movesToNext', { amount: formatINR(Number(item.balance_paise) - payNow(item)) })}</Text> : null}
-            <Text variant="bodySmall" style={{ color: brand.muted }}>{`${t('bill.rent')} ${formatINR(item.monthly_rent_paise)} · ${t('tenant.deposit')} ${formatINR(item.deposit_held_paise)}${item.status === 'ended' ? ' · ended' : ''}`}</Text>
+            <Text variant="bodySmall" style={{ color: brand.muted }}>{`${t('bill.rent')} ${formatINR(item.monthly_rent_paise)} · ${t('tenant.deposit')} ${formatINR(item.deposit_held_paise)}${item.status === 'ended' ? ` · ${t('tenant.endedTag')}` : ''}`}</Text>
             <Text variant="bodySmall" style={{ color: brand.muted }}>{`${t('dates.since', { date: fmtDate(item.start_date) })}${item.latest_invoice?.due_date && payNow(item) > 0 ? ` · ${t('dates.nextDue', { date: fmtDate(item.latest_invoice.due_date) })}` : ''}`}</Text>
+            {item.status === 'active' ? (
+              <View style={{ marginTop: 10 }}><AppButton compact variant="outline" icon="message-text-outline" label={t('message.toOwnerButton', { defaultValue: 'Message the owner' })} onPress={() => router.push(`/(app)/tenant/message?tenancyId=${item.id}`)} testID="message-owner" /></View>
+            ) : null}
             {item.status === 'active' && payNow(item) > 0 ? (
-              <View style={{ marginTop: 12 }}><AppButton variant="accent" label={`${t('pay.title')} · ${section.owner.name.split(' ')[0]}`} icon="cash-fast" onPress={() => router.push(`/(app)/tenant/pay/${item.id}`)} /></View>
+              <View style={{ marginTop: 12 }}><AppButton variant="accent" label={`${t('pay.title')} · ${section.owner.name.split(' ')[0]}`} icon="cash-fast" onPress={() => setPaying({ id: item.id, unit: item.identifier, owner: section.owner.name })} testID="pay-open" /></View>
             ) : null}
           </Pressable>
         )}
       />
       </SlideIn>
+      <Modal visible={!!paying} animationType="slide" transparent onRequestClose={() => setPaying(null)} statusBarTranslucent>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setPaying(null)} accessibilityLabel={t('common.cancel')} />
+        <View style={{ maxHeight: '88%', backgroundColor: brand.canvas, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10 }}>
+          <View style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: brand.line, marginBottom: 6 }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 6 }}>
+            <Text variant="titleMedium" style={{ flex: 1, fontWeight: '800' }} numberOfLines={1}>{`${t('pay.title')} · ${paying?.unit ?? ''} · ${paying?.owner ?? ''}`}</Text>
+            <Pressable onPress={() => setPaying(null)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('common.cancel')}><Icon source="close" size={26} color={brand.muted} /></Pressable>
+          </View>
+          <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+                      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 36 }}>
+            {paying ? <PayFlow id={paying.id} onClose={() => { setPaying(null); rentals.refetch(); }} /> : null}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const card = { backgroundColor: '#fff', borderRadius: radius.lg, padding: 16 };
-const ownerHeader = { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, padding: 12, borderRadius: radius.lg, borderWidth: 1.5, marginTop: 10, marginBottom: 10 };

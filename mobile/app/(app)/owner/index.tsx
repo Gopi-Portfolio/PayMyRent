@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, Platform, View } from 'react-native';
 import { Banner, Icon, Searchbar, Text } from 'react-native-paper';
 import { Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +16,7 @@ import { brand, radius, shadow } from '@/theme';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { fmtDate } from '@/lib/dates';
-import { formatINR } from '@/lib/format';
+import { formatINR, payNow } from '@/lib/format';
 
 // The Vacant button is hidden for now (asked for). The vacant list, its "add renter" rows and the data behind them are all still here: set this to true to show the button again.
 const SHOW_VACANT_BUTTON = false;
@@ -89,6 +89,7 @@ export default function OwnerHome() {
       ) : null}
       <ErrorBanner error={dash.error || list.error} onRetry={() => { dash.refetch(); list.refetch(); }} />
       <FlatList
+        keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         data={showVacant ? vacantUnits : applyFilter<any>(list.data?.items ?? [], filter)}
         keyExtractor={(i: any) => `${i.vacant ? 'v' : 't'}${i.id}`}
         refreshing={list.isFetching}
@@ -164,7 +165,11 @@ export default function OwnerHome() {
               </View>
               <ReliefChip relief={item.relief} who="owner" />
             </View>
-            <Text style={{ fontWeight: '800', fontSize: 16, color: item.balance_paise > 0 ? '#B45309' : brand.green600 }}>{formatINR(item.balance_paise)}</Text>
+            {/* the same "due now" figure the renter sees on their card; anything relief moves to next month is noted, not added in */}
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ fontWeight: '800', fontSize: 16, color: payNow(item) > 0 ? '#B45309' : brand.green600 }}>{formatINR(payNow(item))}</Text>
+              {Number(item.balance_paise) > payNow(item) ? <Text variant="labelSmall" style={{ color: brand.muted }}>{t('relief.movesToNext', { amount: formatINR(Number(item.balance_paise) - payNow(item)) })}</Text> : null}
+            </View>
             <Icon source="chevron-right" size={20} color={brand.muted} />
           </Pressable>
         )}

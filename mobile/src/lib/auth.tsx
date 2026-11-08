@@ -36,7 +36,7 @@ export async function getIdToken(forceRefresh = false): Promise<string | null> {
 export type Me = {
   id: string; full_name: string | null; address: string | null; preferred_language: string; profile_complete: boolean;
   version: number; roles: ('owner' | 'tenant')[];
-  contacts: { id: string; kind: 'mobile' | 'email'; value: string; is_primary: boolean; verified: boolean }[];
+  contacts: { id: string; kind: 'mobile' | 'email'; value: string; is_primary: boolean; verified: boolean; for_mobile_id?: string | null }[];
   notification_preferences: Record<string, any> | null;
   owner_accounts: { owner_account_id: string; role: string; state: 'active' | 'grace' | 'read_only' | 'none'; verification?: 'submitted' | 'verified' | 'rejected' | null;
     property_name?: string | null; property_address?: string | null; property_status?: 'submitted' | 'verified' | 'rejected' | null;

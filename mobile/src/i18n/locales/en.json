@@ -14,7 +14,11 @@
     "offline": "You are offline. Showing saved data.",
     "demo": "DEMO MODE — no real OTP, money or messages",
     "slow": "This is taking longer than expected.",
-    "back": "Back"
+    "back": "Back",
+    "add": "Add",
+    "done": "Done",
+    "hide": "Hide details",
+    "remove": "Remove this number"
   },
   "pricing": {
     "title": "Simple Monthly Plans for Owners",
@@ -89,11 +93,21 @@
     "signOut": "Sign Out",
     "gender": "I Am",
     "male": "Male",
-    "female": "Female"
+    "female": "Female",
+    "alerts": "Phone numbers & alerts",
+    "currentlyOn": "Now sent to",
+    "emailOfNumber": "Email for",
+    "mobileNo": "Mobile number",
+    "needEmail": "No email for this number. Add one below.",
+    "notVerified": "not verified",
+    "ownerSettings": "Owner settings",
+    "removeNumberEmail": "Remove this number and its email",
+    "verifyEmail": "Verify this email first",
+    "verifyFirst": "Verify this number first"
   },
   "owner": {
     "collected": "Collected",
-    "pending": "Pending",
+    "pending": "Due Now",
     "overdue": "Overdue",
     "units": "Units",
     "addTenant": "Add Renter",
@@ -157,7 +171,15 @@
     "kind_residential": "Residential",
     "kindResidentialHelp": "A house, flat or rooms to live in.",
     "pickPlace": "Choose an existing place, or type a new one below",
-    "notesTab": "Notes"
+    "notesTab": "Notes",
+    "advanceReceived": "Advance Received (₹)",
+    "endDate": "End Date",
+    "noPlaces": "This property has no places yet. Add its houses, flats, rooms or shops first.",
+    "remove": "Remove",
+    "removeBody": "Remove {{who}} ({{phone}}) from {{unit}}? They have not accepted yet. You can add the tenant again with the right number.",
+    "removeTitle": "Remove this tenant?",
+    "resendInvite": "Send invitation again",
+    "wrongNumber": "Wrong number? Remove tenant"
   },
   "bill": {
     "title": "Bill for {{month}}",
@@ -206,7 +228,15 @@
     "remainingAfter": "Balance left after this payment",
     "advanceAfter": "Advance credit after this payment",
     "fullySettled": "Fully settled after this payment",
-    "maxIsDue": "The amount cannot be more than the due amount, {{amount}}."
+    "maxIsDue": "The amount cannot be more than the due amount, {{amount}}.",
+    "cashNotifyNote": "The renter is told about this cash payment straight away and can dispute it if it is wrong.",
+    "cashRecordedNote": "{{name}} has been notified and can dispute this payment if it is wrong. It cannot be edited or deleted.",
+    "cashRecordedTitle": "Cash Payment Recorded",
+    "directBanking": "Direct banking",
+    "feeNote": "Direct banking has a charge of 2% plus service tax (GST). Do you want to continue?",
+    "feeTitle": "Charges apply",
+    "recordAnother": "Record Another Payment",
+    "seeDetails": "See bill details"
   },
   "tenant": {
     "myRentals": "My Rentals",
@@ -217,7 +247,9 @@
     "deposit": "Deposit Held",
     "waiting": "Your owner has to add you first. Once they do, your rentals appear here.",
     "lockedPhone": "Mobile Locked to This Rental",
-    "updates": "Updates From Your Owner"
+    "updates": "Updates From Your Owner",
+    "chooseRental": "Choose a rental",
+    "endedTag": "ended"
   },
   "notes": {
     "placeholder": "Add a note (max 250 characters)",
@@ -237,6 +269,9 @@
     "too_long": "Too long",
     "amount_invalid": "Enter an amount like 7000 or 7000.50",
     "required": "Required",
+    "must_be_positive": "Enter an amount greater than 0",
+    "end_before_start": "The end date must be after the start date",
+    "date_invalid": "Enter a date like 31-12-2026",
     "generic": "Something went wrong. Please try again.",
     "otp_incorrect": "That code is not correct. Please check the digits and try again.",
     "otp_expired": "This code has expired or too many wrong tries were made. Please tap Resend Code.",
@@ -483,7 +518,17 @@
     "whyFields": "Fill in the address, city, pincode, document number and tick the declaration.",
     "whyCode": "Tap \"Send Code to My Number\", then enter the 6-digit code to save.",
     "unitNo": "Unit {{unit}}",
-    "neverLet": "Never let — no renter yet"
+    "neverLet": "Never let — no renter yet",
+    "addPlace": "Add a Place",
+    "addUnderOwnPlan": "Add another property with its own plan",
+    "noPlacesYet": "No places added yet. Add the first one below.",
+    "placeAdded": "{{name}} added. You can add another.",
+    "placesIntro": "Add the houses, flats, rooms or shops of this property here. When you add a renter, you choose from these.",
+    "planFull_one": "Your plan covers {{count}} property and it is already added. You can still add places to it here. To add one more property, it needs its own plan.",
+    "planFull_other": "Your plan covers {{count}} properties and all are added. You can still add places to them here. To add one more property, it needs its own plan.",
+    "planFullShort": "Plan full",
+    "planFullTitle": "Your plan is full",
+    "planRoom": "Your plan covers {{cap}} properties. {{used}} added, {{left}} left."
   },
   "otp": {
     "title": "Confirm with a Code",
@@ -609,7 +654,13 @@
     "notConnected": "Not connected yet",
     "send": "Send Message",
     "sentOk": "Sent to {{name}}",
-    "history": "Recent messages"
+    "history": "Recent messages",
+    "pickRental": "Choose the rental you want to write about.",
+    "renterSentBody": "{{owner}} will see it in their notifications and can reply to you there.",
+    "renterSentTitle": "Message Sent",
+    "reply": "Reply",
+    "toOwner": "Message to {{owner}}",
+    "toOwnerButton": "Message the owner"
   },
   "vacate": {
     "waitingTitle": "Waiting for your owner",
@@ -704,7 +755,8 @@
     "directTitle": "Pay these directly",
     "directHint": "These owners collect by UPI or cash. Tap a rental to pay it.",
     "noneTitle": "Payment is not set up yet",
-    "noneBody": "{{owner}} has not added a UPI ID yet. Ask them to add it, or pay them directly."
+    "noneBody": "{{owner}} has not added a UPI ID yet. Ask them to add it, or pay them directly.",
+    "otherAppShort": "Other UPI app"
   },
   "transfers": {
     "banner": "{{count}} payment(s) waiting for you to confirm",

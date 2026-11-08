@@ -1,12 +1,12 @@
 import { Redirect, router } from 'expo-router';
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Keyboard, View } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { sanitize } from '@/lib/inputs';
 import { AppButton } from '@/components/Buttons';
-import { AuthShell, ErrorBanner, goBack } from '@/components/ui';
+import { AuthShell, DONE_ID, DoneBar, ErrorBanner, goBack } from '@/components/ui';
 import { brand, radius } from '@/theme';
 import { useAuth } from '@/lib/auth';
 import { otpSession } from '@/lib/otpSession';
@@ -55,7 +55,9 @@ export default function Otp() {
         </View>
       ) : null}
       <TextInput mode="outlined" outlineStyle={{ borderRadius: radius.md }} style={{ backgroundColor: '#fff', fontSize: 26, letterSpacing: 10, textAlign: 'center', height: 64 }} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="sms-otp" maxLength={6}
-                 value={code} onChangeText={(v) => setCode(sanitize('otp', v))} accessibilityLabel="OTP" testID="otp-input" />
+                 value={code} onChangeText={(v) => { const c = sanitize('otp', v); setCode(c); if (c.length === 6) Keyboard.dismiss(); }}   // the six digits are in: the keyboard closes by itself
+                 inputAccessoryViewID={DONE_ID} accessibilityLabel="OTP" testID="otp-input" />
+      <DoneBar />
       <ErrorBanner error={err} />
       {note ? <Text style={{ color: brand.green600, fontWeight: '700', textAlign: 'center' }}>{note}</Text> : null}
       <AppButton label={t('auth.verify')} icon="check-decagram" disabled={code.length !== 6} loading={busy} onPress={verify} />

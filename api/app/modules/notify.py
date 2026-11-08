@@ -37,6 +37,18 @@ def send_otp(db: Db, kind: str, target: str, code: str, language: str) -> None:
                                              body=body, subject="PayMyRent verification code")
 
 
+def invite_sms(phone: str, owner_name: str, unit: str) -> bool:
+    """Text an invited renter straight away, even if the number has no PayMyRent account yet (so there is no user to queue a message for).
+    A failure never blocks the owner's save: the renter can be sent the invitation again from the tenant page."""
+    try:
+        body = render("invitation_install", "en", owner=owner_name, unit=unit)
+        res = get_sender("sms", get_settings()).send(to=phone, template="invitation_install", language="en",
+                                                     params={"owner": owner_name, "unit": unit}, body=body)
+        return res.status == "sent"
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def security_event(db: Db, user_id: UUID, extra_phone: str | None, event: str) -> None:
     enqueue(db, user_id, "security_event", {"event": event}, f"sec:{user_id}:{event}:{datetime.now().timestamp():.0f}",
             channels=("push", "sms", "email"))

@@ -122,7 +122,7 @@ def me_payload(db: Db, uid: UUID) -> dict:
     claim_owner_memberships(db, uid)      # a declared owner number joins its account the moment that person signs in
     u = db.must("SELECT * FROM users WHERE id = :u", u=uid)
     roles = [r["role"] for r in db.all("SELECT role FROM user_roles WHERE user_id = :u ORDER BY role", u=uid)]
-    contacts = db.all("""SELECT id, kind, value, is_primary, verified_at IS NOT NULL AS verified FROM user_contacts
+    contacts = db.all("""SELECT id, kind, value, is_primary, for_mobile_id, verified_at IS NOT NULL AS verified FROM user_contacts
                          WHERE user_id = :u AND removed_at IS NULL ORDER BY kind, is_primary DESC, created_at""", u=uid)
     prefs = db.one("SELECT * FROM notification_preferences WHERE user_id = :u", u=uid)
     owners = db.all("""SELECT m.owner_account_id, m.role, rg_owner_write_state(m.owner_account_id) AS state,
@@ -201,6 +201,7 @@ def update_profile(body: ProfileIn, user: CurrentUser = Depends(current_user), d
 class ContactIn(BaseModel):
     kind: Literal["mobile", "email"]
     value: str = Field(max_length=254)
+    for_mobile_id: UUID | None = None      # an email must say which of the person's OWN mobile numbers it belongs to
 
 
 @router.post("/me/contacts")
@@ -211,8 +212,15 @@ def add_contact(body: ContactIn, user: CurrentUser = Depends(current_user), db: 
         raise AppError("PHONE_IN_USE", "this number is already verified on an account")
     has_primary = db.scalar("SELECT 1 FROM user_contacts WHERE user_id = :u AND kind = :k AND is_primary AND removed_at IS NULL",
                             u=user.id, k=body.kind)
-    cid = db.scalar("""INSERT INTO user_contacts(user_id, kind, value, is_primary) VALUES (:u, :k, :v, :p) RETURNING id""",
-                    u=user.id, k=body.kind, v=value, p=not has_primary and body.kind == "email")
+    if body.kind == "email":
+        if body.for_mobile_id is None:
+            raise AppError("VALIDATION", "choose which mobile number this email belongs to", fields=[{"field": "for_mobile_id", "code": "required"}])
+        if not db.scalar("SELECT 1 FROM user_contacts WHERE id = :m AND user_id = :u AND kind = 'mobile' AND removed_at IS NULL", m=body.for_mobile_id, u=user.id):
+            raise AppError("VALIDATION", "that is not one of your mobile numbers", fields=[{"field": "for_mobile_id", "code": "invalid"}])
+        if db.scalar("SELECT 1 FROM user_contacts WHERE kind = 'email' AND for_mobile_id = :m AND removed_at IS NULL", m=body.for_mobile_id):
+            raise AppError("CONFLICT", "this mobile number already has an email. Remove it first to add another.", status=409)
+    cid = db.scalar("""INSERT INTO user_contacts(user_id, kind, value, is_primary, for_mobile_id) VALUES (:u, :k, :v, :p, :f) RETURNING id""",
+                    u=user.id, k=body.kind, v=value, p=not has_primary and body.kind == "email", f=body.for_mobile_id if body.kind == "email" else None)
     code = _issue_otp(db, value, "verify_mobile" if body.kind == "mobile" else "verify_email", user.id)
     notify.send_otp(db, body.kind, value, code, user.language)
     out = {"contact_id": str(cid), "verification_sent": True}
@@ -242,6 +250,11 @@ def remove_contact(contact_id: UUID, user: CurrentUser = Depends(current_user), 
     if c["kind"] == "mobile" and c["is_primary"]:
         raise AppError("VALIDATION", "use Change Primary Mobile to replace the login number")
     db.exec("UPDATE user_contacts SET removed_at = now(), is_primary = false WHERE id = :c", c=contact_id)
+    if c["kind"] == "mobile":      # the email that belonged to this number goes with it
+        gone = [r["id"] for r in db.all("SELECT id FROM user_contacts WHERE kind = 'email' AND for_mobile_id = :c AND removed_at IS NULL", c=contact_id)]
+        for eid in gone:
+            db.exec("UPDATE user_contacts SET removed_at = now(), is_primary = false WHERE id = :e", e=eid)
+            db.exec("UPDATE notification_preferences SET email_contact_id = NULL WHERE user_id = :u AND email_contact_id = :e", u=user.id, e=eid)
     prim = db.scalar("SELECT id FROM user_contacts WHERE user_id = :u AND kind = 'mobile' AND is_primary AND removed_at IS NULL", u=user.id)
     db.exec("""UPDATE notification_preferences SET
                  sms_contact_id = CASE WHEN sms_contact_id = :c THEN :p ELSE sms_contact_id END,
@@ -342,6 +355,7 @@ def mobile_change_complete(body: MobileChangeCompleteIn, identity: Identity = De
     else:
         new_cid = db.scalar("""INSERT INTO user_contacts(user_id, kind, value, is_primary, verified_at)
                                VALUES (:u, 'mobile', :v, true, now()) RETURNING id""", u=uid, v=req["new_phone"])
+    db.exec("UPDATE user_contacts SET for_mobile_id = :n WHERE user_id = :u AND kind = 'email' AND for_mobile_id = :o AND removed_at IS NULL", n=new_cid, o=old_cid, u=uid)
     db.exec("""UPDATE notification_preferences SET
                  sms_contact_id = CASE WHEN sms_contact_id = :o OR sms_contact_id IS NULL THEN :n ELSE sms_contact_id END,
                  whatsapp_contact_id = CASE WHEN whatsapp_contact_id = :o THEN :n ELSE whatsapp_contact_id END

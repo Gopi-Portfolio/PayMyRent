@@ -44,10 +44,18 @@ export default function RecordPayment() {
   }
 
   if (done) {
+    const again = () => { setDone(null); setTenancy(null); setAmount(''); setRead(false); setCapped(false); idem.current = newIdempotencyKey(); };
     return (
       <Screen>
-        <ResultView kind="success" title={t('pay.success')} lines={[done.amount_display, `${t('pay.cashLabel')} · ${done.receipt_number}`, `${t('bill.totalDue')}: ${done.balance_after_display}`]}>
-          <Button mode="contained" icon="check" onPress={() => goBack()}>{t('common.continue')}</Button>
+        <ResultView kind="success" title={t('pay.cashRecordedTitle', { defaultValue: 'Cash Payment Recorded' })}
+                    lines={[`${sel?.tenant_name ?? ''} · ${sel?.identifier ?? ''}`, done.amount_display, `${t('pay.cashLabel')} · ${done.receipt_number}`, `${t('bill.totalDue')}: ${done.balance_after_display}`]}>
+          <View style={{ backgroundColor: brand.teal50, borderRadius: radius.md, padding: 12 }} testID="cash-done-note">
+            <Text style={{ lineHeight: 21, color: brand.ink, textAlign: 'center' }}>
+              {t('pay.cashRecordedNote', { defaultValue: '{{name}} has been notified and can dispute this payment if it is wrong. It cannot be edited or deleted.', name: sel?.tenant_name ?? '' })}
+            </Text>
+          </View>
+          <Button mode="outlined" icon="cash-plus" onPress={again} testID="record-another">{t('pay.recordAnother', { defaultValue: 'Record Another Payment' })}</Button>
+          <Button mode="contained" icon="check" onPress={() => goBack()}>{t('common.done', { defaultValue: 'Done' })}</Button>
         </ResultView>
       </Screen>
     );
@@ -98,6 +106,7 @@ export default function RecordPayment() {
             <Text style={{ fontWeight: '800' }}>{`${sel?.tenant_name}\n${sel?.property_name ?? sel?.address} · ${sel?.identifier}`}</Text>
             <Text style={{ fontSize: 22, fontWeight: '800' }}>{paise ? formatINR(paise) : ''}</Text>
             <Text style={{ lineHeight: 21 }}>{t('pay.cashAuthorize')}</Text>
+            <Text style={{ lineHeight: 20, color: brand.muted }}>{t('pay.cashNotifyNote', { defaultValue: 'The renter is told about this cash payment straight away and can dispute it if it is wrong.' })}</Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setConfirm(false)}>{t('common.cancel')}</Button>

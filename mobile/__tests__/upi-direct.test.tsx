@@ -1,7 +1,7 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 
 import { EMPTY_PAY_HOW, PayHow, type PayHowValue, payHowBody, payHowReady } from '@/components/PayHow';
@@ -73,10 +73,19 @@ test('tenant opens the UPI app with the amount filled in, then reports the refer
   const ui = render(wrap(<UpiPay tenancyId="t1" ownerName="Gopi" upi="gopi@okhdfcbank" unit="S-01" paise={400000} due={1000000} onReported={onReported} />));
   expect(ui.getByTestId('upi-id').props.children).toBe('gopi@okhdfcbank');
   expect(ui.getByTestId('upi-submit').props.accessibilityState.disabled).toBe(true);        // no reference yet
-  fireEvent.press(ui.getByTestId('upi-other'));
+  // iPhone: every app opens by its own link (the plain upi:// link is taken by WhatsApp); Android keeps the system chooser
+  const ios = Platform.OS === 'ios';
+  expect(ui.queryByTestId('upi-other') === null).toBe(ios);
+  fireEvent.press(ui.getByTestId(ios ? 'upi-phonepe' : 'upi-other'));
   await waitFor(() => expect(open).toHaveBeenCalled());
-  expect(open.mock.calls[0][0]).toContain('upi://pay?pa=gopi%40okhdfcbank');
+  expect(open.mock.calls[0][0]).toContain(ios ? 'phonepe://pay?pa=gopi%40okhdfcbank' : 'upi://pay?pa=gopi%40okhdfcbank');
   expect(open.mock.calls[0][0]).toContain('am=4000.00');
+  if (ios) {
+    fireEvent.press(ui.getByTestId('upi-paytm'));
+    await waitFor(() => expect(open).toHaveBeenCalledTimes(2));
+    expect(open.mock.calls[1][0]).toContain('paytmmp://pay?pa=gopi%40okhdfcbank');
+    expect(open.mock.calls.every((c: any[]) => !String(c[0]).startsWith('upi://'))).toBe(true);
+  }
   fireEvent.changeText(ui.getByTestId('upi-ref'), 'UTR123456789');
   fireEvent.press(ui.getByTestId('upi-submit'));
   await waitFor(() => expect(onReported).toHaveBeenCalled());
@@ -102,4 +111,17 @@ test('Profile: the usual way of receiving rent is shown, can be changed, and is 
   await waitFor(() => ui.getByTestId('pay-default-saved'));
   const call = mockApi.mock.calls.find((c: any[]) => String(c[0]).includes('/owner/pay-default')) as any[];
   expect(call[1]).toMatchObject({ method: 'PUT', body: { method: 'cash', upi_id: null, otp_code: null } });
+});
+
+test('the three UPI app buttons carry their official logos, not placeholders', () => {
+  const { UPI_LOGOS, UPI_PLACEHOLDER } = require('@/lib/upiLogos');
+  const { UpiAppButton } = require('@/components/UpiAppButton');
+  for (const app of ['gpay', 'phonepe', 'paytm']) expect(UPI_LOGOS[app]).toBeTruthy();
+  const ui = render(<PaperProvider><>
+    <UpiAppButton app="gpay" label="Google Pay" onPress={jest.fn()} testID="b-gpay" />
+    <UpiAppButton app="phonepe" label="PhonePe" onPress={jest.fn()} testID="b-phonepe" />
+    <UpiAppButton app="paytm" label="Paytm" onPress={jest.fn()} testID="b-paytm" />
+  </></PaperProvider>);
+  for (const app of ['gpay', 'phonepe', 'paytm']) expect(ui.queryAllByText(UPI_PLACEHOLDER[app]).length).toBe(1);   // only the name label under the logo; the grey name tile (placeholder) is not drawn
+  expect(ui.getByLabelText('PhonePe')).toBeTruthy();
 });

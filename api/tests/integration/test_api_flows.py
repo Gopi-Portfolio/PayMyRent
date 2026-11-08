@@ -16,14 +16,15 @@ from .conftest import ADMIN, ensure_property, new_phone, pay_subscription, prope
 
 TODAY = date.today()
 M0 = TODAY.replace(day=1)
+END = (M0 + timedelta(days=730)).isoformat()      # a new rental must carry an end date
 
 
-def onboard(owner, tenant_phone, rent="10000", ident=None, deposit="0"):
+def onboard(owner, tenant_phone, rent="10000", ident=None, deposit="1000"):
     pid = ensure_property(owner)                      # the owner's one registered + verified property
     r = owner.post("/api/v1/owner/tenancies", json={
         "property_id": pid, "unit_identifier": ident or f"S-{uuid.uuid4().hex[:4]}",
         "tenant_name": "Ravi Kumar", "tenant_mobile": tenant_phone, "monthly_rent": rent, "due_day": 5,
-        "start_date": M0.isoformat(), "security_deposit": deposit})
+        "start_date": M0.isoformat(), "end_date": END, "security_deposit": deposit})
     assert r.status_code == 200, r.text
     return r.json()
 
@@ -114,7 +115,7 @@ def test_earlier_unpaid_months_show_as_dues(actor):
     start = date(TODAY.year - 1, 12, 1) if TODAY.month <= 2 else date(TODAY.year, TODAY.month - 2, 1)
     r = owner.post("/api/v1/owner/tenancies", json={
         "property_id": ensure_property(owner), "unit_identifier": f"S-{uuid.uuid4().hex[:4]}", "tenant_name": "Ravi Kumar",
-        "tenant_mobile": tenant.phone, "monthly_rent": "10000", "due_day": 5, "start_date": start.isoformat(), "security_deposit": "0"})
+        "tenant_mobile": tenant.phone, "monthly_rent": "10000", "due_day": 5, "start_date": start.isoformat(), "security_deposit": "1000", "end_date": END})
     assert r.status_code == 200, r.text
     tid = r.json()["tenancy_id"]
     accept_all(tenant)                                             # accepting bills every month since the start
@@ -123,6 +124,33 @@ def test_earlier_unpaid_months_show_as_dues(actor):
     # owner generating the current bill is idempotent and never duplicates earlier months
     again = owner.post(f"/api/v1/owner/tenancies/{tid}/invoices?month={M0.isoformat()}").json()
     assert int(again["summary"]["total_due_paise"]) == 3 * 1000000
+
+
+def test_moving_the_end_date_updates_the_dues(actor):
+    owner = actor(roles=("owner",))
+    pay_subscription(owner)
+    tenant = actor()
+    start = date(TODAY.year - 1, 12, 1) if TODAY.month <= 2 else date(TODAY.year, TODAY.month - 2, 1)
+    r = owner.post("/api/v1/owner/tenancies", json={
+        "property_id": ensure_property(owner), "unit_identifier": f"E-{uuid.uuid4().hex[:4]}", "tenant_name": "Ravi Kumar",
+        "tenant_mobile": tenant.phone, "monthly_rent": "10000", "due_day": 5, "start_date": start.isoformat(), "security_deposit": "1000", "end_date": END})
+    assert r.status_code == 200, r.text
+    tid = r.json()["tenancy_id"]
+    accept_all(tenant)
+    total = lambda: int(tenant.get(f"/api/v1/tenancies/{tid}/bill").json()["summary"]["total_due_paise"])
+    assert total() == 3_000_000                                                     # three months billed so far
+
+    def move_end(d):
+        v = owner.get(f"/api/v1/owner/tenancies/{tid}").json()["tenancy"]["version"]
+        res = owner.patch(f"/api/v1/owner/tenancies/{tid}", json={"version": v, "end_date": d.isoformat()})
+        assert res.status_code == 200, res.text
+
+    second = (start.replace(day=28) + timedelta(days=5)).replace(day=1)             # first day of the 2nd month
+    dim = ((second.replace(day=28) + timedelta(days=5)).replace(day=1) - second).days
+    move_end(second + timedelta(days=14))                                           # ends on the 15th of the 2nd month
+    assert total() == 1_000_000 + round(1_000_000 * 15 / dim)                       # month 3 credited back, month 2 pro-rated
+    move_end(date.fromisoformat(END))                                               # extended again
+    assert total() == 3_000_000                                                     # the dues are back at once
 
 
 def test_dashboard_boxes_have_detail_rows(actor):
@@ -293,7 +321,7 @@ def test_address_has_one_tenant_at_a_time(actor):
 
     def add(phone, ident):
         return owner.post("/api/v1/owner/tenancies", json={"property_id": pid, "unit_identifier": ident, "tenant_name": "Ravi Kumar", "tenant_mobile": phone,
-                                                           "monthly_rent": "10000", "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "0"})
+                                                           "monthly_rent": "10000", "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "1000", "end_date": END})
     first = add(t1.phone, "S-01")
     assert first.status_code == 200, first.text
     for spelling in ("S-01", "s-01", "S 01", "S01"):                      # still invited: the address is already offered to someone
@@ -314,6 +342,104 @@ def test_address_has_one_tenant_at_a_time(actor):
     assert any(n.startswith("Deposit: Held back") for n in notes) and any(n.startswith("Vacated: Keys") for n in notes), notes   # the renter sees the reason
     again = add(t2.phone, "S 01")
     assert again.status_code == 200, again.text
+
+
+# a new rental needs the advance received (more than zero) and both its dates
+def test_new_rental_requires_advance_and_both_dates(actor):
+    owner = actor(roles=("owner",))
+    pay_subscription(owner)
+    pid = ensure_property(owner)
+    base = {"property_id": pid, "unit_identifier": "R-01", "tenant_name": "Ravi Kumar", "tenant_mobile": actor().phone,
+            "monthly_rent": "10000", "due_day": 5, "start_date": M0.isoformat(), "end_date": END, "security_deposit": "1000"}
+    for change in ({"security_deposit": "0"}, {"end_date": None}):
+        r = owner.post("/api/v1/owner/tenancies", json={**base, **change})
+        assert r.status_code == 422, (change, r.text)
+    assert owner.post("/api/v1/owner/tenancies", json=base).status_code == 200
+
+
+# adding a renter texts the number straight away (even with no account yet); the owner can send it again, but not in a burst
+def test_new_renter_is_texted_automatically_and_invite_can_be_resent(actor, monkeypatch):
+    from app.modules import notify
+    sent = []
+    monkeypatch.setattr(notify, "invite_sms", lambda phone, owner, unit: sent.append((phone, unit)) or True)
+    owner = actor(roles=("owner",))
+    pay_subscription(owner)
+    newcomer = new_phone()                                                          # no PayMyRent account behind this number
+    out = onboard(owner, newcomer)
+    assert out["tenant_registered"] is False and out["invite_sms_sent"] is True
+    assert [p for p, _ in sent] == ["+91" + newcomer[-10:]]                                      # texted on save, nothing for the owner to forward
+    tid = out["tenancy_id"]
+    assert owner.post(f"/api/v1/owner/tenancies/{tid}/resend-invite").json()["status"] == "sent"
+    assert len(sent) == 2
+    assert owner.post(f"/api/v1/owner/tenancies/{tid}/resend-invite").status_code == 429     # not twice in a row
+    registered = actor()                                                            # already has the app: push + SMS through the normal queue
+    out2 = onboard(owner, registered.phone)
+    assert out2["tenant_registered"] is True and out2["invite_sms_sent"] is None and len(sent) == 2
+
+
+# an email always belongs to one of the person's OWN mobile numbers (one email per number)
+def test_email_belongs_to_one_of_my_numbers(actor):
+    me, other = actor(), actor()
+    prim = next(c for c in me.get("/api/v1/me").json()["contacts"] if c["kind"] == "mobile" and c["is_primary"])
+    stranger_mobile = next(c for c in other.get("/api/v1/me").json()["contacts"] if c["kind"] == "mobile")
+    mail = lambda n, **kw: me.post("/api/v1/me/contacts", json={"kind": "email", "value": f"{n}@example.com", **kw})
+    assert mail("a").status_code == 422                                              # it must say which number it is for
+    assert mail("a", for_mobile_id=stranger_mobile["id"]).status_code == 422         # not someone else's number
+    ok = mail("a", for_mobile_id=prim["id"])
+    assert ok.status_code == 200, ok.text
+    assert mail("b", for_mobile_id=prim["id"]).status_code == 409                    # one email per number
+    email = next(c for c in me.get("/api/v1/me").json()["contacts"] if c["kind"] == "email")
+    assert email["for_mobile_id"] == prim["id"]
+    second = me.post("/api/v1/me/contacts", json={"kind": "mobile", "value": new_phone()}).json()["contact_id"]
+    assert mail("b", for_mobile_id=second).status_code == 200                        # the second number can have its own
+    assert me.delete(f"/api/v1/me/contacts/{second}").status_code == 200             # removing that number takes its email with it
+    emails = [c["value"] for c in me.get("/api/v1/me").json()["contacts"] if c["kind"] == "email"]
+    assert emails == ["a@example.com"]
+
+
+# a renter can write to the owner; it reaches the owner's bell (and nobody else's)
+def test_renter_can_message_the_owner(actor):
+    owner = actor(roles=("owner",))
+    pay_subscription(owner)
+    tenant, stranger = actor(), actor()
+    tid = onboard(owner, tenant.phone)["tenancy_id"]
+    url = f"/api/v1/tenant/tenancies/{tid}/messages"
+    assert tenant.post(url, json={"text": "Hello"}).status_code == 404                  # not accepted yet: nothing to write to
+    accept_all(tenant)
+    assert stranger.post(url, json={"text": "Hi"}).status_code == 404                   # someone else's rental
+    assert tenant.post(url, json={"text": "   "}).status_code == 422
+    assert tenant.post(url, json={"text": "x" * 800}).status_code == 422
+    sent = tenant.post(url, json={"text": "The tap in the kitchen is leaking", "lang": "en", "input_method": "voice"})
+    assert sent.status_code == 200 and sent.json()["status"] == "sent", sent.text
+    assert tenant.post(url, json={"text": "The tap in the kitchen is leaking"}).json()["status"] == "already_sent"   # a double tap
+    bell = [n["text"] for n in owner.get("/api/v1/me/notifications?role=owner").json()["items"] if n["template"] == "renter_message"]
+    assert len(bell) == 1 and "The tap in the kitchen is leaking" in bell[0]
+    assert not [n for n in tenant.get("/api/v1/me/notifications?role=tenant").json()["items"] if n["template"] == "renter_message"]
+    assert [m["text"] for m in tenant.get(url).json()["items"]] == ["The tap in the kitchen is leaking"]
+
+
+# a renter added with the wrong number can be removed at once, but only until they accept
+def test_wrong_number_can_be_removed_until_accepted(actor):
+    owner = actor(roles=("owner",))
+    pay_subscription(owner)
+    wrong, right = actor(), actor()
+    pid = ensure_property(owner)
+
+    def add(phone):
+        return owner.post("/api/v1/owner/tenancies", json={"property_id": pid, "unit_identifier": "W-01", "tenant_name": "Ravi Kumar", "tenant_mobile": phone,
+                                                           "monthly_rent": "10000", "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "1000", "end_date": END})
+    first = add(wrong.phone)
+    assert first.status_code == 200, first.text
+    assert add(right.phone).status_code == 409                                    # still offered to the wrong number
+    tid = first.json()["tenancy_id"]
+    gone = owner.post(f"/api/v1/owner/tenancies/{tid}/cancel-invite")
+    assert gone.status_code == 200 and gone.json()["status"] == "cancelled", gone.text
+    assert wrong.get("/api/v1/tenant/invitations").json()["items"] == []          # the wrong person no longer sees it
+    second = add(right.phone)
+    assert second.status_code == 200, second.text                                 # the address is free again
+    accept_all(right)
+    late = owner.post(f"/api/v1/owner/tenancies/{second.json()['tenancy_id']}/cancel-invite")
+    assert late.status_code == 409, late.text                                     # accepted: must be vacated the normal way
 
 
 # deposit amounts: a refund or adjustment can never be more than is held (or due); advance received never past the advance agreed
@@ -470,7 +596,7 @@ def test_commercial_units_and_items_provided(actor):
 
     def add(phone, ident, kind, items=None):
         body = {"property_id": pid, "unit_identifier": ident, "unit_kind": kind, "tenant_name": "Ravi Kumar", "tenant_mobile": phone, "monthly_rent": "10000",
-                "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "0"}
+                "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "1000", "end_date": END}
         if items is not None:
             body["items_provided"] = items
         return owner.post("/api/v1/owner/tenancies", json=body)
@@ -490,7 +616,7 @@ def test_commercial_units_and_items_provided(actor):
     # a place can be a number or a description, for both kinds; the floor is 0 (ground) to 10
     def raw(phone, ident, kind, floor=None):
         body = {"property_id": pid, "unit_identifier": ident, "unit_kind": kind, "tenant_name": "Ravi Kumar", "tenant_mobile": phone, "monthly_rent": "9000",
-                "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "0"}
+                "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "1000", "end_date": END}
         if floor is not None:
             body["unit_floor"] = floor
         return owner.post("/api/v1/owner/tenancies", json=body)
@@ -540,7 +666,7 @@ def test_agreement_renewal_alerts_and_history(actor, sql):
 
     def add(phone, ident, start, end, inc=None):
         body = {"property_id": pid, "unit_identifier": ident, "tenant_name": "Ravi Kumar", "tenant_mobile": phone, "monthly_rent": "10000", "due_day": 5,
-                "start_date": start.isoformat(), "end_date": end.isoformat(), "security_deposit": "0"}
+                "start_date": start.isoformat(), "end_date": end.isoformat(), "security_deposit": "1000"}
         if inc is not None:
             body["increment_percent"] = inc
         r = owner.post("/api/v1/owner/tenancies", json=body)
@@ -609,7 +735,7 @@ def test_same_number_on_different_floors(actor):
 
     def add(i, ident, floor=None):
         body = {"property_id": pid, "unit_identifier": ident, "tenant_name": "Ravi Kumar", "tenant_mobile": people[i].phone, "monthly_rent": "9000",
-                "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "0"}
+                "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "1000", "end_date": END}
         if floor is not None:
             body["unit_floor"] = floor
         return owner.post("/api/v1/owner/tenancies", json=body)
@@ -1236,7 +1362,7 @@ def test_owner_hands_the_account_to_another_number_who_must_pay_first(actor):
     assert heir.get("/api/v1/owner/close-preview", headers={"X-Owner-Account": acc["owner_account_id"]}).json()["renters"] == 1
     blocked = heir.post("/api/v1/owner/tenancies", headers={"X-Owner-Account": acc["owner_account_id"]},
                         json={"property_id": old._pid, "unit_identifier": "Z-1", "tenant_name": "New Renter", "tenant_mobile": stranger.phone,
-                           "monthly_rent": "5000", "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "0"})
+                           "monthly_rent": "5000", "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "1000", "end_date": END})
     assert blocked.status_code in (402, 409) and blocked.json()["error"]["code"] in ("SUBSCRIPTION_REQUIRED", "OWNER_DETAILS_REQUIRED"), blocked.text
     # once the new owner gives their own details and pays, they can use everything that was handed over
     assert heir.put("/api/v1/owner/verification", json={"legal_name": "Heir Owner", "pan": "HEIRX1234Z", "address": "2 New Street, Madurai",

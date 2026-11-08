@@ -2,6 +2,7 @@
 // Live counter uses grapheme counting so Indian-script conjuncts count as one character.
 import React, { useState } from 'react';
 import { View } from 'react-native';
+import { DONE_ID, DoneBar } from '@/components/ui';
 import { HelperText, IconButton, TextInput } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
@@ -47,7 +48,8 @@ export function NoteInput({ onSubmit, busy }: Props) {
 
   return (
     <View>
-      <TextInput mode="outlined" multiline maxLength={1000} value={text.toLocaleUpperCase()} onChangeText={(v) => { setText(v.toLocaleUpperCase()); }} autoCapitalize="characters" placeholder={t('notes.placeholder')}
+      <DoneBar />
+      <TextInput mode="outlined" multiline inputAccessoryViewID={DONE_ID} maxLength={1000} value={text.toLocaleUpperCase()} onChangeText={(v) => { setText(v.toLocaleUpperCase()); }} autoCapitalize="characters" placeholder={t('notes.placeholder')}
                  accessibilityLabel={t('notes.placeholder')} error={over}
                  right={!speechAvailable ? undefined : <TextInput.Icon icon={listening ? 'microphone-off' : 'microphone'} accessibilityLabel="voice"
                                         onPress={() => (listening ? ExpoSpeechRecognitionModule.stop() : startVoice())} />} />

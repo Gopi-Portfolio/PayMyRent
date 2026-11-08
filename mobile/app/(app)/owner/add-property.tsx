@@ -1,7 +1,7 @@
 // Add a property. Everything is checked before any money is asked for: the details, the ownership proof, and whether the property is already
 // registered by someone else. The first property goes into this account; ANOTHER property becomes its own account with its own plan and payment.
-import { useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
@@ -9,12 +9,15 @@ import { useTranslation } from 'react-i18next';
 
 import { ActionOtp, otpReady } from '@/components/ActionOtp';
 import { AppButton } from '@/components/Buttons';
+import { PlacesManager } from '@/components/PlacesManager';
+import { SearchableSelect } from '@/components/SearchableSelect';
 import { ErrorBanner, Field, Panel, Screen, TabPills, goBack } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { PropertyDraft, getPropertyDraft, setPropertyDraft } from '@/lib/propertyDraft';
 import { brand } from '@/theme';
 
+const NEW = '__new__';
 const EMPTY: PropertyDraft = { name: '', address: '', city: '', state: '', pincode: '', kind: 'commercial', proofType: 'property_tax', proofRef: '', declare: false };
 
 export default function AddProperty() {
@@ -28,6 +31,15 @@ export default function AddProperty() {
   const paid = acct?.state === 'active' || acct?.state === 'grace';
   const room = (acct?.property_capacity ?? 1) > (acct?.property_count ?? 0);          // the plan has room for another property in THIS account (Max)
   const addHere = paid && (!hasProperty || room);                                       // paid, and the property goes straight into this account
+  const params = useLocalSearchParams<{ propertyId?: string }>();
+  const props = useQuery({ queryKey: ['properties', owner], queryFn: () => api<any>('/api/v1/owner/properties', { ownerAccount: owner }) });
+  const existing: any[] = props.data?.items ?? [];
+  // one screen for properties AND their places: a new property, or an existing one to add places to (the only place in the app where a place is entered)
+  const [target, setTarget] = useState<string | null>(params.propertyId ? String(params.propertyId) : null);
+  const [another, setAnother] = useState(false);           // the plan is full and the owner chose to add one more under its own plan
+  const cap = acct?.property_capacity ?? 1;
+  const full = hasProperty && !room;                       // the chosen plan's properties are all used
+  const cur = target ?? (full && !another && existing[0] ? existing[0].id : NEW);
   const [f, setF] = useState<PropertyDraft>(getPropertyDraft() ?? EMPTY);
   const [err, setErr] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
@@ -47,10 +59,10 @@ export default function AddProperty() {
       // 1. check everything first (format, ownership proof, already registered?) — nothing is stored and nothing is charged yet
       await api('/api/v1/owner/properties/check', { ownerAccount: owner, body: body() });
       if (addHere) {                       // this account is paid and empty: the property goes straight in
-        await api('/api/v1/owner/properties', { ownerAccount: owner, body: { ...body(), otp_code: code } });
+        const created = await api<any>('/api/v1/owner/properties', { ownerAccount: owner, body: { ...body(), otp_code: code } });
         setPropertyDraft(null);
         await refresh(); qc.invalidateQueries();
-        goBack();
+        setTarget(created.id);                 // saved: now add its places, right here
         return;
       }
       setPropertyDraft(f);                              // 2. otherwise choose and pay a plan for it first (kept in memory only)
@@ -74,8 +86,37 @@ export default function AddProperty() {
                  { value: 'mixed', label: t('property.mixed'), icon: 'home-city-outline' }];
   const proofs = [{ value: 'property_tax', label: t('property.pt_property_tax'), icon: 'receipt-text-outline' }, { value: 'sale_deed', label: t('property.pt_sale_deed'), icon: 'file-sign' },
                   { value: 'electricity_bill', label: t('property.pt_electricity_bill'), icon: 'flash-outline' }, { value: 'lease_deed', label: t('property.pt_lease_deed'), icon: 'file-document-outline' }];
+  // "+ Add property" is offered only while the chosen plan has room for another property (a plan of 5 shows it until 5 are added)
+  const chooser = existing.length > 0 ? (
+    <SearchableSelect label={t('tenancy.property')} value={cur} testID="property-target"
+      options={[...existing.map((p: any) => ({ value: p.id, label: p.name || p.address, subtitle: p.name ? p.address : undefined })),
+                ...(!full || another ? [{ value: NEW, label: '+ ' + t('property.add') }] : [])]}
+      onChange={setTarget} />
+  ) : null;
+  if (cur !== NEW) {      // an existing property: nothing about it changes, only its places are added here
+    const current = existing.find((p: any) => p.id === cur);
+    return (
+      <Screen>
+        {chooser}
+        {full ? (
+          <Panel title={t('property.planFullTitle', { defaultValue: 'Your plan is full' })} icon="home-alert-outline" tone="amber">
+            <Text style={{ lineHeight: 21 }}>{t('property.planFull', { count: cap })}</Text>
+            <AppButton variant="outline" icon="home-plus-outline" label={t('property.addUnderOwnPlan', { defaultValue: 'Add another property with its own plan' })} onPress={() => { setAnother(true); setTarget(NEW); }} testID="add-under-own-plan" />
+          </Panel>
+        ) : null}
+        <Text style={{ color: brand.muted, lineHeight: 22 }}>{t('property.placesIntro', { defaultValue: 'Add the houses, flats, rooms or shops of this property here. When you add a renter, you choose from these.' })}</Text>
+        <PlacesManager propertyId={cur} owner={owner ?? undefined} propertyName={current?.name || current?.address} onDone={goBack} />
+      </Screen>
+    );
+  }
   return (
     <Screen>
+      {chooser}
+      {hasProperty && room ? (
+        <Text style={{ color: brand.teal700, fontWeight: '700' }} testID="plan-room">
+          {t('property.planRoom', { defaultValue: 'Your plan covers {{cap}} properties. {{used}} added, {{left}} left.', cap, used: acct?.property_count ?? 0, left: cap - (acct?.property_count ?? 0) })}
+        </Text>
+      ) : null}
       <Text style={{ color: brand.muted, lineHeight: 22 }}>{t('property.intro')}</Text>
       <Panel title={t('property.photoId')} icon={idOk ? 'shield-check' : 'card-account-details-outline'} tone={idOk ? 'green' : 'amber'}>
         <Text style={{ lineHeight: 21, color: idOk ? brand.green600 : brand.ink, fontWeight: idOk ? '700' : '400' }}>{idOk ? t('property.photoIdDone') : t('property.photoIdNeeded')}</Text>

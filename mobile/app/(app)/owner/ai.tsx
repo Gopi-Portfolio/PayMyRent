@@ -9,7 +9,7 @@ import { fmtDate } from '@/lib/dates';
 import { MessageLink } from '@/components/MessageLink';
 import { MicButton } from '@/components/NoteInput';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import { ErrorBanner, Panel, Screen, UsageBar } from '@/components/ui';
+import { DONE_ID, DoneBar, ErrorBanner, Panel, Screen, UsageBar } from '@/components/ui';
 import { ApiError, api, newIdempotencyKey } from '@/lib/api';
 import { Button } from '@/components/Buttons';
 import { ownerAccountId, useAuth } from '@/lib/auth';
@@ -65,7 +65,8 @@ export default function Ai() {
       ) : null}
       {exhausted ? <Text style={{ color: '#b45309' }}>{t('ai.exhausted')}</Text> : <ErrorBanner error={err} />}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <TextInput mode="outlined" style={{ flex: 1 }} value={q} onChangeText={(v) => { setQ(v); setVoice(false); }} placeholder={t('owner.askAi')} maxLength={300} />
+        <TextInput mode="outlined" style={{ flex: 1 }} value={q} onChangeText={(v) => { setQ(v); setVoice(false); }} placeholder={t('owner.askAi')} maxLength={300} returnKeyType="done" blurOnSubmit inputAccessoryViewID={DONE_ID} />
+        <DoneBar />
         <MicButton onText={(s) => { setQ(s); setVoice(true); }} />
       </View>
       <Button mode="contained" disabled={!q.trim() || busy || !u?.enabled} loading={busy} onPress={ask}>{t('owner.askAi')}</Button>
@@ -82,7 +83,7 @@ export default function Ai() {
       {draft ? (
         <>
           <Text variant="labelMedium">{t('ai.draftReview')}</Text>
-          <TextInput mode="outlined" multiline value={draft} onChangeText={setDraft} maxLength={500} />
+          <TextInput mode="outlined" multiline value={draft} onChangeText={setDraft} maxLength={500} inputAccessoryViewID={DONE_ID} />
           <Button mode="contained" icon="send" onPress={send} loading={busy}>{t('ai.send')}</Button>
         </>
       ) : null}

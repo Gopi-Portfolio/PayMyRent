@@ -16,7 +16,7 @@ from ..core.config import get_settings
 from ..core.db import transaction
 from ..core.errors import AppError
 from ..domain.money import format_inr
-from ..domain.notifications import reminder_dedupe_key, reminder_offset_due
+from ..domain.notifications import overdue_days, owner_notice, reminder_dedupe_key, reminder_offset_due
 from ..domain.signatures import verify_token
 from ..providers.payments import get_provider
 from . import notify
@@ -43,22 +43,39 @@ def job_generate_invoices() -> dict:
 
 
 def job_send_reminders() -> dict:
+    """Renter: 5 / 1 days before and on the due date, then EVERY day after it until paid. Owner: 5 days before, then on the first
+    late day and weekly after. Fully paid invoices and closed tenancies are skipped (reminder rules decide the channels)."""
     today = today_ist()
     queued = 0
     with transaction() as db:
         rows = db.all("""SELECT v.invoice_id, v.tenancy_id, v.due_date, v.open_paise, t.tenant_user_id, t.owner_account_id, t.status,
-                                u.identifier, r.offsets_days, r.channels, r.enabled
+                                u.identifier, r.offsets_days, r.channels, r.enabled, a.primary_user_id AS owner_user_id,
+                                COALESCE((SELECT name FROM tenancy_contact_snapshots WHERE tenancy_id = t.id ORDER BY created_at DESC LIMIT 1), '') AS tenant_name
                          FROM v_invoice_status v JOIN tenancies t ON t.id = v.tenancy_id JOIN units u ON u.id = t.unit_id
+                         JOIN owner_accounts a ON a.id = t.owner_account_id
                          JOIN reminder_rules r ON r.owner_account_id = t.owner_account_id
                          WHERE v.open_paise > 0 AND t.status = 'active' AND r.enabled""")
         for r in rows:
-            off = reminder_offset_due(today, r["due_date"], list(r["offsets_days"]), r["open_paise"], r["status"] == "active")
-            if off is None:
-                continue
-            notify.enqueue(db, r["tenant_user_id"], "rent_reminder",
-                           {"amount": format_inr(r["open_paise"]), "unit": r["identifier"], "due_date": r["due_date"].strftime("%d-%m-%Y")},
-                           reminder_dedupe_key(r["invoice_id"], off, "auto"), r["owner_account_id"], channels=tuple(r["channels"]))
-            queued += 1
+            active = r["status"] == "active"
+            amount, due = format_inr(r["open_paise"]), r["due_date"].strftime("%d-%m-%Y")
+            channels = tuple(r["channels"])
+            off = reminder_offset_due(today, r["due_date"], list(r["offsets_days"]), r["open_paise"], active)
+            late = overdue_days(today, r["due_date"], r["open_paise"], active)
+            if off is not None and off <= 0:                       # before / on the due date
+                notify.enqueue(db, r["tenant_user_id"], "rent_reminder", {"amount": amount, "unit": r["identifier"], "due_date": due},
+                               reminder_dedupe_key(r["invoice_id"], off, "auto"), r["owner_account_id"], channels=channels)
+                queued += 1
+            elif late is not None:                                  # past the due date: a push every day until it is paid
+                notify.enqueue(db, r["tenant_user_id"], "rent_overdue", {"amount": amount, "unit": r["identifier"], "due_date": due, "days": late},
+                               f"overdue:{r['invoice_id']}:{late}", r["owner_account_id"], channels=channels)
+                queued += 1
+            note = owner_notice(today, r["due_date"], r["open_paise"], active)
+            if note is not None and r["owner_user_id"]:
+                kind, days = note
+                notify.enqueue(db, r["owner_user_id"], "owner_rent_due_soon" if kind == "soon" else "owner_rent_overdue",
+                               {"amount": amount, "unit": r["identifier"], "tenant": r["tenant_name"], "due_date": due, "days": days},
+                               f"owner-{kind}:{r['invoice_id']}:{days}", r["owner_account_id"], channels=channels)
+                queued += 1
     return {"reminders_queued": queued}
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import secrets
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -20,7 +20,7 @@ from ..domain.money import format_inr, parse_inr
 from ..domain.places import floor_name, normalize_kind
 from ..domain.validation import (
     clean_text, validate_items, normalize_email, normalize_indian_mobile, validate_address, validate_date_range, validate_due_day,
-    validate_full_name, validate_note, validate_pincode, validate_unit_identifier,
+    validate_full_name, validate_note, validate_pincode, validate_unit_identifier, ValidationError,
 )
 from . import notify
 
@@ -366,8 +366,9 @@ def create_tenancy(db: Db, scope: OwnerScope, d: dict, source: str = "owner") ->
     owner_name = db.scalar("SELECT display_name FROM owner_accounts WHERE id = :o", o=owner)
     if tenant_user:
         notify.enqueue(db, tenant_user, "invitation", {"owner": owner_name, "unit": d["unit_identifier"]}, f"invite:{inv}", owner)
+    sms_sent = notify.invite_sms(d["tenant_mobile"], owner_name, d["unit_identifier"]) if not tenant_user else None   # no account yet: text the number now
     db.audit(actor, owner, "tenancy.invited", "tenancy", tid, after={"unit": d["unit_identifier"], "source": source})
-    return {"tenancy_id": str(tid), "invitation_id": str(inv), "tenant_registered": tenant_user is not None,
+    return {"tenancy_id": str(tid), "invitation_id": str(inv), "tenant_registered": tenant_user is not None, "invite_sms_sent": sms_sent,
             "share_text": f"{owner_name} has added you as the tenant of {d['unit_identifier']} on PayMyRent. "
                           f"Install PayMyRent and sign in with {d['tenant_mobile'][3:]} to accept."}
 
@@ -395,7 +396,12 @@ def validate_tenancy_input(body: TenancyIn) -> dict:
 
 @router.post("/owner/tenancies")
 def onboard_tenancy(body: TenancyIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
-    return create_tenancy(db, scope, validate_tenancy_input(body))
+    d = validate_tenancy_input(body)
+    if body.end_date is None:
+        raise ValidationError("end_date", "required")                    # a new rental needs both its start and its end date
+    if d["deposit_paise"] <= 0:
+        raise ValidationError("security_deposit", "must_be_positive")    # the advance received must be entered, and cannot be zero
+    return create_tenancy(db, scope, d)
 
 
 @router.get("/owner/tenancies")
@@ -510,6 +516,11 @@ def update_terms(tenancy_id: UUID, body: TermsIn, scope: OwnerScope = Depends(ow
     db.exec("""UPDATE tenancies SET due_day = COALESCE(:d, due_day), grace_days = COALESCE(:g, grace_days),
                end_date = COALESCE(:e, end_date), version = version + 1 WHERE id = :t""",
             d=validate_due_day(body.due_day) if body.due_day is not None else None, g=body.grace_days, e=body.end_date, t=tenancy_id)
+    if body.end_date is not None and body.end_date != t["end_date"] and t["status"] == "active":
+        # bring the bills in line with the new end date: credit rent past it, pro-rate the last month, and bill an extended stay now
+        from .billing import backfill_invoices
+        db.scalar("SELECT rg_resync_rent(:t, :by)", t=tenancy_id, by=scope.user.id)
+        backfill_invoices(db, tenancy_id)
     db.audit(scope.user.id, scope.owner_account_id, "tenancy.terms_updated", "tenancy", tenancy_id,
              before={k: t[k] for k in ("monthly_rent_paise", "due_day", "grace_days", "end_date")}, after=body.model_dump())
     _tell_renter_terms_changed(db, scope, t, body, old_rent)
@@ -595,6 +606,37 @@ def end_tenancy(tenancy_id: UUID, end_date: date, body: EndIn | None = None, sco
     bal = db.one("SELECT balance_paise, deposit_held_paise FROM v_tenancy_balance WHERE tenancy_id = :t", t=tenancy_id)
     return {"status": "ended", "final_balance_paise": bal["balance_paise"], "deposit_held_paise": bal["deposit_held_paise"],
             "next": "settle dues from deposit and record the refund"}
+
+
+@router.post("/owner/tenancies/{tenancy_id}/resend-invite")
+def resend_invite(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+    """Send the invitation text/notification again while the renter has not accepted. At most once every 10 minutes."""
+    t = owned_tenancy(db, scope, tenancy_id, lock=True)
+    if t["status"] != "invited":
+        raise AppError("INVALID_STATE", "This renter has already responded.", status=409)
+    if db.scalar("""SELECT 1 FROM audit_events WHERE entity_id = :t AND action = 'tenancy.invite_resent' AND created_at > now() - interval '10 minutes' LIMIT 1""", t=tenancy_id):
+        raise AppError("RATE_LIMITED", "The invitation was sent a moment ago. Please wait a few minutes.", status=429)
+    owner_name = db.scalar("SELECT display_name FROM owner_accounts WHERE id = :o", o=scope.owner_account_id)
+    unit = db.scalar("SELECT identifier FROM units WHERE id = :u", u=t["unit_id"])
+    tenant_user = db.scalar("""SELECT user_id FROM user_contacts WHERE kind = 'mobile' AND value = :p AND verified_at IS NOT NULL AND removed_at IS NULL""", p=t["invited_phone"])
+    if tenant_user:
+        notify.enqueue(db, tenant_user, "invitation", {"owner": owner_name, "unit": unit}, f"invite-again:{tenancy_id}:{datetime.now().timestamp():.0f}", scope.owner_account_id)
+        sent = True
+    else:
+        sent = notify.invite_sms(t["invited_phone"], owner_name, unit)
+    db.audit(scope.user.id, scope.owner_account_id, "tenancy.invite_resent", "tenancy", tenancy_id)
+    return {"status": "sent" if sent else "failed"}
+
+
+@router.post("/owner/tenancies/{tenancy_id}/cancel-invite")
+def cancel_invite(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+    """Remove a renter who was added by mistake (wrong number). Only while the invitation is still unaccepted; the address becomes free again."""
+    t = owned_tenancy(db, scope, tenancy_id, lock=True)
+    if t["status"] != "invited":
+        raise AppError("INVALID_STATE", "This renter has already accepted. Use End rental (vacate) instead.", status=409)
+    db.scalar("SELECT rg_end_tenancy(:t, :d, :by)", t=tenancy_id, d=date.today(), by=scope.user.id)   # an unaccepted tenancy is cancelled, not ended
+    db.audit(scope.user.id, scope.owner_account_id, "tenancy.invite_cancelled", "tenancy", tenancy_id)
+    return {"status": "cancelled"}
 
 
 # ───────────────────────── tenant side ─────────────────────────

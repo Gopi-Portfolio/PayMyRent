@@ -9,7 +9,7 @@ import psycopg
 import pytest
 
 from .conftest import ADMIN, ensure_property, new_phone, pay_subscription, property_body
-from .test_api_flows import accept_all, onboard
+from .test_api_flows import END, accept_all, onboard
 from .test_rls import as_app
 
 TODAY = date.today()
@@ -89,7 +89,7 @@ def test_renters_need_a_verified_property_and_only_a_reviewer_can_verify(actor, 
     pid = ensure_property(o, verified=False)
     t = actor()
     attempt = {"property_id": pid, "unit_identifier": "V-1", "tenant_name": "Ravi", "tenant_mobile": t.phone, "monthly_rent": "1000",
-               "due_day": 5, "start_date": M0.isoformat()}
+               "due_day": 5, "start_date": M0.isoformat(), "end_date": END, "security_deposit": "1000"}
     r = o.post("/api/v1/owner/tenancies", json=attempt)
     assert r.status_code == 409 and code(r) == "PROPERTY_NOT_VERIFIED"
     assert o.get("/api/v1/owner/properties").json()["items"][0]["verification_status"] == "submitted"
@@ -161,7 +161,7 @@ def test_a_plan_covers_one_property_more_properties_need_their_own_subscription(
     o.c.post(f"/api/v1/admin/review/property/{pid2}", json={"decision": "approve"}, headers=ADMIN)
     def add(ident):
         return o.post("/api/v1/owner/tenancies", headers=h, json={"property_id": pid2, "unit_identifier": ident, "tenant_name": "Ravi",
-                      "tenant_mobile": new_phone(), "monthly_rent": "1000", "due_day": 5, "start_date": M0.isoformat()})
+                      "tenant_mobile": new_phone(), "monthly_rent": "1000", "due_day": 5, "start_date": M0.isoformat(), "end_date": END, "security_deposit": "1000"})
     for n in range(1, 11):
         assert add(f"S-{n}").status_code == 200, n                      # ten places fit on the Rs 1 plan
     r = add("S-11")
@@ -202,7 +202,7 @@ def test_a_unit_becomes_vacant_when_the_renter_leaves_and_is_easy_to_refill(acto
     assert o.get("/api/v1/owner/properties").json()["items"][0]["vacant_units"] == 1
     # one call fills it: pick the vacant unit, give the new renter's details
     r = o.post("/api/v1/owner/tenancies", json={"unit_id": vac[0]["id"], "tenant_name": "New Renter", "tenant_mobile": new.phone,
-                                                "monthly_rent": "12000", "due_day": 5, "start_date": M0.isoformat()})
+                                                "monthly_rent": "12000", "due_day": 5, "start_date": M0.isoformat(), "end_date": END, "security_deposit": "1000"})
     assert r.status_code == 200, r.text
     accept_all(new)
     assert o.get("/api/v1/owner/units", params={"vacant": "true"}).json()["items"] == []
@@ -211,5 +211,5 @@ def test_a_unit_becomes_vacant_when_the_renter_leaves_and_is_easy_to_refill(acto
     stranger = owner_of(actor, "Stranger")
     ensure_property(stranger)
     t = stranger.post("/api/v1/owner/tenancies", json={"unit_id": vac[0]["id"], "tenant_name": "Xavier", "tenant_mobile": new_phone(), "monthly_rent": "1",
-                                                       "due_day": 5, "start_date": M0.isoformat()})
+                                                       "due_day": 5, "start_date": M0.isoformat(), "end_date": END, "security_deposit": "1000"})
     assert t.status_code == 404, t.text

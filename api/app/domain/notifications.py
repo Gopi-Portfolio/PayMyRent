@@ -79,3 +79,27 @@ def reminder_offset_due(today: date, due_date: date, offsets_days: list[int], op
 
 def reminder_dedupe_key(invoice_id: UUID, offset: int, channel: str) -> str:
     return f"reminder:{invoice_id}:{offset}:{channel}"
+
+
+OWNER_DUE_SOON_DAYS = 5      # the owner is told this many days before the due date
+OWNER_OVERDUE_EVERY = 7      # and, once it is late, on the first day after and then weekly
+
+
+def overdue_days(today: date, due_date: date, open_paise: int, tenancy_active: bool) -> int | None:
+    """Days past the due date while money is still owed (the renter is reminded every one of these days); None otherwise."""
+    if open_paise <= 0 or not tenancy_active:
+        return None
+    d = (today - due_date).days
+    return d if d >= 1 else None
+
+
+def owner_notice(today: date, due_date: date, open_paise: int, tenancy_active: bool) -> tuple[str, int] | None:
+    """('soon', days_left) 5 days before the due date; ('late', days_late) the day after and then weekly. None on other days."""
+    if open_paise <= 0 or not tenancy_active:
+        return None
+    delta = (today - due_date).days
+    if delta == -OWNER_DUE_SOON_DAYS:
+        return "soon", -delta
+    if delta >= 1 and (delta - 1) % OWNER_OVERDUE_EVERY == 0:
+        return "late", delta
+    return None

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import { Dialog, Divider, List, Portal, Switch, Text, TextInput } from 'react-native-paper';
+import { Dialog, Divider, List, Portal, Switch, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { SearchableSelect } from '@/components/SearchableSelect';
@@ -33,7 +33,9 @@ export default function ProfileScreen() {
   const [address, setAddress] = useState(me?.address ?? '');
   const [closing, setClosing] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [sel, setSel] = useState<string | null>(null);   // the mobile whose alert switches are shown
   const [adding, setAdding] = useState<null | 'mobile' | 'email'>(null);
+  const [emailFor, setEmailFor] = useState<{ id: string; value: string } | null>(null);   // the mobile number a new email is being added for
   const [newValue, setNewValue] = useState('');
   const [verify, setVerify] = useState<{ id: string; code: string } | null>(null);
   const [change, setChange] = useState<{ step: 'new' | 'code'; phone: string; code: string; requestId?: string } | null>(null);
@@ -63,7 +65,7 @@ export default function ProfileScreen() {
       <ErrorBanner error={err} />
       <Panel>
       <Field label={t('profile.fullName')} value={name} onChangeText={setName} kind="name" />
-      <TextInput mode="outlined" label={t('profile.primaryMobile')} value={primary?.value ?? ''} editable={false} outlineStyle={{ borderRadius: 16 }} style={{ backgroundColor: brand.canvas }} right={<TextInput.Icon icon="lock" />} />
+      <Text style={{ opacity: 0.7 }}>{t('profile.primaryMobile')}: {primary?.value ?? ''}</Text>
       <Field label={t('profile.address')} value={address} onChangeText={setAddress} kind="address" multiline />
       <GenderPicker />
       <SearchableSelect label={t('profile.language')} value={i18n.language} options={LANGUAGES.map((l) => ({ value: l.code, label: l.label }))}
@@ -73,44 +75,78 @@ export default function ProfileScreen() {
       </Button>
       </Panel>
 
-      <Panel title={`${t('profile.addMobile')} / ${t('profile.addEmail')}`} icon="contacts-outline" tone="blue">
-      {me.contacts.filter((c) => !c.is_primary || c.kind === 'email').map((c) => (
-        <List.Item key={c.id} style={{ paddingHorizontal: 0 }} title={c.value} description={c.verified ? '✓' : 'not verified'}
-          right={() => (!c.verified ? <Button onPress={() => setVerify({ id: c.id, code: '' })}>{t('auth.verify')}</Button>
-                                    : <Button onPress={() => run(() => api(`/api/v1/me/contacts/${c.id}`, { method: 'DELETE' }))}>✕</Button>)} />
-      ))}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {mobiles.length < 2 ? <Button icon="plus" onPress={() => setAdding('mobile')}>{t('profile.addMobile')}</Button> : null}
-        {emails.length < 2 ? <Button icon="plus" onPress={() => setAdding('email')}>{t('profile.addEmail')}</Button> : null}
-      </View>
-      </Panel>
-
-      <Panel title="SMS · WhatsApp · Email · Push" icon="bell-ring-outline" tone="amber">
-
-      {/* Destination pickers appear only when there is a real choice to make. */}
-      {verifiedOpts('mobile').length > 1 ? (
-        <>
-          <SearchableSelect label={t('profile.smsTo')} value={prefs.sms_contact_id ?? null} options={verifiedOpts('mobile')} onChange={(v) => savePrefs({ sms_contact_id: v })} />
-          <SearchableSelect label={t('profile.whatsappTo')} value={prefs.whatsapp_contact_id ?? null} options={verifiedOpts('mobile')} onChange={(v) => savePrefs({ whatsapp_contact_id: v })} />
-        </>
-      ) : null}
-      {verifiedOpts('email').length > 1 ? (
-        <SearchableSelect label={t('profile.emailTo')} value={prefs.email_contact_id ?? null} options={verifiedOpts('email')} onChange={(v) => savePrefs({ email_contact_id: v })} />
-      ) : null}
-      {(['sms', 'whatsapp', 'email', 'push'] as const).map((ch) => (
-        <List.Item key={ch} style={{ paddingHorizontal: 0 }} title={ch.toUpperCase()} left={(p) => <List.Icon {...p} icon={ch === 'sms' ? 'message-text-outline' : ch === 'whatsapp' ? 'whatsapp' : ch === 'email' ? 'email-outline' : 'cellphone-check'} />} right={() => (
-          <Switch value={!!prefs[`${ch}_enabled`]} onValueChange={(v) => savePrefs({ [`${ch}_enabled`]: v })} accessibilityLabel={ch} />)} />
-      ))}
-
+      <Panel title={t('profile.alerts', { defaultValue: 'Phone numbers & alerts' })} icon="bell-ring-outline" tone="amber">
+        {(() => {
+          const num = (sel && mobiles.find((m) => m.id === sel)) || primary || mobiles[0];
+          const numEmail = emails.find((e) => e.for_mobile_id === num?.id);      // each number has its own email
+          const rows = [
+            { ch: 'sms', title: 'SMS', icon: 'message-text-outline' },
+            { ch: 'whatsapp', title: 'WhatsApp', icon: 'whatsapp' },
+            { ch: 'email', title: 'Email', icon: 'email-outline' },
+            { ch: 'push', title: 'Push', icon: 'cellphone-check' },
+          ] as const;
+          return (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <SearchableSelect label={t('profile.mobileNo', { defaultValue: 'Mobile number' })} value={num?.id ?? null}
+                    options={mobiles.map((m) => ({ value: m.id, label: m.verified ? m.value : `${m.value} (${t('profile.notVerified', { defaultValue: 'not verified' })})` }))}
+                    onChange={(v) => setSel(v)} />
+                </View>
+                {mobiles.length < 2 ? <Button icon="plus" onPress={() => { setNewValue(''); setAdding('mobile'); }}>{t('common.add', { defaultValue: 'Add' })}</Button> : null}
+              </View>
+              {num && !num.verified ? (
+                <Button mode="contained-tonal" onPress={() => setVerify({ id: num.id, code: '' })}>{t('auth.verify')} {num.value}</Button>
+              ) : null}
+              {rows.map(({ ch, title, icon }) => {
+                const isMob = ch === 'sms' || ch === 'whatsapp';
+                const target = isMob ? (prefs[`${ch}_contact_id`] ?? primary?.id) : null;
+                const here = isMob ? target === num?.id : true;
+                const enabled = !!prefs[`${ch}_enabled`] && (ch !== 'email' || prefs.email_contact_id === numEmail?.id);
+                const none = (ch === 'email' && !numEmail?.verified) || (isMob && !num?.verified);
+                const other = isMob && enabled && !here ? mobiles.find((m) => m.id === target)?.value : undefined;
+                const desc = none ? (ch === 'email' ? (numEmail ? t('profile.verifyEmail', { defaultValue: 'Verify this email first' }) : t('profile.needEmail', { defaultValue: 'No email for this number. Add one below.' })) : t('profile.verifyFirst', { defaultValue: 'Verify this number first' }))
+                  : ch === 'email' ? numEmail!.value
+                  : other ? `${t('profile.currentlyOn', { defaultValue: 'Now sent to' })} ${other}` : undefined;
+                return (
+                  <List.Item key={ch} style={{ paddingHorizontal: 0 }} title={title} description={desc} descriptionStyle={none ? { color: 'crimson' } : undefined}
+                    left={(p) => <List.Icon {...p} icon={icon} />}
+                    right={() => <Switch value={!none && enabled && here} disabled={none}
+                      onValueChange={(v) => savePrefs(isMob ? (v ? { [`${ch}_contact_id`]: num!.id, [`${ch}_enabled`]: true } : { [`${ch}_enabled`]: false })
+                        : ch === 'email' ? (v ? { email_contact_id: numEmail!.id, email_enabled: true } : { email_enabled: false }) : { [`${ch}_enabled`]: v })}
+                      accessibilityLabel={ch} />} />
+                );
+              })}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                {num && !num.is_primary ? <Button textColor="crimson" onPress={() => { const id = num.id; setSel(null); run(() => api(`/api/v1/me/contacts/${id}`, { method: 'DELETE' })); }}>{numEmail ? t('profile.removeNumberEmail', { defaultValue: 'Remove this number and its email' }) : t('common.remove', { defaultValue: 'Remove this number' })}</Button> : null}
+              </View>
+              {numEmail ? (
+                <List.Item style={{ paddingHorizontal: 0 }} title={numEmail.value} description={numEmail.verified ? `✓ ${t('profile.emailOfNumber', { defaultValue: 'Email for' })} ${num?.value}` : t('profile.notVerified', { defaultValue: 'not verified' })}
+                  left={(p) => <List.Icon {...p} icon="email-outline" />}
+                  right={() => (<View style={{ flexDirection: 'row' }}>
+                    {!numEmail.verified ? <Button onPress={() => setVerify({ id: numEmail.id, code: '' })}>{t('auth.verify')}</Button> : null}
+                    <Button textColor="crimson" onPress={() => run(() => api(`/api/v1/me/contacts/${numEmail.id}`, { method: 'DELETE' }))}>✕</Button></View>)} />
+              ) : num ? (
+                <Button icon="plus" onPress={() => { setNewValue(''); setEmailFor({ id: num.id, value: num.value }); setAdding('email'); }} testID="add-email">
+                  {`${t('profile.addEmail')} · ${num.value}`}
+                </Button>
+              ) : null}
+            </>
+          );
+        })()}
       </Panel>
 
       <IdentityRow />
 
-      {isOwner ? <OwnerPayDefault /> : null}
-
-      {isOwner ? <OwnerUpi /> : null}
-
-      {isOwner ? <PlanCard owner={owner} /> : null}
+      {isOwner ? (
+        <List.Accordion title={t('profile.ownerSettings', { defaultValue: 'Owner settings' })} left={(p) => <List.Icon {...p} icon="home-city-outline" />}>
+          <View style={{ gap: 12, paddingVertical: 8 }}>
+            <OwnerPayDefault />
+            <OwnerUpi />
+            <PlanCard owner={owner} />
+          </View>
+        </List.Accordion>
+      ) : null}
 
       <Panel>
         <Button icon="cellphone-key" onPress={startChange}>{t('profile.changeMobile')}</Button>
@@ -138,13 +174,14 @@ export default function ProfileScreen() {
           </Dialog.Actions>
         </Dialog>
         <Dialog visible={!!adding} onDismiss={() => setAdding(null)}>
-          <Dialog.Content>
+          <Dialog.Content style={{ gap: 12 }}>
+            {adding === 'email' && emailFor ? <Text style={{ fontWeight: '700' }}>{`${t('profile.emailOfNumber', { defaultValue: 'Email for' })} ${emailFor.value}`}</Text> : null}
             <Field label={adding === 'email' ? 'Email' : t('auth.enterMobile')} value={newValue} onChangeText={setNewValue}
                    kind={adding === 'email' ? 'email' : 'mobile'} />
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => run(async () => {
-              const r = await api<any>('/api/v1/me/contacts', { body: { kind: adding, value: newValue } });
+              const r = await api<any>('/api/v1/me/contacts', { body: { kind: adding, value: newValue, ...(adding === 'email' ? { for_mobile_id: emailFor?.id } : {}) } });
               setAdding(null); setNewValue(''); setVerify({ id: r.contact_id, code: r.demo_code ?? '' });
             })}>{t('auth.sendOtp')}</Button>
           </Dialog.Actions>

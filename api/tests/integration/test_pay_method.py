@@ -5,7 +5,7 @@ import uuid
 from datetime import date
 
 from .conftest import ensure_property, pay_subscription
-from .test_api_flows import M0, TODAY, accept_all
+from .test_api_flows import END, M0, TODAY, accept_all
 
 UPI = "owner.test@okhdfcbank"
 
@@ -13,7 +13,7 @@ UPI = "owner.test@okhdfcbank"
 def _tenancy(owner, tenant, **extra):
     r = owner.post("/api/v1/owner/tenancies", json={
         "property_id": ensure_property(owner), "unit_identifier": f"S-{uuid.uuid4().hex[:4]}", "tenant_name": "Ravi Kumar",
-        "tenant_mobile": tenant.phone, "monthly_rent": "10000", "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "0", **extra})
+        "tenant_mobile": tenant.phone, "monthly_rent": "10000", "due_day": 5, "start_date": M0.isoformat(), "security_deposit": "1000", "end_date": END, **extra})
     return r
 
 

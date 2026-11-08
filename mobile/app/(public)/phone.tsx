@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next';
 
 import { sanitize } from '@/lib/inputs';
 import { AppButton } from '@/components/Buttons';
-import { AuthShell, ErrorBanner, goBack } from '@/components/ui';
+import { Keyboard } from 'react-native';
+import { AuthShell, DONE_ID, DoneBar, ErrorBanner, goBack } from '@/components/ui';
 import { radius } from '@/theme';
 import { useAuth } from '@/lib/auth';
 import { normalizeMobile } from '@/lib/format';
@@ -31,8 +32,9 @@ export default function Phone() {
   return (
     <AuthShell title={t('auth.enterMobile')} subtitle={t('app.tagline')}>
       <TextInput mode="outlined" outlineStyle={{ borderRadius: radius.md }} style={{ backgroundColor: '#fff', fontSize: 18, height: 60 }} left={<TextInput.Affix text="+91" />} keyboardType="phone-pad" textContentType="telephoneNumber"
-                 autoComplete="tel" value={raw} onChangeText={(v) => setRaw(sanitize('mobile', v))} maxLength={14}
+                 autoComplete="tel" value={raw} onChangeText={(v) => { const m = sanitize('mobile', v); setRaw(m); if (m.length === 10) Keyboard.dismiss(); }} inputAccessoryViewID={DONE_ID} maxLength={14}
                  error={raw.length === 10 && !e164} accessibilityLabel={t('auth.enterMobile')} testID="phone-input" />
+      <DoneBar />
       {raw.length === 10 && !e164 ? <Text style={{ color: 'crimson' }}>{t('error.mobile_10_digits')}</Text> : null}
       <ErrorBanner error={err} />
       <AppButton label={t('auth.sendOtp')} icon="send" disabled={!e164} loading={busy} onPress={send} />

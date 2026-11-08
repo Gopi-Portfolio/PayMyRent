@@ -11,7 +11,7 @@ from openpyxl import Workbook, load_workbook
 from app.domain.excel_import import ImportFileError, build_template, parse_workbook
 from app.domain.money import format_inr, parse_inr, prorate
 from app.domain.notifications import (
-    Contact, Preferences, in_quiet_hours, reminder_offset_due, resolve_destination,
+    Contact, Preferences, in_quiet_hours, overdue_days, owner_notice, reminder_offset_due, resolve_destination,
 )
 from app.domain.signatures import (
     hash_otp, hmac_sha256_hex, mask_phone, sign_token, verify_hmac_sha256_hex, verify_token,
@@ -328,3 +328,17 @@ def test_search_terms_are_safe_and_sensible():
     phone = search_terms("+91 98840-38398")
     assert phone["ph"] == "%919884038398%" and phone["nm"] is None                  # long numbers: phone search
     assert search_terms("D-01")["nm"] == "%D-01%"                                   # shop numbers with a dash still match names too
+
+
+def test_renter_is_reminded_every_day_once_overdue_and_owner_5_days_before():
+    due = date(2026, 11, 5)
+    assert overdue_days(date(2026, 11, 5), due, 500, True) is None                 # on the due date: not late yet
+    assert [overdue_days(date(2026, 11, d), due, 500, True) for d in (6, 7, 20)] == [1, 2, 15]   # every late day
+    assert overdue_days(date(2026, 11, 8), due, 0, True) is None                  # paid: stop
+    assert overdue_days(date(2026, 11, 8), due, 500, False) is None               # closed tenancy: stop
+    assert owner_notice(date(2026, 10, 31), due, 500, True) == ("soon", 5)        # owner: 5 days before
+    assert owner_notice(date(2026, 11, 1), due, 500, True) is None
+    assert owner_notice(date(2026, 11, 6), due, 500, True) == ("late", 1)         # first late day, then weekly
+    assert owner_notice(date(2026, 11, 7), due, 500, True) is None
+    assert owner_notice(date(2026, 11, 13), due, 500, True) == ("late", 8)
+    assert owner_notice(date(2026, 10, 31), due, 0, True) is None

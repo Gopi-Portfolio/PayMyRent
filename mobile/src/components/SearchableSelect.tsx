@@ -10,13 +10,15 @@ export type Option<V extends string = string> = { value: V; label: string; subti
 type Props<V extends string> = {
   label: string; value: V | null; options: Option<V>[]; onChange: (v: V) => void;
   error?: string; disabled?: boolean; testID?: string;
+  openKey?: number;      // when this number changes (and is above 0) the list opens: lets a tile elsewhere on the page open it
 };
 
-export function SearchableSelect<V extends string>({ label, value, options, onChange, error, disabled, testID }: Props<V>) {
+export function SearchableSelect<V extends string>({ label, value, options, onChange, error, disabled, testID, openKey }: Props<V>) {
   const { t } = useTranslation();
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
+  React.useEffect(() => { if (openKey && openKey > 0 && !disabled) setOpen(true); }, [openKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   const selected = options.find((o) => o.value === value);
   const filtered = useMemo(() => {
     const n = q.trim().toLowerCase();
@@ -46,7 +48,7 @@ export function SearchableSelect<V extends string>({ label, value, options, onCh
             <FlatList
               data={filtered}
               keyExtractor={(o) => o.value}
-              keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
               style={{ flexGrow: 0 }}
               renderItem={({ item }) => (
                 <Pressable onPress={() => { onChange(item.value); setOpen(false); setQ(''); }} accessibilityRole="button"

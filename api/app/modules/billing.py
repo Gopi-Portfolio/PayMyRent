@@ -217,16 +217,16 @@ def dashboard(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)
     m = db.one("""SELECT
         (SELECT COALESCE(sum(amount_paise), 0) FROM payments WHERE owner_account_id = :o AND status = 'confirmed' AND method <> 'deposit'
            AND paid_on >= date_trunc('month', rg_today())) AS collected_paise,
-        (SELECT COALESCE(sum(GREATEST(balance_paise, 0)), 0) FROM v_tenancy_balance WHERE owner_account_id = :o) AS pending_paise,
+        (SELECT COALESCE(sum(payable_now_paise), 0) FROM v_tenancy_balance WHERE owner_account_id = :o) AS pending_paise,
         (SELECT COALESCE(sum(open_paise), 0) FROM v_invoice_status WHERE owner_account_id = :o AND due_date < rg_today()) AS overdue_paise,
         (SELECT count(DISTINCT tenancy_id) FROM v_invoice_status WHERE owner_account_id = :o AND due_date < rg_today() AND open_paise > 0) AS overdue_tenants,
         (SELECT COALESCE(sum(p.amount_paise), 0) FROM payments p JOIN tenancies t ON t.id = p.tenancy_id JOIN units u ON u.id = t.unit_id
            WHERE p.owner_account_id = :o AND p.status = 'confirmed' AND p.method <> 'deposit' AND p.paid_on >= date_trunc('month', rg_today()) AND u.kind = 'residential') AS collected_residential_paise,
         (SELECT COALESCE(sum(p.amount_paise), 0) FROM payments p JOIN tenancies t ON t.id = p.tenancy_id JOIN units u ON u.id = t.unit_id
            WHERE p.owner_account_id = :o AND p.status = 'confirmed' AND p.method <> 'deposit' AND p.paid_on >= date_trunc('month', rg_today()) AND u.kind = 'commercial') AS collected_commercial_paise,
-        (SELECT COALESCE(sum(GREATEST(b.balance_paise, 0)), 0) FROM v_tenancy_balance b JOIN tenancies t ON t.id = b.tenancy_id JOIN units u ON u.id = t.unit_id
+        (SELECT COALESCE(sum(b.payable_now_paise), 0) FROM v_tenancy_balance b JOIN tenancies t ON t.id = b.tenancy_id JOIN units u ON u.id = t.unit_id
            WHERE b.owner_account_id = :o AND u.kind = 'residential') AS pending_residential_paise,
-        (SELECT COALESCE(sum(GREATEST(b.balance_paise, 0)), 0) FROM v_tenancy_balance b JOIN tenancies t ON t.id = b.tenancy_id JOIN units u ON u.id = t.unit_id
+        (SELECT COALESCE(sum(b.payable_now_paise), 0) FROM v_tenancy_balance b JOIN tenancies t ON t.id = b.tenancy_id JOIN units u ON u.id = t.unit_id
            WHERE b.owner_account_id = :o AND u.kind = 'commercial') AS pending_commercial_paise,
         (SELECT COALESCE(sum(v.open_paise), 0) FROM v_invoice_status v JOIN tenancies t ON t.id = v.tenancy_id JOIN units u ON u.id = t.unit_id
            WHERE v.owner_account_id = :o AND v.due_date < rg_today() AND u.kind = 'residential') AS overdue_residential_paise,
@@ -259,11 +259,11 @@ def dashboard_detail(kind: Literal["collected", "pending", "overdue", "units"], 
                           WHERE p.owner_account_id = :o AND p.status = 'confirmed' AND p.method <> 'deposit'
                             AND p.paid_on >= date_trunc('month', rg_today()) ORDER BY p.paid_on DESC, p.created_at DESC LIMIT 300""", o=o)
     elif kind == "pending":
-        rows = db.all(f"""SELECT t.id AS tenancy_id, u.identifier, {who} AS tenant_name, b.balance_paise AS amount_paise,
+        rows = db.all(f"""SELECT t.id AS tenancy_id, u.identifier, {who} AS tenant_name, b.payable_now_paise AS amount_paise,
                                  (SELECT min(v.due_date) FROM v_invoice_status v WHERE v.tenancy_id = t.id AND v.open_paise > 0) AS oldest_due,
                                  (SELECT count(*) FROM v_invoice_status v WHERE v.tenancy_id = t.id AND v.open_paise > 0) AS open_months
                           FROM tenancies t JOIN units u ON u.id = t.unit_id JOIN v_tenancy_balance b ON b.tenancy_id = t.id
-                          WHERE t.owner_account_id = :o AND b.balance_paise > 0 ORDER BY b.balance_paise DESC LIMIT 300""", o=o)
+                          WHERE t.owner_account_id = :o AND b.payable_now_paise > 0 ORDER BY b.payable_now_paise DESC LIMIT 300""", o=o)
     elif kind == "overdue":
         rows = db.all(f"""SELECT v.invoice_id AS id, v.tenancy_id, v.period_month, v.due_date, v.open_paise AS amount_paise, u.identifier,
                                  {who} AS tenant_name, (rg_today() - v.due_date) AS days_overdue

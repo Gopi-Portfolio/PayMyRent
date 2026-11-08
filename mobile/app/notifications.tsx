@@ -17,7 +17,7 @@ const ICON: Record<string, string> = {
   relief_requested: 'hand-heart-outline', relief_approved: 'handshake-outline', relief_declined: 'close-circle-outline', vacate_requested: 'door-open', vacate_declined: 'close-circle-outline', rent_reminder: 'bell-ring-outline',
   charge_reviewed: 'flash-outline', tenancy_closed: 'door-open', invitation: 'email-fast-outline', security_event: 'shield-alert-outline', subscription_expiring: 'clock-alert-outline',
   dispute_update: 'scale-balance', agreement_ending_owner: 'file-sign', agreement_ending_tenant: 'file-sign', agreement_lapsed_owner: 'file-alert-outline',
-  agreement_lapsed_tenant: 'file-alert-outline', agreement_renewed: 'file-check-outline',
+  agreement_lapsed_tenant: 'file-alert-outline', agreement_renewed: 'file-check-outline', owner_message: 'message-text-outline', renter_message: 'message-reply-text-outline',
 };
 // where a tap on a notification leads, when there is a natural place
 const GO: Record<string, string> = { relief_requested: '/(app)/owner/relief', vacate_requested: '/(app)/owner/vacate', invitation: '/(app)/tenant' };
@@ -47,7 +47,10 @@ export default function Notifications() {
       ) : null}
       {items.map((n) => {
         const isNew = fresh.current?.has(n.id);
-        const go = n.tenancy_id && n.template.startsWith('agreement') ? `/agreement/${n.tenancy_id}` : GO[n.template];
+        // a message from the other side can be answered right from the bell: a renter writes back to the owner, an owner to the renter
+        const reply = n.tenancy_id && n.template === 'owner_message' ? `/(app)/tenant/message?tenancyId=${n.tenancy_id}`
+                    : n.tenancy_id && n.template === 'renter_message' ? `/(app)/owner/message?tenancyId=${n.tenancy_id}` : null;
+        const go = reply ?? (n.tenancy_id && n.template.startsWith('agreement') ? `/agreement/${n.tenancy_id}` : GO[n.template]);
         return (
           <Pressable key={n.id} disabled={!go} onPress={() => go && router.push(go as any)} testID={`notification-${n.template}`}
                      style={({ pressed }) => [{ backgroundColor: isNew ? brand.teal50 : '#fff', borderRadius: radius.md, padding: 14, flexDirection: 'row', gap: 12, alignItems: 'flex-start',
@@ -58,6 +61,12 @@ export default function Notifications() {
             <View style={{ flex: 1, gap: 2 }}>
               <Text variant="bodyMedium" style={{ fontWeight: isNew ? '700' : '500' }}>{n.text}</Text>
               <Text variant="labelSmall" style={{ color: brand.muted }}>{fmtDate(n.created_at)}</Text>
+              {reply ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }} testID={`reply-${n.template}`}>
+                  <Icon source="reply" size={18} color={brand.teal700} />
+                  <Text style={{ color: brand.teal700, fontWeight: '800' }}>{t('message.reply', { defaultValue: 'Reply' })}</Text>
+                </View>
+              ) : null}
             </View>
             {go ? <Icon source="chevron-right" size={20} color={brand.muted} /> : null}
           </Pressable>

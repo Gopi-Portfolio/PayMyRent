@@ -23,5 +23,6 @@ appId: in.paymyrent.app
 - inputText: "3000"
 - tapOn: "Continue"
 - tapOn: { id: "confirm-cash" }
-- assertVisible: "Payment confirmed · ₹3,000"
-- assertVisible: "Cash — recorded by owner"
+- assertVisible: "Cash Payment Recorded"
+- assertVisible: "₹3,000"
+- assertVisible: "Cash — Recorded by Owner.*"

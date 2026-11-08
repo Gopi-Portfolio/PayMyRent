@@ -7,11 +7,12 @@ import { Icon, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { AppButton } from '@/components/Buttons';
+import { UpiAppButton } from '@/components/UpiAppButton';
 import { ErrorBanner, Field, Panel } from '@/components/ui';
 import { ApiError, api, newIdempotencyKey } from '@/lib/api';
 import { dmyToIso, todayDMY } from '@/lib/dates';
 import { formatINR } from '@/lib/format';
-import { upiLink } from '@/lib/upi';
+import { type UpiBase, upiLink } from '@/lib/upi';
 import { brand, radius } from '@/theme';
 
 export function UpiPay({ tenancyId, ownerName, upi, unit, paise, due, onReported }: { tenancyId: string; ownerName: string; upi: string; unit: string; paise: number | null; due: number; onReported: (p: any, ref: string) => void }) {
@@ -29,12 +30,13 @@ export function UpiPay({ tenancyId, ownerName, upi, unit, paise, due, onReported
   const refOk = /^[A-Za-z0-9-]{4,40}$/.test(ref.trim());
   const refErr = err instanceof ApiError ? err.fields?.find((x) => x.field === 'reference')?.code : undefined;
 
-  async function open(kind: 'gpay' | 'upi') {
+  // iPhone: the plain upi:// link is claimed by WhatsApp (WhatsApp Pay), so each UPI app is opened by its OWN link. Android shows its own chooser for upi://.
+  const IOS_APPS: Record<string, UpiBase> = { gpay: 'gpay://upi/pay', phonepe: 'phonepe://pay', paytm: 'paytmmp://pay' };
+  async function open(kind: 'gpay' | 'phonepe' | 'paytm' | 'upi') {
     if (!amountOk) return;
     setNoApp(false); setErr(null);
     const p = { vpa: upi, name: ownerName, paise: paise!, note: `Rent ${unit}`.slice(0, 40) };
-    // Google Pay on iPhone has its own address; everywhere else the standard UPI link opens the phone's UPI apps (Google Pay is one of them)
-    const url = kind === 'gpay' && Platform.OS === 'ios' ? upiLink('gpay://upi/pay', p) : upiLink('upi://pay', p);
+    const url = upiLink(Platform.OS === 'ios' && kind !== 'upi' ? IOS_APPS[kind] : 'upi://pay', p);
     try { await Linking.openURL(url); setOpened(true); } catch { setNoApp(true); }
   }
 
@@ -61,8 +63,19 @@ export function UpiPay({ tenancyId, ownerName, upi, unit, paise, due, onReported
           <Icon source="shield-check-outline" size={20} color={brand.teal700} />
           <Text style={{ flex: 1, lineHeight: 20 }}>{t('upi.checkName', { owner: ownerName })}</Text>
         </View>
-        <AppButton variant="green" icon="google" label={`${t('upi.gpay')} · ${paise ? formatINR(paise) : ''}`} disabled={!amountOk} onPress={() => open('gpay')} testID="upi-gpay" />
-        <AppButton variant="outline" icon="cellphone-arrow-down" label={t('upi.otherApp')} disabled={!amountOk} onPress={() => open('upi')} testID="upi-other" />
+        {paise && amountOk ? <Text style={{ textAlign: 'center', fontWeight: '800', fontSize: 18 }}>{`${t('pay.title')} · ${formatINR(paise)}`}</Text> : null}
+        {/* small round app buttons in one row; on an iPhone each app opens by its own link, on Android the system lists the installed UPI apps */}
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <UpiAppButton app="gpay" label="Google Pay" disabled={!amountOk} onPress={() => open('gpay')} testID="upi-gpay" />
+          {Platform.OS === 'ios' ? (
+            <>
+              <UpiAppButton app="phonepe" label="PhonePe" disabled={!amountOk} onPress={() => open('phonepe')} testID="upi-phonepe" />
+              <UpiAppButton app="paytm" label="Paytm" disabled={!amountOk} onPress={() => open('paytm')} testID="upi-paytm" />
+            </>
+          ) : (
+            <UpiAppButton app="other" label={t('upi.otherAppShort', { defaultValue: 'Other UPI app' })} disabled={!amountOk} onPress={() => open('upi')} testID="upi-other" />
+          )}
+        </View>
         {!amountOk && paise ? <Text style={{ color: '#B45309', fontWeight: '700' }}>{t('pay.maxIsDue', { amount: formatINR(due) })}</Text> : null}
         {noApp ? <Text style={{ color: '#B45309', lineHeight: 20 }} testID="upi-noapp">{t('upi.noApp')}</Text> : null}
       </Panel>

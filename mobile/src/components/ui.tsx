@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, usePathname } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, Animated, Dimensions, Easing, FlatList, Modal, PanResponder, Pressable, ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Dimensions, Easing, FlatList, InputAccessoryView, Keyboard, Modal, Platform, PanResponder, Pressable, ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
 import { Banner, Card, HelperText, Icon, ProgressBar, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -319,7 +319,7 @@ export function Screen({ children, scroll = true }: { children: React.ReactNode;
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <DemoBanner />
-      <SlideIn>{scroll ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>{body}</ScrollView> : body}</SlideIn>
+      <SlideIn>{scroll ? <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets contentContainerStyle={{ paddingBottom: 32 }}>{body}</ScrollView> : body}</SlideIn>
     </View>
   );
 }
@@ -347,7 +347,7 @@ export function AuthShell({ title, subtitle, icon, children }: { title: string; 
         {subtitle ? <Text style={styles.heroSub}>{subtitle}</Text> : null}
         {icon ? <View style={styles.badgeCircle}><Icon source={icon} size={30} color="#3B2300" /></View> : null}
       </LinearGradient>
-      <ScrollView keyboardShouldPersistTaps="handled" style={[styles.sheet, { backgroundColor: theme.colors.background }]}
+      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets style={[styles.sheet, { backgroundColor: theme.colors.background }]}
                   contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 40 }}>
         {children}
       </ScrollView>
@@ -368,6 +368,23 @@ export function ScreenHero({ icon, title, tone = 'teal' }: { icon?: string; titl
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return <Text variant="titleMedium" style={styles.section}>{children}</Text>;
+}
+
+/** The "Done" bar above the iPhone keyboard. Number and phone pads have no Return key, and in a multi-line box Return starts a new line,
+ *  so without this the keyboard cannot be closed. Render <DoneBar /> once on the screen and give each text box inputAccessoryViewID={DONE_ID}. */
+export const DONE_ID = 'pmr-done-bar';
+export function DoneBar() {
+  const { t } = useTranslation();
+  if (Platform.OS !== 'ios') return null;
+  return (
+    <InputAccessoryView nativeID={DONE_ID}>
+      <View style={{ backgroundColor: '#F2F2F7', borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#C7C7CC', alignItems: 'flex-end' }}>
+        <Pressable onPress={() => Keyboard.dismiss()} accessibilityRole="button" accessibilityLabel={t('common.done')} hitSlop={8} style={{ paddingHorizontal: 18, paddingVertical: 10 }}>
+          <Text style={{ color: '#007AFF', fontSize: 17, fontWeight: '600' }}>{t('common.done')}</Text>
+        </Pressable>
+      </View>
+    </InputAccessoryView>
+  );
 }
 
 // Every typed value is stored and shown in CAPITAL LETTERS (names, addresses, document numbers, notes ...). Only things where case matters
@@ -404,10 +421,25 @@ export function Field({ label, value, onChangeText, error, keyboardType, secure,
   };
   const limitText = kind === 'amount' && ceiling !== undefined && (maxPaise !== undefined || held) ? t('form.maxAmount', { amount: formatINR(ceiling) })
     : (kind === 'day' || kind === 'reading' || kind === 'percent') && maxNumber !== undefined && held ? t('form.maxNumber', { max: maxNumber }) : undefined;
+  const kbType = keyboardType ?? (kind ? keyboardFor(kind) : undefined);
+  // number / phone pads have no Return key on iOS (and Return in a multi-line box is a new line), so they get a Done bar that closes the keyboard
+  const numeric = Platform.OS === 'ios' && (!!multiline || kbType === 'number-pad' || kbType === 'decimal-pad' || kbType === 'phone-pad');   // also multi-line boxes: Return there starts a new line
+  const accId = `done-${React.useId()}`;
   return (
     <View>
+      {numeric ? (
+        <InputAccessoryView nativeID={accId}>
+          <View style={{ backgroundColor: '#F2F2F7', borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#C7C7CC', alignItems: 'flex-end' }}>
+            <Pressable onPress={() => Keyboard.dismiss()} accessibilityRole="button" accessibilityLabel={t('common.done')} hitSlop={8} style={{ paddingHorizontal: 18, paddingVertical: 10 }}>
+              <Text style={{ color: '#007AFF', fontSize: 17, fontWeight: '600' }}>{t('common.done')}</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      ) : null}
       <TextInput mode="outlined" label={label} value={shown} onChangeText={change}
-                 keyboardType={keyboardType ?? (kind ? keyboardFor(kind) : undefined)} secureTextEntry={secure}
+                 returnKeyType={multiline ? undefined : 'done'} blurOnSubmit={multiline ? false : true} onSubmitEditing={multiline ? undefined : () => Keyboard.dismiss()}
+                 inputAccessoryViewID={numeric ? accId : undefined}
+                 keyboardType={kbType} secureTextEntry={secure}
                  maxLength={maxLength ?? (kind ? maxLengthFor(kind) : undefined)} autoCorrect={kind === 'email' || kind === 'pan' ? false : undefined}
                  autoCapitalize={!caps ? 'none' : 'characters'} error={!!error} testID={testID} accessibilityLabel={label} multiline={multiline} numberOfLines={multiline ? lines : undefined}
                  outlineStyle={{ borderRadius: radius.md }} style={[{ backgroundColor: '#FFFFFF' }, multiline && lines ? { minHeight: 24 * lines + 32, textAlignVertical: 'top' } : null]} />

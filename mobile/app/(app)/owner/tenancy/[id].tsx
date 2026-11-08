@@ -37,6 +37,7 @@ export default function OwnerTenancy() {
   const [amt, setAmt] = useState('');
   const [dep, setDep] = useState({ type: 'applied_to_dues', amount: '', reason: '' });
   const [endOpen, setEndOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);   // 'wrong number? remove this renter' confirmation
   const [vac, setVac] = useState({ date: todayDMY(), deposit: '', handover: '' });
   const [terms, setTerms] = useState({ rent: '', from: todayDMY(), due: '', grace: '', advance: '', items: '', increase: '' });
   const [saved, setSaved] = useState(false);
@@ -89,6 +90,16 @@ export default function OwnerTenancy() {
             <Icon source="lock" size={16} color={brand.teal700} />
             <Text variant="bodySmall" style={{ flex: 1, color: brand.teal700, fontWeight: '700' }}>{`${d.contact?.phone ?? d.tenancy.invited_phone} · ${t('tenant.lockedPhone')}`}</Text>
           </View>
+          {d.tenancy.status === 'invited' ? (
+            <Button icon="message-text-outline" onPress={() => run(() => api(`/api/v1/owner/tenancies/${id}/resend-invite`, { method: 'POST', ownerAccount: owner }))} testID="resend-invite">
+              {t('tenancy.resendInvite', { defaultValue: 'Send invitation again' })}
+            </Button>
+          ) : null}
+          {d.tenancy.status === 'invited' ? (
+            <Button icon="account-remove-outline" textColor="crimson" onPress={() => setRemoveOpen(true)} testID="remove-invite">
+              {t('tenancy.wrongNumber', { defaultValue: 'Wrong number? Remove tenant' })}
+            </Button>
+          ) : null}
         </Panel>
       ) : null}
       {d ? <OwnerPayHow tenancyId={String(id)} method={d.tenancy.pay_method} upi={d.tenancy.pay_upi_id} effective={d.effective_pay_method} active={d.tenancy.status === 'active' || d.tenancy.status === 'invited'} /> : null}
@@ -193,6 +204,22 @@ export default function OwnerTenancy() {
         <NoteInput onSubmit={(body, method) => run(() => api(`/api/v1/tenancies/${id}/notes`, {
           body: { target_type: 'tenancy', target_id: id, body, input_method: method } }))} />
       ) : null}
+      <Portal>
+        <Dialog visible={removeOpen} onDismiss={() => setRemoveOpen(false)}>
+          <Dialog.Title>{t('tenancy.removeTitle', { defaultValue: 'Remove this tenant?' })}</Dialog.Title>
+          <Dialog.Content>
+            <Text>{t('tenancy.removeBody', { defaultValue: 'Remove {{who}} ({{phone}}) from {{unit}}? They have not accepted yet. You can add the tenant again with the right number.',
+              who: d?.contact?.name ?? '', phone: d?.contact?.phone ?? d?.tenancy.invited_phone ?? '', unit: d?.unit.identifier ?? '' })}</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setRemoveOpen(false)}>{t('common.cancel')}</Button>
+            <Button textColor="crimson" onPress={async () => {
+              setRemoveOpen(false);
+              try { await api(`/api/v1/owner/tenancies/${id}/cancel-invite`, { method: 'POST', ownerAccount: owner }); refresh(); goBack(); } catch (e) { setErr(e); }
+            }} testID="remove-invite-confirm">{t('tenancy.remove', { defaultValue: 'Remove' })}</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </Screen>
   );
 }

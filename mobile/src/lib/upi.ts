@@ -13,7 +13,8 @@ export function maskUpi(id: string): string {
 type PayLink = { vpa: string; name: string; paise: number; note: string };
 
 /** A standard UPI payment link: the payee, the amount and a note are already filled in, the tenant only enters their PIN. */
-export function upiLink(base: 'upi://pay' | 'gpay://upi/pay', p: PayLink): string {
+export type UpiBase = 'upi://pay' | 'gpay://upi/pay' | 'phonepe://pay' | 'paytmmp://pay';
+export function upiLink(base: UpiBase, p: PayLink): string {
   const q = [['pa', p.vpa], ['pn', p.name], ['am', (p.paise / 100).toFixed(2)], ['cu', 'INR'], ['tn', p.note]]
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
   return `${base}?${q}`;
