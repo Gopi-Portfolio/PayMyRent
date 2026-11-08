@@ -17,8 +17,8 @@ from ..i18n.templates import render
 router = APIRouter(prefix="/api/v1", tags=["notifications"])
 
 HIDDEN = ("otp",)          # a one-time code is never listed
-OWNER_NEWS = ("relief_requested", "vacate_requested", "subscription_expiring", "message_sent", "agreement_ending_owner", "agreement_lapsed_owner")
-RENTER_NEWS = ("terms_changed", "cash_recorded", "payment_received", "deposit_changed", "relief_approved", "relief_declined", "vacate_declined",
+OWNER_NEWS = ("transfer_reported", "relief_requested", "vacate_requested", "subscription_expiring", "message_sent", "agreement_ending_owner", "agreement_lapsed_owner")
+RENTER_NEWS = ("transfer_rejected", "pay_method_changed", "terms_changed", "cash_recorded", "payment_received", "deposit_changed", "relief_approved", "relief_declined", "vacate_declined",
                "charge_reviewed", "tenancy_closed", "owner_transferred", "invitation", "rent_reminder", "agreement_renewed", "agreement_ending_tenant", "agreement_lapsed_tenant", "owner_message")
 SEEN_COLUMN = {"owner": "notifications_seen_owner_at", "tenant": "notifications_seen_at"}
 

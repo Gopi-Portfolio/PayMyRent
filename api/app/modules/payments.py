@@ -3,8 +3,9 @@ webhooks, reversals, receipts, deposits, payout accounts. Clients never set a pa
 from __future__ import annotations
 
 import json
+import re
 import time
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -107,7 +108,224 @@ def confirm_transfer(payment_id: UUID, scope: OwnerScope = Depends(owner_scope),
     db.must("SELECT 1 FROM payments WHERE id = :p AND owner_account_id = :o", "payment", p=payment_id, o=scope.owner_account_id)
     db.scalar("SELECT rg_owner_confirm_transfer(:p, :by)", p=payment_id, by=scope.user.id)
     db.audit(scope.user.id, scope.owner_account_id, "payment.transfer_confirmed", "payment", payment_id)
+    out = _payment_out(db, payment_id)
+    t = db.one("SELECT t.tenant_user_id, t.id FROM payments p JOIN tenancies t ON t.id = p.tenancy_id WHERE p.id = :p", p=payment_id)
+    if t and t["tenant_user_id"]:
+        notify.enqueue(db, t["tenant_user_id"], "payment_received", {"amount": out["amount_display"], "unit": _unit_label(db, t["id"]),
+                       "receipt": out["receipt_number"]}, f"paid:{payment_id}", scope.owner_account_id)
+    return out
+
+
+class RejectIn(BaseModel):
+    reason: str | None = Field(default=None, max_length=250)
+
+
+@router.post("/owner/payments/{payment_id}/reject-transfer")
+def reject_transfer(payment_id: UUID, body: RejectIn | None = None, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+    """The owner did not receive this transfer. The report is closed; the dues do not change."""
+    db.must("SELECT 1 FROM payments WHERE id = :p AND owner_account_id = :o", "payment", p=payment_id, o=scope.owner_account_id)
+    reason = (body.reason or "").strip() if body else ""
+    db.scalar("SELECT rg_owner_reject_transfer(:p, :by, :r)", p=payment_id, by=scope.user.id, r=reason or None)
+    db.audit(scope.user.id, scope.owner_account_id, "payment.transfer_rejected", "payment", payment_id, after={"reason": reason or None})
+    t = db.one("SELECT t.tenant_user_id, t.id, p.amount_paise FROM payments p JOIN tenancies t ON t.id = p.tenancy_id WHERE p.id = :p", p=payment_id)
+    if t and t["tenant_user_id"]:
+        owner_name = db.scalar("SELECT display_name FROM owner_accounts WHERE id = :o", o=scope.owner_account_id)
+        notify.enqueue(db, t["tenant_user_id"], "transfer_rejected", {"owner": owner_name, "amount": format_inr(t["amount_paise"]), "unit": _unit_label(db, t["id"])},
+                       f"transfer-rejected:{payment_id}", scope.owner_account_id)
     return _payment_out(db, payment_id)
+
+
+@router.get("/owner/payments/pending-transfers")
+def pending_transfers(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+    """UPI / bank transfers the tenants say they made, waiting for the owner to check their bank or UPI app."""
+    rows = db.all("""SELECT p.id, p.tenancy_id, p.amount_paise, p.paid_on, p.created_at, u.identifier,
+                            (SELECT name FROM tenancy_contact_snapshots WHERE tenancy_id = t.id ORDER BY created_at DESC LIMIT 1) AS tenant_name,
+                            (SELECT e.data->>'reference' FROM payment_events e WHERE e.payment_id = p.id AND e.type = 'tenant_reference' LIMIT 1) AS reference
+                     FROM payments p JOIN tenancies t ON t.id = p.tenancy_id JOIN units u ON u.id = t.unit_id
+                     WHERE p.owner_account_id = :o AND p.method = 'manual_transfer' AND p.status = 'pending'
+                     ORDER BY p.created_at DESC LIMIT 200""", o=scope.owner_account_id)
+    return {"items": [dict(r, amount_display=format_inr(r["amount_paise"])) for r in rows]}
+
+
+# ───────────────────────── how the owner wants to receive rent, per tenant ─────────────────────────
+_UPI_RE = re.compile(r"^[a-z0-9._-]{2,64}@[a-z][a-z0-9]{2,32}$")
+
+
+def online_available() -> bool:
+    """Online checkout is real only with a live payment provider. The sandbox one is a demo, so the app does not offer it to renters."""
+    s = get_settings()
+    return bool(s.rent_online_enabled and s.rent_provider != "sandbox")
+
+
+def owner_default_method(db: Db, owner: UUID) -> str | None:
+    """The owner's usual way of receiving rent (profile). Tenants without a choice of their own follow it."""
+    return db.scalar("SELECT default_pay_method FROM owner_accounts WHERE id = :o", o=owner)
+
+
+def owner_default_upi(db: Db, owner: UUID) -> str | None:
+    """The UPI ID saved in the owner's profile: used for every tenant set to UPI unless that tenant has its own."""
+    return db.scalar("SELECT default_upi_id FROM owner_accounts WHERE id = :o", o=owner)
+
+
+def known_upi_ids(db: Db, owner: UUID) -> list[str]:
+    """UPI IDs this owner already approved with a code: the profile one first, then any used for a single tenant."""
+    own = [r["pay_upi_id"] for r in db.all("""SELECT pay_upi_id FROM tenancies WHERE owner_account_id = :o AND pay_upi_id IS NOT NULL
+                                              GROUP BY pay_upi_id ORDER BY max(updated_at) DESC LIMIT 20""", o=owner)]
+    default = owner_default_upi(db, owner)
+    return ([default] if default else []) + [u for u in own if u != default]
+
+
+def _clean_upi(upi_id: str | None) -> str | None:
+    upi = (upi_id or "").strip().lower()
+    if not upi:
+        return None
+    if not _UPI_RE.match(upi):
+        raise AppError("VALIDATION", "enter a valid UPI ID, for example name@okhdfcbank", fields=[{"field": "pay_upi_id", "code": "upi_invalid"}])
+    return upi
+
+
+def _approve_new_upi(db: Db, scope: OwnerScope, upi: str, otp_code: str | None) -> None:
+    """A UPI ID the owner has not used before sends money to a new place: the same one-time code as a payout account,
+    and only the account owner (not a manager) may add it."""
+    if upi in known_upi_ids(db, scope.owner_account_id):
+        return
+    if scope.membership_role != "owner":
+        raise AppError("FORBIDDEN", "only the account owner can add a new UPI ID")
+    from .action_otp import require_action_otp
+    require_action_otp(db, scope.user.id, "payout", otp_code)
+    notify.security_event(db, scope.user.id, None, "payout_details_changed")
+
+
+def resolve_pay_method(db: Db, scope: OwnerScope, method: str | None, upi_id: str | None, otp_code: str | None) -> tuple[str, str | None]:
+    """Checks the owner's choice and returns (method, override). For UPI the owner's profile UPI ID is used unless a different one is
+    given for this tenant (the override). The first UPI ID an owner ever gives is saved to the profile as their default."""
+    if method not in ("upi", "online", "cash"):
+        raise AppError("VALIDATION", "choose how you want to receive rent from this tenant", fields=[{"field": "pay_method", "code": "required"}])
+    if method != "upi":
+        return method, None
+    upi, default = _clean_upi(upi_id), owner_default_upi(db, scope.owner_account_id)
+    if upi is None:
+        if not default:
+            raise AppError("VALIDATION", "enter your UPI ID", fields=[{"field": "pay_upi_id", "code": "upi_required"}])
+        return method, None                                  # follows the profile UPI ID
+    if upi == default:
+        return method, None
+    _approve_new_upi(db, scope, upi, otp_code)
+    if default is None:
+        db.exec("UPDATE owner_accounts SET default_upi_id = :u WHERE id = :o", u=upi, o=scope.owner_account_id)
+        return method, None
+    return method, upi
+
+
+@router.get("/owner/upi-ids")
+def my_upi_ids(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+    last = db.scalar("""SELECT pay_method FROM tenancies WHERE owner_account_id = :o AND pay_method IS NOT NULL ORDER BY updated_at DESC, created_at DESC LIMIT 1""",
+                     o=scope.owner_account_id)
+    return {"upi_ids": known_upi_ids(db, scope.owner_account_id), "default_upi_id": owner_default_upi(db, scope.owner_account_id), "last_pay_method": last, "online_available": online_available(),
+            "default_pay_method": owner_default_method(db, scope.owner_account_id)}
+
+
+class DefaultUpiIn(BaseModel):
+    upi_id: str = Field(max_length=80)
+    otp_code: str | None = None
+
+
+@router.put("/owner/upi-default")
+def set_default_upi(body: DefaultUpiIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+    """The owner's UPI ID in the profile. Every tenant set to UPI (without an ID of their own) pays this one."""
+    if scope.membership_role != "owner":
+        raise AppError("FORBIDDEN", "only the account owner can change the UPI ID")
+    upi = _clean_upi(body.upi_id)
+    if upi is None:
+        raise AppError("VALIDATION", "enter your UPI ID", fields=[{"field": "pay_upi_id", "code": "upi_required"}])
+    old = owner_default_upi(db, scope.owner_account_id)
+    if upi != old:
+        _approve_new_upi(db, scope, upi, body.otp_code)
+        db.exec("UPDATE owner_accounts SET default_upi_id = :u WHERE id = :o", u=upi, o=scope.owner_account_id)
+        db.audit(scope.user.id, scope.owner_account_id, "owner.default_upi_changed", "owner_account", scope.owner_account_id,
+                 before={"default_upi_id": old}, after={"default_upi_id": upi})
+        if old is not None:      # tenants who pay the profile UPI ID are told it changed
+            owner_name = db.scalar("SELECT display_name FROM owner_accounts WHERE id = :o", o=scope.owner_account_id)
+            for t in db.all("""SELECT id, tenant_user_id FROM tenancies WHERE owner_account_id = :o AND status = 'active' AND pay_method = 'upi'
+                               AND pay_upi_id IS NULL AND tenant_user_id IS NOT NULL""", o=scope.owner_account_id):
+                notify.enqueue(db, t["tenant_user_id"], "pay_method_changed", {"owner": owner_name, "unit": _unit_label(db, t["id"])},
+                               f"paymethod:{t['id']}:{datetime.now().timestamp():.0f}", scope.owner_account_id)
+    return {"upi_id": upi}
+
+
+class PayMethodIn(BaseModel):
+    method: Literal["upi", "online", "cash"]
+    upi_id: str | None = Field(default=None, max_length=80)
+    otp_code: str | None = None
+
+
+@router.put("/owner/payment-method/unset")
+def set_pay_method_for_unset(body: PayMethodIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+    """One choice for every live tenant that has no way of receiving rent chosen yet (tenants added before the choice existed).
+    Tenants who already have a choice are left alone."""
+    method, upi = resolve_pay_method(db, scope, body.method, body.upi_id, body.otp_code)
+    n = db.scalar("""WITH u AS (UPDATE tenancies SET pay_method = :m, pay_upi_id = :u, updated_at = now()
+                                WHERE owner_account_id = :o AND status IN ('invited','active') AND pay_method IS NULL RETURNING id)
+                     SELECT count(*) FROM u""", m=method, u=upi, o=scope.owner_account_id)
+    db.audit(scope.user.id, scope.owner_account_id, "owner.pay_method_set_for_unset", "owner_account", scope.owner_account_id,
+             after={"pay_method": method, "pay_upi_id": upi, "tenants": n})
+    return {"updated": n, "pay_method": method}
+
+
+@router.put("/owner/tenancies/{tenancy_id}/payment-method")
+def set_pay_method(tenancy_id: UUID, body: PayMethodIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+    t = owned_tenancy(db, scope, tenancy_id, lock=True)
+    if t["status"] not in ("invited", "active"):
+        raise AppError("INVALID_STATE", "this rental has ended")
+    default = owner_default_method(db, scope.owner_account_id)
+    method, upi = resolve_pay_method(db, scope, body.method, body.upi_id, body.otp_code)
+    if method == "online" and not online_available():
+        raise AppError("VALIDATION", "online payment is not available yet", fields=[{"field": "pay_method", "code": "online_unavailable"}])
+    stored = None if (upi is None and method == default) else method          # the same as the owner's usual way: follow it
+    before_eff = t.get("pay_method") or default
+    if (t.get("pay_method"), t.get("pay_upi_id")) != (stored, upi):
+        db.exec("UPDATE tenancies SET pay_method = :m, pay_upi_id = :u, updated_at = now() WHERE id = :t", m=stored, u=upi, t=tenancy_id)
+        db.audit(scope.user.id, scope.owner_account_id, "tenancy.pay_method_changed", "tenancy", tenancy_id,
+                 before={"pay_method": t.get("pay_method"), "pay_upi_id": t.get("pay_upi_id")}, after={"pay_method": stored, "pay_upi_id": upi})
+        if t["tenant_user_id"] and before_eff is not None and (before_eff != method or t.get("pay_upi_id") != upi):   # the tenant is told when the place they pay changes
+            owner_name = db.scalar("SELECT display_name FROM owner_accounts WHERE id = :o", o=scope.owner_account_id)
+            notify.enqueue(db, t["tenant_user_id"], "pay_method_changed", {"owner": owner_name, "unit": _unit_label(db, tenancy_id)},
+                           f"paymethod:{tenancy_id}:{datetime.now().timestamp():.0f}", scope.owner_account_id)
+    return {"pay_method": method, "pay_upi_id": upi, "follows_default": stored is None,
+            "effective_upi_id": (upi or owner_default_upi(db, scope.owner_account_id)) if method == "upi" else None}
+
+
+class DefaultMethodIn(BaseModel):
+    method: Literal["upi", "online", "cash"]
+    upi_id: str | None = Field(default=None, max_length=80)      # only when the profile has no UPI ID yet
+    otp_code: str | None = None
+
+
+@router.put("/owner/pay-default")
+def set_default_method(body: DefaultMethodIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+    """The owner's usual way of receiving rent. Every tenant without a choice of their own follows it. For UPI the profile UPI ID is
+    used; if there is none yet, the one given here (with a code) becomes the profile UPI ID."""
+    if scope.membership_role != "owner":
+        raise AppError("FORBIDDEN", "only the account owner can change how rent is received")
+    if body.method == "online" and not online_available():
+        raise AppError("VALIDATION", "online payment is not available yet", fields=[{"field": "pay_method", "code": "online_unavailable"}])
+    if body.method == "upi":
+        upi, current = _clean_upi(body.upi_id), owner_default_upi(db, scope.owner_account_id)
+        if upi is not None and current is not None and upi != current:
+            raise AppError("VALIDATION", "change your UPI ID in the UPI ID box of your profile", fields=[{"field": "pay_upi_id", "code": "use_profile_upi"}])
+        resolve_pay_method(db, scope, "upi", body.upi_id, body.otp_code)         # saves a first UPI ID as the profile one (needs the code)
+    old = owner_default_method(db, scope.owner_account_id)
+    if body.method != old:
+        db.exec("UPDATE owner_accounts SET default_pay_method = :m WHERE id = :o", m=body.method, o=scope.owner_account_id)
+        db.audit(scope.user.id, scope.owner_account_id, "owner.default_pay_method_changed", "owner_account", scope.owner_account_id,
+                 before={"default_pay_method": old}, after={"default_pay_method": body.method})
+        if old is not None:      # tenants who follow it are told
+            owner_name = db.scalar("SELECT display_name FROM owner_accounts WHERE id = :o", o=scope.owner_account_id)
+            for t in db.all("""SELECT id, tenant_user_id FROM tenancies WHERE owner_account_id = :o AND status = 'active'
+                               AND pay_method IS NULL AND tenant_user_id IS NOT NULL""", o=scope.owner_account_id):
+                notify.enqueue(db, t["tenant_user_id"], "pay_method_changed", {"owner": owner_name, "unit": _unit_label(db, t["id"])},
+                               f"paymethod:{t['id']}:{datetime.now().timestamp():.0f}", scope.owner_account_id)
+    return {"default_pay_method": body.method}
 
 
 # ───────────────────────── tenant: manual transfer & online checkout ─────────────────────────
@@ -122,12 +340,34 @@ class TransferIn(BaseModel):
 def report_transfer(tenancy_id: UUID, body: TransferIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
     """A UPI/bank transfer made outside the app. Stays 'pending verification' — no effect on dues —
     until the owner confirms it against their bank statement."""
-    tenant_tenancy(db, user, tenancy_id)
-    _within_due(db, tenancy_id, parse_inr(body.amount), body.idempotency_key)
-    pid = db.scalar("SELECT rg_record_payment(:t, 'manual_transfer', :a, :d, :k, :u)", t=tenancy_id, a=parse_inr(body.amount),
+    t = tenant_tenancy(db, user, tenancy_id)
+    amount = parse_inr(body.amount)
+    ref = body.reference.strip()
+    if not db.scalar("SELECT 1 FROM payments WHERE tenancy_id = :t AND idempotency_key = :k", t=tenancy_id, k=body.idempotency_key):
+        _within_due(db, tenancy_id, amount, body.idempotency_key)
+        # the same UPI reference (UTR) cannot be used twice for one owner, and reports waiting for the owner count against what is due
+        if db.scalar("""SELECT 1 FROM payment_events e JOIN payments p ON p.id = e.payment_id
+                        WHERE p.owner_account_id = :o AND e.type = 'tenant_reference' AND lower(e.data->>'reference') = lower(:r)
+                          AND p.status IN ('pending','confirmed')""", o=t["owner_account_id"], r=ref):
+            raise AppError("VALIDATION", "this UPI reference number was already used for another payment",
+                           fields=[{"field": "reference", "code": "duplicate_reference"}])
+        waiting = db.scalar("""SELECT COALESCE(sum(amount_paise), 0) FROM payments WHERE tenancy_id = :t AND method = 'manual_transfer'
+                               AND status = 'pending'""", t=tenancy_id) or 0
+        due = max(db.scalar("SELECT payable_now_paise FROM v_tenancy_balance WHERE tenancy_id = :t", t=tenancy_id) or 0, 0)
+        if amount + waiting > due:
+            raise AppError("VALIDATION", f"you already reported {format_inr(waiting)} that the owner has not confirmed yet; "
+                           f"together with this it is more than the due amount ({format_inr(due)})",
+                           fields=[{"field": "amount", "code": "more_than_due"}], due_paise=due)
+    pid = db.scalar("SELECT rg_record_payment(:t, 'manual_transfer', :a, :d, :k, :u)", t=tenancy_id, a=amount,
                     d=body.paid_on, k=body.idempotency_key, u=user.id)
-    db.exec("INSERT INTO payment_events(payment_id, type, data) VALUES (:p, 'tenant_reference', CAST(:d AS jsonb))",
-            p=pid, d=json.dumps({"reference": body.reference}))
+    if not db.scalar("SELECT 1 FROM payment_events WHERE payment_id = :p AND type = 'tenant_reference'", p=pid):
+        db.exec("INSERT INTO payment_events(payment_id, type, data) VALUES (:p, 'tenant_reference', CAST(:d AS jsonb))",
+                p=pid, d=json.dumps({"reference": ref}))
+        tenant_name = db.scalar("SELECT name FROM tenancy_contact_snapshots WHERE tenancy_id = :t ORDER BY created_at DESC LIMIT 1", t=tenancy_id) or "Your tenant"
+        for uid in db.all("SELECT user_id FROM owner_memberships WHERE owner_account_id = :o AND status = 'active' AND role IN ('owner','co_owner')",
+                          o=t["owner_account_id"]):
+            notify.enqueue(db, uid["user_id"], "transfer_reported", {"tenant": tenant_name, "amount": format_inr(amount), "unit": _unit_label(db, tenancy_id)},
+                           f"transfer-reported:{pid}:{uid['user_id']}", t["owner_account_id"])
     return _payment_out(db, pid)
 
 
@@ -140,6 +380,8 @@ def _checkout(db: Db, user: CurrentUser, tenancy_id: UUID, amount: int | None, k
     """One online payment for one rental. `amount=None` means the rental's full balance as the SERVER sees it."""
     s = get_settings()
     t = tenant_tenancy(db, user, tenancy_id)
+    if (t.get("pay_method") or owner_default_method(db, t["owner_account_id"])) in ("upi", "cash"):
+        raise AppError("PAYMENTS_UNAVAILABLE", "this owner collects rent directly (UPI or cash); online payment is not used for this rental")
     if not s.rent_online_enabled:
         raise AppError("PAYMENTS_UNAVAILABLE", "online payment is not available; pay the owner directly")
     payout = db.one("""SELECT provider_account_ref FROM payout_accounts WHERE owner_account_id = :o AND status = 'verified'""",

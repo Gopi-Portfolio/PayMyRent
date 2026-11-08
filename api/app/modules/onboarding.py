@@ -270,6 +270,10 @@ class TenancyIn(BaseModel):
     opening_arrears: str | int | None = None
     notes: str | None = None
     grace_days: int = Field(default=0, ge=0, le=60)
+    # how the owner wants to receive rent from THIS tenant: 'upi' (direct, free), 'online' (app checkout) or 'cash'. The app always asks.
+    pay_method: Literal["upi", "online", "cash"] | None = None
+    pay_upi_id: str | None = Field(default=None, max_length=80)
+    otp_code: str | None = None                    # needed when the UPI ID is new to this owner
 
 
 def require_owner_details(db: Db, owner: UUID) -> None:
@@ -326,11 +330,18 @@ def create_tenancy(db: Db, scope: OwnerScope, d: dict, source: str = "owner") ->
                                                   UNION SELECT phone FROM owner_allowed_numbers WHERE owner_account_id = :o AND removed_at IS NULL""", o=owner)}
     if d["tenant_mobile"] in owner_phones:
         raise AppError("VALIDATION", "the tenant's number cannot be the owner's own number")
+    pay_method, pay_upi = (None, None)
+    if d.get("pay_method"):
+        from .payments import resolve_pay_method
+        pay_method, pay_upi = resolve_pay_method(db, scope, d["pay_method"], d.get("pay_upi_id"), d.get("otp_code"))
+        if pay_upi is None and pay_method == db.scalar("SELECT default_pay_method FROM owner_accounts WHERE id = :o", o=owner):
+            pay_method = None                                  # the same as the owner's usual way: this tenant follows it
     tid = db.scalar("""INSERT INTO tenancies(owner_account_id, unit_id, invited_phone, start_date, end_date, monthly_rent_paise,
-                                             due_day, grace_days, deposit_agreed_paise, items_provided, increment_percent)
-                       VALUES (:o, :u, :ph, :sd, :ed, :r, :dd, :g, :dep, :items, :inc) RETURNING id""",
+                                             due_day, grace_days, deposit_agreed_paise, items_provided, increment_percent, pay_method, pay_upi_id)
+                       VALUES (:o, :u, :ph, :sd, :ed, :r, :dd, :g, :dep, :items, :inc, :pm, :pu) RETURNING id""",
                     o=owner, u=unit_id, ph=d["tenant_mobile"], sd=d["start_date"], ed=d.get("end_date"), r=d["monthly_rent_paise"],
-                    dd=d["due_day"], g=d.get("grace_days", 0), dep=d["deposit_paise"], items=d.get("items_provided"), inc=d.get("increment_percent"))
+                    dd=d["due_day"], g=d.get("grace_days", 0), dep=d["deposit_paise"], items=d.get("items_provided"), inc=d.get("increment_percent"),
+                    pm=pay_method, pu=pay_upi)
     db.exec("""INSERT INTO tenancy_agreements(owner_account_id, tenancy_id, seq, kind, start_date, end_date, monthly_rent_paise, created_by)
                VALUES (:o, :t, 1, 'original', :sd, :ed, :r, :by)""", o=owner, t=tid, sd=d["start_date"], ed=d.get("end_date"), r=d["monthly_rent_paise"], by=actor)
     db.exec("""INSERT INTO tenancy_contact_snapshots(tenancy_id, name, phone, alt_phone, email, created_by)
@@ -392,7 +403,7 @@ def list_tenancies(q: str | None = Query(default=None, max_length=50),
                    status: Literal["live", "invited", "active", "ended", "all"] = "live",
                    scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
     where, sp = tenancy_search(q)
-    rows = db.all("""SELECT t.id, t.status, t.monthly_rent_paise, t.due_day, t.start_date, t.end_date, u.identifier, u.kind AS unit_kind, u.floor AS unit_floor, p.name AS property_name,
+    rows = db.all("""SELECT t.id, t.status, t.pay_method, COALESCE(t.pay_method, (SELECT default_pay_method FROM owner_accounts WHERE id = t.owner_account_id)) AS effective_pay_method, t.monthly_rent_paise, t.due_day, t.start_date, t.end_date, u.identifier, u.kind AS unit_kind, u.floor AS unit_floor, p.name AS property_name,
                             p.address, s.name AS tenant_name, s.phone AS tenant_phone, b.balance_paise, b.payable_now_paise, b.deposit_held_paise,
                             (SELECT json_build_object('status', r.status, 'requested_pay_paise', r.requested_pay_paise, 'agreed_pay_paise', r.agreed_pay_paise, 'deferred_paise', r.deferred_paise)
                                FROM rent_relief r WHERE r.tenancy_id = t.id AND r.period_month = date_trunc('month', rg_today())::date
@@ -419,7 +430,9 @@ def tenancy_detail(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), d
                                    AND effective_month <= date_trunc('month', CURRENT_DATE)::date ORDER BY effective_month DESC LIMIT 1), :base)""",
                              t=tenancy_id, base=t["monthly_rent_paise"])
     return {"tenancy": t, "contact": dict(contact) if contact else None, "unit": dict(unit), "charge_config": [dict(c) for c in cfg],
-            "current_rent_paise": current_rent, **dict(bal)}
+            "current_rent_paise": current_rent, **dict(bal),
+            **dict(db.one("SELECT default_upi_id, default_pay_method FROM owner_accounts WHERE id = :o", o=scope.owner_account_id)),
+            "effective_pay_method": t.get("pay_method") or db.scalar("SELECT default_pay_method FROM owner_accounts WHERE id = :o", o=scope.owner_account_id)}
 
 
 class TermsIn(BaseModel):
@@ -616,10 +629,10 @@ def decide_invitation(invitation_id: UUID, decision: Literal["accept", "reject"]
 def my_rentals(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
     rows = db.all("""SELECT t.id, t.status, t.monthly_rent_paise, t.due_day, t.start_date, t.end_date, u.identifier, u.kind, u.floor,
                             p.name AS property_name, p.address, o.display_name AS owner_name, o.id AS _owner_id,
-                            COALESCE((SELECT v.status FROM owner_verifications v WHERE v.owner_account_id = o.id), 'none') AS owner_verification,
+                            COALESCE((SELECT v.status FROM owner_verifications v WHERE v.owner_account_id = o.id), 'none') AS owner_verification, o.default_upi_id AS _default_upi,
                             (SELECT json_build_object('id', v.id, 'status', v.status, 'move_out_date', v.move_out_date, 'owner_note', v.owner_note)
                                FROM vacate_requests v WHERE v.tenancy_id = t.id AND v.status IN ('requested','declined') ORDER BY (v.status = 'requested') DESC, v.created_at DESC LIMIT 1) AS vacate,
-                            t.invited_phone AS your_mobile, t.items_provided, t.increment_percent, b.balance_paise, b.payable_now_paise, b.deposit_held_paise,
+                            t.invited_phone AS your_mobile, COALESCE(t.pay_method, o.default_pay_method) AS pay_method, CASE WHEN COALESCE(t.pay_method, o.default_pay_method) = 'upi' THEN COALESCE(t.pay_upi_id, o.default_upi_id) END AS pay_upi_id, t.items_provided, t.increment_percent, b.balance_paise, b.payable_now_paise, b.deposit_held_paise,
                             (SELECT json_build_object('status', r.status, 'requested_pay_paise', r.requested_pay_paise, 'agreed_pay_paise', r.agreed_pay_paise, 'deferred_paise', r.deferred_paise)
                                FROM rent_relief r WHERE r.tenancy_id = t.id AND r.period_month = date_trunc('month', rg_today())::date
                                ORDER BY (r.status = 'requested') DESC, (r.status = 'approved') DESC, r.created_at DESC LIMIT 1) AS relief,
@@ -633,11 +646,25 @@ def my_rentals(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_
     # No owner phone, no internal owner id (a keyed, opaque key groups rentals of the same owner), no other units or properties.
     from ..core.config import get_settings
     from ..domain.signatures import hmac_sha256_hex
+    from .payments import online_available
     secret = get_settings().file_signing_secret
     items = []
     for r in rows:
         d = dict(r, balance_display=format_inr(r["balance_paise"]))
         d["owner_ref"] = hmac_sha256_hex(secret, str(d.pop("_owner_id")).encode())[:16]
+        # How THIS renter pays: 'upi' (the owner's UPI ID, free), 'cash', 'online' (only with a live provider) or 'none'.
+        # The sandbox checkout is a demo, so it is never offered: a renter with no live online option pays the owner's UPI ID.
+        default_upi = d.pop("_default_upi")
+        if d["pay_method"] == "upi":
+            d["pay_mode"] = "upi"
+        elif d["pay_method"] == "cash":
+            d["pay_mode"] = "cash"
+        elif d["pay_method"] == "online" and online_available():
+            d["pay_mode"] = "online"
+        elif default_upi:
+            d["pay_mode"], d["pay_upi_id"] = "upi", default_upi
+        else:
+            d["pay_mode"] = "none"
         items.append(d)
     return {"items": items}
 

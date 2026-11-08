@@ -406,7 +406,7 @@ def tenant_report(fmt: Literal["xlsx", "pdf"] = Query("xlsx", alias="format"), u
     return _file(f"paymyrent-my-rentals-{date.today():%Y%m%d}", fmt, "PayMyRent — My rentals", f"As on {date.today():%d-%m-%Y}", tables)
 
 
-UPDATE_TEMPLATES = ("terms_changed", "relief_approved", "relief_declined", "cash_recorded", "deposit_changed", "payment_received", "charge_reviewed", "tenancy_closed", "vacate_declined", "owner_transferred")
+UPDATE_TEMPLATES = ("transfer_rejected", "pay_method_changed", "terms_changed", "relief_approved", "relief_declined", "cash_recorded", "deposit_changed", "payment_received", "charge_reviewed", "tenancy_closed", "vacate_declined", "owner_transferred")
 
 
 @router.get("/tenant/updates")

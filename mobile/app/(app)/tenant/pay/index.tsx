@@ -23,7 +23,11 @@ export default function PayManyRentals() {
     .map((r: any) => { if (!owners.includes(r.owner_account_id)) owners.push(r.owner_account_id);
                        return { ...r, color: OWNER_COLORS[owners.indexOf(r.owner_account_id) % OWNER_COLORS.length] }; });
   const [off, setOff] = useState<string[]>([]);              // rentals the renter un-ticked (everything is ticked to start with)
-  const chosen = due.filter((r: any) => !off.includes(r.id));
+  // rentals whose owner collects by UPI or cash are paid one at a time on their own screen; the rest can be paid together online
+  const isDirect = (r: any) => (r.pay_mode ?? 'online') !== 'online';
+  const direct = due.filter(isDirect);
+  const online = due.filter((r: any) => !isDirect(r));
+  const chosen = online.filter((r: any) => !off.includes(r.id));
   const total = chosen.reduce((n: number, r: any) => n + payNow(r), 0);
   const keys = useRef<Record<string, string>>({});            // one idempotency key per rental: a retry never charges twice
   const [busy, setBusy] = useState(false);
@@ -81,7 +85,7 @@ export default function PayManyRentals() {
     <Screen>
       <Panel title={t('pay.pickTitle')} icon="cash-fast">
         {due.length === 0 ? <Text style={{ color: brand.muted }}>{t('pay.nothingDue')}</Text> : null}
-        {due.map((item: any) => {
+        {online.map((item: any) => {
           const on = !off.includes(item.id);
           return (
             <Pressable key={item.id} onPress={() => setOff((o) => (on ? [...o, item.id] : o.filter((x) => x !== item.id)))} testID={`pay-${item.id}`}
@@ -102,9 +106,26 @@ export default function PayManyRentals() {
           );
         })}
       </Panel>
-      <ErrorBanner error={err} />
-      <AppButton variant="accent" icon="lock-check" label={chosen.length ? `${t('pay.payAll')} (${chosen.length}) · ${formatINR(total)}` : t('pay.payAll')}
-                 disabled={chosen.length === 0} loading={busy} onPress={payAll} testID="pay-all" />
+      {direct.length ? (
+        <Panel title={t('upi.directTitle')} icon="cellphone-check" tone="green">
+          <Text style={{ color: brand.muted, lineHeight: 20 }}>{t('upi.directHint')}</Text>
+          {direct.map((item: any) => (
+            <Pressable key={item.id} onPress={() => router.replace(`/(app)/tenant/pay/${item.id}`)} testID={`pay-direct-${item.id}`} accessibilityRole="button"
+                       style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 6, borderRadius: radius.md }, pressed && { backgroundColor: brand.teal50 }]}>
+              <Icon source={item.pay_mode === 'upi' ? 'cellphone-check' : 'cash'} size={26} color={brand.green600} />
+              <View style={{ flex: 1 }}>
+                <Text variant="titleSmall" style={{ fontWeight: '700' }} numberOfLines={1}>{item.property_name ?? item.address} · {item.identifier}</Text>
+                <Text variant="bodySmall" style={{ color: item.color.fg, fontWeight: '700' }} numberOfLines={1}>{item.owner_name}</Text>
+              </View>
+              <Text style={{ fontWeight: '800', fontSize: 16, color: '#B45309' }}>{formatINR(payNow(item))}</Text>
+              <Icon source="chevron-right" size={20} color={brand.muted} />
+            </Pressable>
+          ))}
+        </Panel>
+      ) : null}
+      {online.length ? <ErrorBanner error={err} /> : null}
+      {online.length ? <AppButton variant="accent" icon="lock-check" label={chosen.length ? `${t('pay.payAll')} (${chosen.length}) · ${formatINR(total)}` : t('pay.payAll')}
+                 disabled={chosen.length === 0} loading={busy} onPress={payAll} testID="pay-all" /> : null}
     </Screen>
   );
 }

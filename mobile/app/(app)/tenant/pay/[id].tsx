@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 import { sanitize } from '@/lib/inputs';
 import { AppButton } from '@/components/Buttons';
+import { UpiPay } from '@/components/UpiPay';
 import { BillView } from '@/components/BillView';
 import { BalancePreview, Chip2, ErrorBanner, Panel, ResultView, Screen } from '@/components/ui';
 import { goBack } from '@/components/ui';
@@ -22,6 +23,10 @@ export default function Pay() {
   const qc = useQueryClient();
   const bill = useQuery({ queryKey: ['bill', id, 'now'], queryFn: () => api<any>(`/api/v1/tenancies/${id}/bill`) });
   const due = Number(bill.data?.summary.payable_now_paise ?? bill.data?.summary.total_due_paise ?? 0);
+  // how THIS owner wants to be paid by this renter: UPI direct (free), online checkout, or cash / bank transfer
+  const rentals = useQuery({ queryKey: ['rentals'], queryFn: () => api<any>('/api/v1/tenant/rentals') });
+  const rental = rentals.data?.items?.find((x: any) => x.id === id);
+  const mode: string = rental?.pay_mode ?? 'online';       // 'upi' | 'cash' | 'online' (a live provider only) | 'none'; the demo checkout is never offered
   const [amount, setAmount] = useState('');
   const edited = useRef(false);
   // the balance is already in the box when the screen opens (the renter can still change it to pay part)
@@ -30,6 +35,7 @@ export default function Pay() {
   }, [due]);
   const [capped, setCapped] = useState(false);
   const [payment, setPayment] = useState<any>(null);
+  const [reported, setReported] = useState<{ p: any; ref: string } | null>(null);     // a UPI payment the renter says they made, waiting for the owner
   const [err, setErr] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const idem = useRef(newIdempotencyKey());
@@ -52,6 +58,15 @@ export default function Pay() {
   }
 
   const s = status.data?.status;
+  if (reported) {
+    return (
+      <Screen>
+        <ResultView kind="review" title={t('upi.reportedTitle')} lines={[reported.p.amount_display, `${t('upi.ref')}: ${reported.ref}`]} hint={t('upi.reportedHint', { owner: rental?.owner_name ?? '' })}>
+          <AppButton label={t('common.continue')} icon="check" onPress={() => { qc.invalidateQueries(); goBack(); }} testID="upi-done" />
+        </ResultView>
+      </Screen>
+    );
+  }
   if (payment) {
     return (
       <Screen>
@@ -87,13 +102,28 @@ export default function Pay() {
           {due > 0 ? <Chip2 icon="circle-half-full" label={formatINR(Math.round(due / 2))} onPress={() => setAmount(String(Math.round(due / 2) / 100))} /> : null}
         </View>
       </Panel>
-      {unavailable ? (
+      {mode === 'upi' && rental?.pay_upi_id ? (
+        <UpiPay tenancyId={String(id)} ownerName={rental.owner_name} upi={rental.pay_upi_id} unit={rental.identifier} paise={paise} due={due} onReported={(p, ref) => setReported({ p, ref })} />
+      ) : mode === 'cash' ? (
+        <Panel title={t('upi.cashTitle')} icon="cash" tone="amber">
+          <Text style={{ lineHeight: 21 }} testID="pay-cash-info">{t('upi.cashBody', { owner: rental?.owner_name ?? '' })}</Text>
+        </Panel>
+      ) : mode === 'none' ? (
+        <Panel title={t('upi.noneTitle')} icon="information-outline" tone="amber">
+          <Text style={{ lineHeight: 21 }} testID="pay-none-info">{t('upi.noneBody', { owner: rental?.owner_name ?? '' })}</Text>
+        </Panel>
+      ) : null}
+      {mode !== 'online' ? null : unavailable ? (
         <Panel><View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}><Icon source="information" size={22} color={brand.amber500} /><Text style={{ flex: 1 }}>{t('pay.onlineUnavailable')}</Text></View></Panel>
       ) : <ErrorBanner error={err} />}
-      <AppButton variant="accent" label={paise ? `${t('pay.title')} · ${formatINR(paise)}` : t('pay.title')} icon="lock-check" disabled={!paise || due <= 0 || paise > due} loading={busy} onPress={start} testID="pay-now" />
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 22, opacity: 0.8 }}>
-        {['shield-check', 'bank', 'qrcode-scan', 'credit-card-outline'].map((ic) => <Icon key={ic} source={ic} size={24} color={brand.teal700} />)}
-      </View>
+      {mode !== 'online' ? null : (
+        <>
+          <AppButton variant="accent" label={paise ? `${t('pay.title')} · ${formatINR(paise)}` : t('pay.title')} icon="lock-check" disabled={!paise || due <= 0 || paise > due} loading={busy} onPress={start} testID="pay-now" />
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 22, opacity: 0.8 }}>
+            {['shield-check', 'bank', 'qrcode-scan', 'credit-card-outline'].map((ic) => <Icon key={ic} source={ic} size={24} color={brand.teal700} />)}
+          </View>
+        </>
+      )}
     </Screen>
   );
 }

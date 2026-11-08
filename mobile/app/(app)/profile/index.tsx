@@ -12,6 +12,8 @@ import { Avatar, ErrorBanner, Field, GenderPicker, IdentityRow, Panel, PlanCard,
 import { LANGUAGES } from '@/i18n';
 import { api } from '@/lib/api';
 import { FormatSelect } from '@/components/FormatSelect';
+import { OwnerPayDefault } from '@/components/OwnerPayDefault';
+import { OwnerUpi } from '@/components/OwnerUpi';
 import { Button } from '@/components/Buttons';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { normalizeMobile } from '@/lib/format';
@@ -103,6 +105,10 @@ export default function ProfileScreen() {
       </Panel>
 
       <IdentityRow />
+
+      {isOwner ? <OwnerPayDefault /> : null}
+
+      {isOwner ? <OwnerUpi /> : null}
 
       {isOwner ? <PlanCard owner={owner} /> : null}
 

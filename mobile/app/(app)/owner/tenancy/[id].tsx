@@ -15,6 +15,7 @@ import { DownloadButtons } from '@/components/DownloadButtons';
 import { OwnerRelief } from '@/components/RentRelief';
 import { ItemsProvided } from '@/components/ItemsProvided';
 import { AgreementLink } from '@/components/AgreementLink';
+import { OwnerPayHow } from '@/components/PayHow';
 import { MessageLink } from '@/components/MessageLink';
 import { api, newIdempotencyKey } from '@/lib/api';
 import { Button } from '@/components/Buttons';
@@ -90,6 +91,7 @@ export default function OwnerTenancy() {
           </View>
         </Panel>
       ) : null}
+      {d ? <OwnerPayHow tenancyId={String(id)} method={d.tenancy.pay_method} upi={d.tenancy.pay_upi_id} effective={d.effective_pay_method} active={d.tenancy.status === 'active' || d.tenancy.status === 'invited'} /> : null}
       <TabPills value={tab} onChange={setTab} tabs={[
         { value: 'bill', label: t('bill.totalDue'), icon: 'receipt-text-outline' }, { value: 'charges', label: t('bill.misc'), icon: 'plus-circle-outline' },
         { value: 'terms', label: t('terms.tab'), icon: 'pencil-outline' }, { value: 'deposit', label: t('tenant.deposit'), icon: 'shield-lock-outline' }, { value: 'notes', label: t('tenancy.notesTab'), icon: 'note-text-outline' }]} />

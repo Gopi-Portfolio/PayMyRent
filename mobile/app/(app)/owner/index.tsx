@@ -45,6 +45,10 @@ export default function OwnerHome() {
   const vacantUnits: any[] = vacant.data?.items ?? [];
   const list = useQuery({ queryKey: ['tenancies', owner, term], placeholderData: (prev) => prev, queryFn: () =>   // keep showing the last result until the new one arrives
     api<any>(`/api/v1/owner/tenancies?status=live${term ? `&q=${encodeURIComponent(term)}` : ''}`, { ownerAccount: owner }) });
+  const transfers = useQuery({ queryKey: ['transfers', owner], refetchInterval: 20000, queryFn: () => api<any>('/api/v1/owner/payments/pending-transfers', { ownerAccount: owner }) });
+  const transferCount: number = transfers.data?.items?.length ?? 0;      // UPI payments tenants reported, waiting for the owner to check and confirm
+  // tenants with no chosen way of receiving rent yet (older tenants): the owner is asked to choose
+  const unsetPay: any[] = term ? [] : (list.data?.items ?? []).filter((x: any) => !x.effective_pay_method);
   const m = dash.data?.metrics;
   const state = dash.data?.subscription.state;
   const acct = me?.owner_accounts.find((o) => o.owner_account_id === owner);
@@ -68,6 +72,12 @@ export default function OwnerHome() {
         <Banner visible icon="home-plus-outline" actions={[{ label: t('property.add'), onPress: () => router.push('/(app)/owner/add-property') }]}>{t('property.addYourProperty')}</Banner>
       ) : null}
       {propStatus === 'submitted' ? <Banner visible icon="clock-outline">{t('property.verifying')}</Banner> : null}
+      {unsetPay.length > 0 ? (
+        <Banner visible icon="wallet-outline" actions={[{ label: t('payhow.bulkCta'), onPress: () => router.push('/(app)/owner/payment-method') }]}>{t('payhow.banner', { count: unsetPay.length })}</Banner>
+      ) : null}
+      {transferCount > 0 ? (
+        <Banner visible icon="cellphone-check" actions={[{ label: t('relief.review'), onPress: () => router.push('/(app)/owner/transfers') }]}>{t('transfers.banner', { count: transferCount })}</Banner>
+      ) : null}
       {(m?.relief_pending ?? 0) > 0 ? (
         <Banner visible icon="hand-heart-outline" actions={[{ label: t('relief.review'), onPress: () => router.push('/(app)/owner/relief') }]}>{t('relief.bannerOwner', { count: m.relief_pending })}</Banner>
       ) : null}
