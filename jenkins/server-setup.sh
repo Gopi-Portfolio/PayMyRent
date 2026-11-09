@@ -20,8 +20,9 @@ if ! command -v docker >/dev/null 2>&1; then
   sudo usermod -aG docker "$USER"
 fi
 
-# Jenkins (long-term-support line)
-sudo curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key -o /usr/share/keyrings/jenkins-keyring.asc
+# Jenkins (long-term-support line). The repository signing key is rotated from time to time: if "apt-get update" says NO_PUBKEY,
+# look at https://pkg.jenkins.io/debian-stable/ for the current jenkins.io-<year>.key and change the year below.
+sudo curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key -o /usr/share/keyrings/jenkins-keyring.asc
 echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" \
   | sudo tee /etc/apt/sources.list.d/jenkins.list >/dev/null
 sudo apt-get update
