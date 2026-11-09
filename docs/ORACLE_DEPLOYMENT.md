@@ -3,9 +3,8 @@
 Backend only. The mobile app is built separately (`docs/BUILD.md`) and talks to the API over HTTPS.
 
 ```
-GitHub (push to main)
-   └─ backend.yml: tests ─▶ build ARM/x86 image ─▶ ghcr.io ─▶ (you approve) ─▶ SSH to the server
-                                                                                  └─ scripts/deploy-backend.sh
+Jenkins server (polls GitHub; push to main)
+   └─ Jenkinsfile: tests ─▶ build ARM image ─▶ SSH to this server ─▶ scripts/deploy-backend.sh
 Server (Oracle A1, Ubuntu)
    Caddy :80/:443 (HTTPS, auto certificate) ─▶ api :8000 (internal only) ─▶ db (internal only)
    backup container: a database dump every 24 h, kept 14 days
@@ -50,26 +49,12 @@ Fill both files **on the server** (nano). Generate every secret and password sep
 Rules the API enforces at startup (it refuses to start otherwise): all secrets at least 24 characters and not starting with `dev`; `RG_PUBLIC_BASE_URL` is `https://…`; `RG_ALLOWED_HOSTS` lists the host name; a real Firebase project id; payment providers not `sandbox`; passwords not the development defaults.
 **Back up `RG_PAN_ENCRYPTION_KEY` somewhere safe** (a password manager). Losing it makes stored PANs unreadable.
 
-## 4. Server: let it pull the image
-The image is private by default. Either make the package public in GitHub (Packages → paymyrent-api → settings), or log in once on the server with a token that only has `read:packages`:
-```bash
-echo <token> | docker login ghcr.io -u <github-username> --password-stdin
-```
+## 4. Later updates: Jenkins
+After the first start, updates are done by a separate Jenkins server: you push to `main`, Jenkins tests, builds the image and restarts this server (no registry login needed, the image is sent over SSH).
+Set it up with **docs/JENKINS.md**. This server only needs the deploy key's public half in `~/.ssh/authorized_keys`.
 
-## 5. GitHub: secrets and approval
-Settings → Environments → **New environment `production`** → add yourself under *Required reviewers* (every deploy waits for your click).
-Environment secrets:
-
-| Secret | Value |
-|---|---|
-| `ORACLE_HOST` | `161.153.65.47` |
-| `ORACLE_USER` | `ubuntu` |
-| `ORACLE_SSH_KEY` | the **private** key text. Better: make a separate key just for deploys (`ssh-keygen -t ed25519 -f deploy_key`), add `deploy_key.pub` to the server's `~/.ssh/authorized_keys`, and store only `deploy_key` here |
-| `ORACLE_KNOWN_HOSTS` | output of `ssh-keyscan -t ed25519 161.153.65.47` (run from your PC; this pins the server's identity) |
-| `API_HEALTH_URL` | `https://<API_DOMAIN>/api/v1/health` (optional final check) |
-
-## 6. First deploy and check
-Merge to `main`, approve the deploy in the Actions tab. Then:
+## 5. First start and check
+Start it by hand once (`docker compose --env-file ../paymyrent.env -f docker-compose.prod.yml up -d --build`). Then:
 ```bash
 curl https://<API_DOMAIN>/api/v1/health      # {"status":"ok", ...}
 ssh ubuntu@161.153.65.47 'cd /opt/paymyrent/app && docker compose --env-file ../paymyrent.env -f docker-compose.prod.yml ps'
