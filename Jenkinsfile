@@ -40,7 +40,7 @@ pipeline {
           # runs as the Jenkins user (not root) so the workspace can be cleaned up afterwards
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e npm_config_cache=/tmp/.npm \
             -v "$WORKSPACE/mobile:/app" -w /app node:22 sh -c \
-            "npm ci --legacy-peer-deps && npx tsc --noEmit && node scripts/check-i18n.mjs && npx jest --ci"
+            "npm ci --legacy-peer-deps && npx tsc --noEmit && node scripts/check-i18n.mjs && npx jest --ci --forceExit"
         '''
       }
     }
@@ -71,7 +71,7 @@ pipeline {
               docker save "$IMAGE" | gzip | "${SSH[@]}" "gunzip | docker load"
             fi
             # 3. restart on the new image; the script waits until the API is healthy
-            "${SSH[@]}" "cd /opt/paymyrent/app && API_IMAGE='$IMAGE' scripts/deploy-backend.sh"
+            "${SSH[@]}" "cd /opt/paymyrent/app && API_IMAGE='$IMAGE' bash scripts/deploy-backend.sh"   # bash: the file has no executable flag (made on Windows)
           '''
         }
       }
