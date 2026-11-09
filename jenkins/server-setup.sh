@@ -22,8 +22,10 @@ fi
 
 # Jenkins (long-term-support line). The repository signing key is rotated from time to time: if "apt-get update" says NO_PUBKEY,
 # look at https://pkg.jenkins.io/debian-stable/ for the current jenkins.io-<year>.key and change the year below.
-sudo curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key -o /usr/share/keyrings/jenkins-keyring.asc
-echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" \
+# The key is converted to binary form (.gpg): Ubuntu 20.04's apt reported NO_PUBKEY for the armored .asc file even with the right key.
+curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key | sudo gpg --dearmor --yes -o /usr/share/keyrings/jenkins-keyring.gpg
+sudo chmod 644 /usr/share/keyrings/jenkins-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg] https://pkg.jenkins.io/debian-stable binary/" \
   | sudo tee /etc/apt/sources.list.d/jenkins.list >/dev/null
 sudo apt-get update
 sudo apt-get install -y jenkins
