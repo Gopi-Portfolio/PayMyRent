@@ -14,7 +14,7 @@ Server (Oracle A1, Ubuntu)
 ## 0. Decide first
 - **Ubuntu 22.04 or 24.04.** 20.04 no longer gets free security updates. The VM can be recreated for free on the same shape; keep the same reserved public IP.
 - **Reserve the public IP** (Networking → Reserved public IPs), so the address in DNS and the app never changes.
-- **Address for the API.** With no domain yet, use `<ip-with-dashes>.sslip.io` (for `129.146.5.114` it is `129-146-5-114.sslip.io`). It resolves to the IP and Caddy can get a real certificate for it. For the App Store launch buy a domain and point an A record at the IP.
+- **Address for the API.** With no domain yet, use `<ip-with-dashes>.sslip.io` (for `161.153.65.47` it is `161-153-65-47.sslip.io`). It resolves to the IP and Caddy can get a real certificate for it. For the App Store launch buy a domain and point an A record at the IP.
 
 ## 1. Oracle console: open the ports (the first of two firewalls)
 Networking → your VCN (`paymyrent-vcn`) → Security List → **Add ingress rules**: source `0.0.0.0/0`, TCP, destination port **80**, and another for **443**.
@@ -22,7 +22,7 @@ Keep 22 (SSH) restricted to your own IP if you can. **Never open 5432 or 8000.**
 
 ## 2. Server: install Docker and open the second firewall
 ```bash
-ssh -i <your-key.pem> ubuntu@129.146.5.114
+ssh -i <your-key.pem> ubuntu@161.153.65.47
 curl -fsSLO https://raw.githubusercontent.com/Gopi-Portfolio/PayMyRent/main/scripts/server-setup.sh   # or copy the file with scp
 bash server-setup.sh
 exit    # log in again so the docker group applies
@@ -54,17 +54,17 @@ Environment secrets:
 
 | Secret | Value |
 |---|---|
-| `ORACLE_HOST` | `129.146.5.114` |
+| `ORACLE_HOST` | `161.153.65.47` |
 | `ORACLE_USER` | `ubuntu` |
 | `ORACLE_SSH_KEY` | the **private** key text. Better: make a separate key just for deploys (`ssh-keygen -t ed25519 -f deploy_key`), add `deploy_key.pub` to the server's `~/.ssh/authorized_keys`, and store only `deploy_key` here |
-| `ORACLE_KNOWN_HOSTS` | output of `ssh-keyscan -t ed25519 129.146.5.114` (run from your PC; this pins the server's identity) |
+| `ORACLE_KNOWN_HOSTS` | output of `ssh-keyscan -t ed25519 161.153.65.47` (run from your PC; this pins the server's identity) |
 | `API_HEALTH_URL` | `https://<API_DOMAIN>/api/v1/health` (optional final check) |
 
 ## 6. First deploy and check
 Merge to `main`, approve the deploy in the Actions tab. Then:
 ```bash
 curl https://<API_DOMAIN>/api/v1/health      # {"status":"ok", ...}
-ssh ubuntu@129.146.5.114 'cd /opt/paymyrent/app && docker compose --env-file ../paymyrent.env -f docker-compose.prod.yml ps'
+ssh ubuntu@161.153.65.47 'cd /opt/paymyrent/app && docker compose --env-file ../paymyrent.env -f docker-compose.prod.yml ps'
 ```
 The first start runs the database migrations and creates the limited `pmr_app` database role by itself.
 

@@ -24,7 +24,7 @@ services:
     restart: always
     env_file: ${API_ENV_FILE:?set API_ENV_FILE (copy api/.env.production.example)}
     environment:
-      RG_APP_ENV: production
+      RG_APP_ENV: ${APP_ENV:-production}      # production (real launch) | test (private testing: sandbox payments and photo-ID, but login is still real Firebase)
       RG_DATABASE_URL: postgresql+psycopg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME:-paymyrent}
       RG_APP_DATABASE_URL: postgresql+psycopg://pmr_app:${APP_DB_PASSWORD:?set APP_DB_PASSWORD}@db:5432/${DB_NAME:-paymyrent}
       RG_APP_DB_PASSWORD: ${APP_DB_PASSWORD}
