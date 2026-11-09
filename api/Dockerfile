@@ -11,7 +11,8 @@ COPY . .
 RUN useradd --system --uid 10001 paymyrent && chown -R paymyrent /srv
 USER paymyrent
 EXPOSE 8000
+# The health check sends the first RG_ALLOWED_HOSTS name as its Host header (otherwise the host allow-list answers 400).
 # FORWARDED_ALLOW_IPS = the load balancer / proxy address(es) only (uvicorn reads it); never '*' in production.
 ENV FORWARDED_ALLOW_IPS=127.0.0.1 WEB_CONCURRENCY=2
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health',timeout=4).status==200 else 1)" || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD python -c "import json,os,sys,urllib.request as u; h=(json.loads(os.environ.get('RG_ALLOWED_HOSTS') or '[]') or ['127.0.0.1'])[0]; r=u.Request('http://127.0.0.1:8000/api/v1/health',headers={'Host':h}); sys.exit(0 if u.urlopen(r,timeout=4).status==200 else 1)" || exit 1
 CMD ["sh", "-c", "alembic upgrade head && python -m app.db.provision && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --no-server-header --limit-concurrency 200 --timeout-keep-alive 10"]

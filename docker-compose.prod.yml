@@ -13,7 +13,7 @@ services:
       TZ: UTC
     # no "ports": the database is reachable only from the api container
     volumes: [pgdata:/var/lib/postgresql/data]
-    healthcheck: {test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"], interval: 5s, retries: 20}
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"], interval: 5s, retries: 20}
     mem_limit: 1g
     security_opt: ["no-new-privileges:true"]
 
