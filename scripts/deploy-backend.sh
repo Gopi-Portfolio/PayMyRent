@@ -13,12 +13,14 @@ DEPLOY_ENV_FILE="${DEPLOY_ENV_FILE:-/opt/paymyrent/paymyrent.env}"
 export API_IMAGE
 DC=(docker compose --env-file "$DEPLOY_ENV_FILE" -f docker-compose.prod.yml)
 
-"${DC[@]}" pull api caddy db backup
+# An image with a registry name (contains "/") is pulled; one sent straight to this server by Jenkins (docker load) is already here.
+case "$API_IMAGE" in */*) "${DC[@]}" pull api ;; esac
+"${DC[@]}" pull caddy db backup || true
 "${DC[@]}" up -d --no-build --remove-orphans
 echo "Waiting for the API to be healthy..."
 for i in $(seq 1 30); do
   s=$(docker inspect -f '{{.State.Health.Status}}' "$("${DC[@]}" ps -q api)" 2>/dev/null || echo starting)
-  [ "$s" = healthy ] && { echo "Healthy. Migrations ran at start."; docker image prune -f >/dev/null; exit 0; }
+  [ "$s" = healthy ] && { echo "Healthy. Migrations ran at start."; docker image prune -f >/dev/null; docker image prune -af --filter "until=336h" >/dev/null; exit 0; }   # keep two weeks of old images for rollback
   sleep 4
 done
 echo "The API did not become healthy; see: docker compose -f docker-compose.prod.yml logs api"; exit 1
