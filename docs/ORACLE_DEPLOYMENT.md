@@ -29,11 +29,19 @@ exit    # log in again so the docker group applies
 ```
 
 ## 3. Server: get the code and the secrets in place
+The server does not need GitHub access. For the first start send a snapshot from your PC (later the pipeline sends the deploy files itself):
+```powershell
+# on your PC, in the project folder
+git archive --format=tar.gz -o $env:TEMP\pmr.tgz main
+scp -i <key-file> "$env:TEMP\pmr.tgz" ubuntu@161.153.65.47:~/
+```
 ```bash
-git clone https://github.com/Gopi-Portfolio/PayMyRent.git /opt/paymyrent/app     # a private repo needs a read-only deploy key
+# on the server
+sudo mkdir -p /opt/paymyrent/app && sudo chown -R ubuntu:ubuntu /opt/paymyrent
+tar -xzf ~/pmr.tgz -C /opt/paymyrent/app
 cd /opt/paymyrent
 cp app/deploy/paymyrent.env.example paymyrent.env
-cp app/api/.env.production.example paymyrent-api.env
+cp app/deploy/paymyrent-api.test.env.example paymyrent-api.env     # for a real launch use app/api/.env.production.example
 chmod 600 paymyrent.env paymyrent-api.env
 ```
 Fill both files **on the server** (nano). Generate every secret and password separately:

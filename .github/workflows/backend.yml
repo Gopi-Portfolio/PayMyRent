@@ -78,8 +78,10 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$SSH_USER@$HOST" \
-            "cd /opt/paymyrent/app && git fetch --quiet origin main && git reset --hard origin/main && API_IMAGE='$IMAGE' scripts/deploy-backend.sh"
+          SSH=(ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$SSH_USER@$HOST")
+          # Send the deploy files from this checkout (no GitHub access or git needed on the server), then deploy the new image.
+          tar -czf - docker-compose.prod.yml deploy scripts | "${SSH[@]}" "mkdir -p /opt/paymyrent/app && tar -xzf - -C /opt/paymyrent/app"
+          "${SSH[@]}" "cd /opt/paymyrent/app && API_IMAGE='$IMAGE' scripts/deploy-backend.sh"
       - name: Check the live API
         env:
           URL: ${{ secrets.API_HEALTH_URL }}
