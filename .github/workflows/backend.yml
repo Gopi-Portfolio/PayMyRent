@@ -55,11 +55,13 @@ jobs:
             ${{ steps.name.outputs.image }}
 
   deploy:
-    # Manual approval: create an environment named "production" in the repository settings and add yourself as a required reviewer.
+    # Runs automatically after the tests pass and the image is built (only for pushes to main).
+    # It reads plain repository secrets (Settings > Secrets and variables > Actions), which free private repositories support.
+    # For an approval click before each deploy, create an environment "production" with a required reviewer (paid plans for
+    # private repositories) and add `environment: production` back to this job.
     needs: image
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: production
     concurrency:
       group: deploy-production
       cancel-in-progress: false

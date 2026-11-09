@@ -4,7 +4,7 @@ Backend only. The mobile app is built separately (`docs/BUILD.md`) and talks to 
 
 ```
 GitHub (push to main)
-   └─ backend.yml: tests ─▶ build ARM/x86 image ─▶ ghcr.io ─▶ (you approve) ─▶ SSH to the server
+   └─ backend.yml: tests ─▶ build ARM/x86 image ─▶ ghcr.io ─▶ SSH to the server
                                                                                   └─ scripts/deploy-backend.sh
 Server (Oracle A1, Ubuntu)
    Caddy :80/:443 (HTTPS, auto certificate) ─▶ api :8000 (internal only) ─▶ db (internal only)
@@ -56,9 +56,9 @@ The image is private by default. Either make the package public in GitHub (Packa
 echo <token> | docker login ghcr.io -u <github-username> --password-stdin
 ```
 
-## 5. GitHub: secrets and approval
-Settings → Environments → **New environment `production`** → add yourself under *Required reviewers* (every deploy waits for your click).
-Environment secrets:
+## 5. GitHub: secrets (the repository owner does this once)
+Repository → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**. Plain repository secrets work on free private repositories; only the repository owner can see the Settings tab.
+(For a click-to-approve step before each deploy you would need an Environment with a required reviewer, which private repositories only get on paid plans.)
 
 | Secret | Value |
 |---|---|
@@ -69,7 +69,7 @@ Environment secrets:
 | `API_HEALTH_URL` | `https://<API_DOMAIN>/api/v1/health` (optional final check) |
 
 ## 6. First deploy and check
-Merge to `main`, approve the deploy in the Actions tab. Then:
+Merge to `main`. The Actions tab runs tests, builds the image and deploys by itself. Then:
 ```bash
 curl https://<API_DOMAIN>/api/v1/health      # {"status":"ok", ...}
 ssh ubuntu@161.153.65.47 'cd /opt/paymyrent/app && docker compose --env-file ../paymyrent.env -f docker-compose.prod.yml ps'
