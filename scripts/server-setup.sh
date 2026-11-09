@@ -19,8 +19,12 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 # Oracle's Ubuntu images ship iptables rules that only allow SSH. Insert 80/443 ahead of the final REJECT rule.
+# The position is looked up (not hard-coded): a rule BELOW the REJECT row is never used.
 for port in 80 443; do
-  sudo iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null || sudo iptables -I INPUT 6 -p tcp --dport "$port" -j ACCEPT
+  if ! sudo iptables -C INPUT -p tcp --dport "$port" -m state --state NEW -j ACCEPT 2>/dev/null; then
+    pos=$(sudo iptables -L INPUT --line-numbers -n | awk '$2=="REJECT"{print $1; exit}')
+    sudo iptables -I INPUT "${pos:-1}" -p tcp --dport "$port" -m state --state NEW -j ACCEPT
+  fi
 done
 sudo apt-get install -y iptables-persistent >/dev/null
 sudo netfilter-persistent save
