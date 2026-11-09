@@ -1,0 +1,18 @@
+# HTTPS in front of the API. Caddy gets and renews the Let's Encrypt certificate by itself.
+# API_DOMAIN is set in the server's environment (a domain you own, or <ip-with-dashes>.sslip.io for testing).
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:8000 {
+		health_uri /api/v1/health
+		health_interval 30s
+		health_headers {
+			Host {$API_DOMAIN}
+		}
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+}

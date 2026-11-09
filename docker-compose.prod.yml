@@ -1,6 +1,7 @@
 # Production-style stack. Secrets come from the environment / a secrets manager, never from files in git.
 #   docker compose -f docker-compose.prod.yml --env-file /secure/paymyrent.env up -d
-# Put a TLS-terminating proxy (ALB / nginx / Caddy) in front; the API is not published to the internet directly.
+# Caddy (below) terminates HTTPS on ports 80/443 and forwards to the API; the API itself is not published on the host.
+#   also set API_DOMAIN (a domain you own, or <ip-with-dashes>.sslip.io for testing).
 services:
   db:
     image: postgres:16
@@ -12,7 +13,7 @@ services:
       TZ: UTC
     # no "ports": the database is reachable only from the api container
     volumes: [pgdata:/var/lib/postgresql/data]
-    healthcheck: {test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"], interval: 5s, retries: 20}
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"], interval: 5s, retries: 20}
     mem_limit: 1g
     security_opt: ["no-new-privileges:true"]
 
@@ -23,13 +24,13 @@ services:
     restart: always
     env_file: ${API_ENV_FILE:?set API_ENV_FILE (copy api/.env.production.example)}
     environment:
-      RG_APP_ENV: production
+      RG_APP_ENV: ${APP_ENV:-production}      # production (real launch) | test (private testing: sandbox payments and photo-ID, but login is still real Firebase)
       RG_DATABASE_URL: postgresql+psycopg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME:-paymyrent}
       RG_APP_DATABASE_URL: postgresql+psycopg://pmr_app:${APP_DB_PASSWORD:?set APP_DB_PASSWORD}@db:5432/${DB_NAME:-paymyrent}
       RG_APP_DB_PASSWORD: ${APP_DB_PASSWORD}
-      FORWARDED_ALLOW_IPS: ${PROXY_IP:?set PROXY_IP to your load balancer address}
+      FORWARDED_ALLOW_IPS: ${PROXY_IP:-172.30.0.2}      # the Caddy container (fixed address on this stack's network)
       WEB_CONCURRENCY: "2"
-    ports: ["127.0.0.1:8000:8000"]     # reachable only from the proxy on this host
+    expose: ["8000"]                   # reachable only from the Caddy container, never from the host or the internet
     depends_on: {db: {condition: service_healthy}}
     mem_limit: 768m
     read_only: true
@@ -38,6 +39,48 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
 
+  caddy:
+    image: caddy:2
+    restart: always
+    ports: ["80:80", "443:443"]
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN (your domain, or <ip-with-dashes>.sslip.io for testing)}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      default: {ipv4_address: 172.30.0.2}
+    depends_on: [api]
+    mem_limit: 128m
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+
+  # Dated database backups (kept 14 days) in the backups volume. Copy them off this server too (see docs/ORACLE_DEPLOYMENT.md).
+  backup:
+    image: postgres:16
+    restart: always
+    environment:
+      PGHOST: db
+      PGUSER: ${DB_USER}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: ${DB_NAME:-paymyrent}
+    entrypoint: ["sh", "-c", "while true; do pg_dump -Fc -f /backups/paymyrent-$$(date +%Y%m%d-%H%M).dump && find /backups -name 'paymyrent-*.dump' -mtime +14 -delete; sleep 86400; done"]
+    volumes: [dbbackups:/backups]
+    depends_on: {db: {condition: service_healthy}}
+    mem_limit: 256m
+    security_opt: ["no-new-privileges:true"]
+
+networks:
+  default:
+    ipam:
+      # Other containers get addresses only from 172.30.0.128/25, so Caddy's fixed 172.30.0.2 can never be taken by one of them.
+      config: [{subnet: 172.30.0.0/24, ip_range: 172.30.0.128/25}]
+
 volumes:
   pgdata:
   apistorage:
+  caddy_data:
+  caddy_config:
+  dbbackups:
