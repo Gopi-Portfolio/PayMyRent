@@ -75,7 +75,8 @@ services:
 networks:
   default:
     ipam:
-      config: [{subnet: 172.30.0.0/24}]
+      # Other containers get addresses only from 172.30.0.128/25, so Caddy's fixed 172.30.0.2 can never be taken by one of them.
+      config: [{subnet: 172.30.0.0/24, ip_range: 172.30.0.128/25}]
 
 volumes:
   pgdata:
