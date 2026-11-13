@@ -57,6 +57,12 @@
     "icon": "./assets/icon.png",
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "12a595ee-1d54-4d79-860a-ee0b8fc23c1e"
+      }
+    },
+    "owner": "prashanth2204"
   }
 }
