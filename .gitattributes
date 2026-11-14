@@ -3,3 +3,6 @@
 *.yml text eol=lf
 Caddyfile text eol=lf
 Dockerfile text eol=lf
+
+# iOS project files are built on a Mac: keep LF even when edited on Windows (CRLF breaks .xcode.env etc.)
+mobile/ios/** text=auto eol=lf
