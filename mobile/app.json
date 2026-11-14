@@ -10,7 +10,10 @@
       "bundleIdentifier": "in.paymyrent.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": false,
-      "icon": "./assets/icon.png"
+      "icon": "./assets/icon.png",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "in.paymyrent.app",
@@ -35,6 +38,7 @@
       "expo-localization",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
+      "./plugins/with-firebase-configure.js",
       [
         "expo-build-properties",
         {
