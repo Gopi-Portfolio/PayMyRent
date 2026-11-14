@@ -11,7 +11,7 @@ module.exports = ({ config }) => {
   if (mode === 'dev') {
     config.plugins = (config.plugins ?? []).filter((p) => {
       const name = Array.isArray(p) ? p[0] : p;
-      return !String(name).startsWith('@react-native-firebase');
+      return !String(name).startsWith('@react-native-firebase') && !String(name).includes('with-firebase-configure');
     });
     if (config.ios) delete config.ios.googleServicesFile;
     if (config.android) delete config.android.googleServicesFile;

@@ -38,6 +38,7 @@
       "expo-localization",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
+      "./plugins/with-firebase-configure.js",
       [
         "expo-build-properties",
         {
