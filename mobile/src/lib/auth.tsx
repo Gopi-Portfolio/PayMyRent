@@ -93,8 +93,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      if (await getIdToken()) await refresh();
-      setLoading(false);
+      try {
+        if (await getIdToken()) await refresh();
+      } catch (e) {
+        // e.g. Firebase not configured in this build: show the login screen instead of an endless spinner
+        setAuthError(e);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [refresh]);
 
