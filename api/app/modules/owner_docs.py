@@ -25,7 +25,7 @@ from ..core.db import Db, get_db, transaction
 from ..core.errors import AppError
 from ..core.http import limiter
 from ..domain import docmatch
-from ..domain.validation import validate_address, validate_full_name
+from ..domain.validation import validate_address, validate_full_name, validate_proof_ref
 from ..providers import docs as docs_provider
 from ..providers.docs import BadImage, get_engine      # (tests replace get_engine in THIS module)
 
@@ -54,13 +54,20 @@ def owner_auto_verified(db: Db, owner_account_id) -> bool:
                           o=owner_account_id, n=AUTO_NOTE))
 
 
+def owner_checked_here(db: Db, owner_account_id) -> bool:
+    """This very account passed the automatic check WITH its own deed pages. (A second property is a new account that only copies the
+    reviewed owner details: it has no deed pages, so it cannot use the shortcuts that depend on them.)"""
+    return owner_auto_verified(db, owner_account_id) and (db.scalar(
+        "SELECT count(*) FROM owner_documents WHERE owner_account_id = :o AND kind IN ('deed_first', 'deed_last')", o=owner_account_id) or 0) == 2
+
+
 @router.get("/owner/documents")
 def list_documents(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
     _enabled()
     rows = db.all("SELECT kind, created_at FROM owner_documents WHERE owner_account_id = :o", o=scope.owner_account_id)
     have = {r["kind"]: r["created_at"] for r in rows}
     return {"enabled": True, "items": [{"kind": k, "uploaded": k in have, "uploaded_at": have.get(k)} for k in KINDS],
-            "verified": owner_auto_verified(db, scope.owner_account_id)}
+            "verified": owner_checked_here(db, scope.owner_account_id)}
 
 
 @router.put("/owner/documents/{kind}")
@@ -138,9 +145,7 @@ def verify_documents(body: VerifyIn, scope: OwnerScope = Depends(owner_scope), d
     address = validate_address(body.address, required=True, field="address")
     if docmatch.name_similarity(name, body.signature) < 0.9:
         raise AppError("VALIDATION", "sign with your full name exactly as you typed it in the form", fields=[{"field": "signature", "code": "mismatch"}])
-    proof_ref = body.proof_ref.strip()
-    if not 3 <= len(proof_ref) <= 80:
-        raise AppError("VALIDATION", "enter the property document number", fields=[{"field": "proof_ref", "code": "required"}])
+    proof_ref = validate_proof_ref(body.proof_ref)       # the same rule the property uses, because that number is reused when the property is added
     limiter.check(f"docverify:{scope.user.id}", s.doc_max_tries_per_day, 86400)
     phone = _phone(db, scope.user.id)
     checks: list[dict] = []
@@ -261,11 +266,23 @@ def _approve(*, user_id, owner, name: str, address: str, id_enc: str | None, id_
                      u=user_id, d=s.kyc_validity_days, note=AUTO_NOTE, m=method)
 
 
+def use_owner_details_proof(db: Db, owner_account_id, body) -> bool:
+    """For an owner who passed the automatic check, the property document is the one named on the owner-details page: fill it into the
+    property being added and say so, so the owner is not asked for it (or for a text-message code) a second time."""
+    if not get_settings().doc_auto_approve or not owner_checked_here(db, owner_account_id):
+        return False
+    r = db.one("SELECT proof_type, proof_ref FROM owner_verifications WHERE owner_account_id = :o", o=owner_account_id)
+    if r is None or not r["proof_ref"]:
+        return False
+    body.proof_type, body.proof_ref = r["proof_type"], r["proof_ref"]
+    return True
+
+
 def check_property_against_deed(db: Db, owner_account_id, v: dict) -> None:
     """Called when a property is added. For an owner who passed the automatic check, the property's address (or pincode) must appear on
     the deed pages that were uploaded; otherwise the owner is told to correct the address instead of waiting for a review that never comes."""
     s = get_settings()
-    if not s.doc_auto_approve or not owner_auto_verified(db, owner_account_id):
+    if not s.doc_auto_approve or not owner_checked_here(db, owner_account_id):
         return
     rows = db.all("SELECT text_enc FROM owner_documents WHERE owner_account_id = :o AND kind IN ('deed_first', 'deed_last') AND text_enc IS NOT NULL",
                   o=owner_account_id)

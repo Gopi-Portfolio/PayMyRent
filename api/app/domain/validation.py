@@ -259,3 +259,15 @@ def validate_items(raw: str | None, field: str = "items_provided") -> str | None
     if grapheme_count(value) > ITEMS_MAX:
         raise ValidationError(field, "too_long", max=ITEMS_MAX)
     return value or None
+
+
+def validate_proof_ref(raw: str, field: str = "proof_ref") -> str:
+    """The number of the property document: 4 to 40 characters, and not a placeholder such as 000000, 123456, AAAAAA or TEST."""
+    ref = clean_text(raw or "")
+    key = re.sub(r"[^A-Za-z0-9]", "", ref).upper()
+    if (len(key) < 6 or len(set(key)) < 3 or key in {"123456", "1234567", "12345678", "ABCDEF", "TESTING", "PROOF123", "NOTAVAILABLE"}
+            or "123456" in key or "000000" in key or re.fullmatch(r"(.)\1+", key)):
+        raise ValidationError(field, "invalid")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 /\-.]{3,39}", ref):
+        raise ValidationError(field, "invalid")
+    return ref
