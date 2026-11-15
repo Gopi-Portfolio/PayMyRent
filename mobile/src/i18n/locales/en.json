@@ -836,5 +836,15 @@
     "hintAadhaar": "Both sides of the card. The number is hidden automatically and never stored.",
     "hintDeed": "The first and last page of the deed, whole and readable.",
     "hintSelfie": "Look straight at the camera. No cap or sunglasses."
+  },
+  "searchTab": {
+    "properties": "Properties",
+    "renters": "Renters",
+    "choose": "Choose Properties or Renters",
+    "filters": "Filters",
+    "pickPrompt": "Choose Properties or Renters above to see the list.",
+    "noProperties": "No properties found.",
+    "noRenters": "No renters found.",
+    "forProperty": "Property: {{name}}"
   }
 }
