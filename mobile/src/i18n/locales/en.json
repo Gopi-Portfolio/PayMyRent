@@ -777,5 +777,32 @@
     "explain": "Tenants set to UPI pay this ID. Add it once here, and you will not need to enter it for each tenant.",
     "notSet": "Not added yet",
     "add": "Add UPI ID"
+  },
+  "docCheck": {
+    "title": "Verify Your Documents",
+    "subtitle": "Upload clear photos. We check them automatically in about a minute.",
+    "pan": "PAN card",
+    "panHint": "The whole card, flat, in good light.",
+    "selfie": "Live selfie",
+    "selfieHint": "Look straight at the camera. No cap or sunglasses.",
+    "deedFirst": "Property deed: first page",
+    "deedLast": "Property deed: last page (with signatures)",
+    "deedHint": "The whole page, flat and readable.",
+    "camera": "Take Photo",
+    "gallery": "Choose Photo",
+    "uploaded": "Uploaded",
+    "notUploaded": "Not uploaded",
+    "details": "Your details",
+    "legalName": "Your full name (as on PAN)",
+    "address": "Your address",
+    "enterName": "Enter your full name",
+    "enterAddress": "Enter your full address",
+    "declare": "These are my own genuine documents, and I am the person in the photos.",
+    "submit": "Check My Documents",
+    "checking": "Checking your documents...",
+    "passed": "Your documents are verified.",
+    "failed": "We could not verify yet. Fix the items below and try again.",
+    "permission": "Allow camera and photo access in your phone settings.",
+    "triesNote": "You can try up to 5 times a day."
   }
 }

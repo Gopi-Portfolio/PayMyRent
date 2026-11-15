@@ -19,6 +19,7 @@ from ..core.auth import CurrentUser, OwnerScope, complete_user, owner_scope
 from ..core.db import Db, get_db
 from ..core.errors import AppError
 from ..core.http import limiter
+from . import owner_docs
 from .action_otp import require_action_otp
 from ..domain.validation import ValidationError, clean_text, validate_address, validate_pincode
 
@@ -106,7 +107,9 @@ def check_property(body: PropertyIn, scope: OwnerScope = Depends(owner_scope), d
     limiter.check(f"propcheck:{scope.user.id}", 10, 3600)
     _require_owner_details(db, scope.owner_account_id)
     _require_photo_id(db, scope.owner_account_id)
-    check_conflict(db, validate_property(body))
+    v = validate_property(body)
+    check_conflict(db, v)
+    owner_docs.check_property_against_deed(db, scope.owner_account_id, v)      # no-op unless the automatic document check is on
     return {"ok": True}
 
 
@@ -119,6 +122,7 @@ def create_property(body: PropertyIn, scope: OwnerScope = Depends(owner_scope), 
     db.scalar("SELECT rg_require_owner_writable(:o)", o=scope.owner_account_id)
     v = validate_property(body)
     check_conflict(db, v)
+    owner_docs.check_property_against_deed(db, scope.owner_account_id, v)
     require_action_otp(db, scope.user.id, "property", body.otp_code)      # last, so a wrong form never burns a code
     pid = db.scalar("""INSERT INTO properties(owner_account_id, name, address, city, state, pincode, kind, proof_type, proof_ref, declared_at)
                        VALUES (:o, :n, :a, :c, :s, :pc, :k, :pt, :pr, now()) RETURNING id""",
@@ -126,6 +130,7 @@ def create_property(body: PropertyIn, scope: OwnerScope = Depends(owner_scope), 
                     pt=v["proof_type"], pr=v["proof_ref"])
     db.audit(scope.user.id, scope.owner_account_id, "property.submitted", "property", pid, after={"proof_type": v["proof_type"]})
     db.scalar("SELECT rg_demo_verify_property(:p)", p=pid)         # no-op unless the local-demo flag is on
+    db.scalar("SELECT rg_doc_verify_property(:p)", p=pid)          # no-op unless the automatic document check is on and this owner passed it
     return _property_view(db, pid)
 
 

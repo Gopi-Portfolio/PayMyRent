@@ -35,6 +35,14 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "PayMyRent uses the camera to photograph your PAN card and property deed, and to take a live selfie for the identity check.",
+          "photosPermission": "PayMyRent opens your photos and files only when you choose to attach, import or save a document, such as a payment receipt, a rent statement or a spreadsheet of tenants.",
+          "microphonePermission": false
+        }
+      ],
       "expo-localization",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",

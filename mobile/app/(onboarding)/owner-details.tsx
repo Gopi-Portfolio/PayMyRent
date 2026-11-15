@@ -3,12 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Icon, Text } from 'react-native-paper';
+import { ActivityIndicator, Icon, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { ActionOtp, otpReady } from '@/components/ActionOtp';
 import { AppButton } from '@/components/Buttons';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { OwnerDocumentCheck, useOwnerDocs } from '@/components/OwnerDocumentCheck';
 import { ErrorBanner, Field, Panel, Screen, StatusPill } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
@@ -22,6 +23,7 @@ export default function OwnerDetails() {
   const { t } = useTranslation();
   const { me, refresh } = useAuth();
   const owner = ownerAccountId(me);
+  const docs = useOwnerDocs();     // when the server runs the automatic document check, this screen is replaced by it
   const existing = useQuery({ queryKey: ['owner-verification', owner], queryFn: () => api<any>('/api/v1/owner/verification', { ownerAccount: owner }) });
   const [f, setF] = useState({ legal_name: me?.full_name ?? '', pan: '', address: me?.address ?? '', proof_type: 'property_tax', proof_ref: '' });
   const [declare, setDeclare] = useState(false);
@@ -54,6 +56,9 @@ export default function OwnerDetails() {
       router.replace('/');
     } catch (x) { setErr(x); } finally { setBusy(false); }
   }
+
+  if (docs.data?.enabled) return <OwnerDocumentCheck docs={docs.data} />;
+  if (docs.isLoading) return <Screen><ActivityIndicator /></Screen>;
 
   return (
     <Screen>
