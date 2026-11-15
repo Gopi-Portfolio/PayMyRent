@@ -780,7 +780,7 @@
   },
   "docCheck": {
     "title": "Verify Your Documents",
-    "subtitle": "Enter your details and upload clear photos. Next you will sign. We check everything automatically.",
+    "subtitle": "Fill in your name and property document, take the photos, then sign. Everything is checked automatically.",
     "pan": "PAN card",
     "panHint": "The whole card, flat, in good light.",
     "selfie": "Live selfie",
@@ -806,7 +806,7 @@
     "triesNote": "You can try up to 5 times a day.",
     "idChoice": "Which ID will you use?",
     "aadhaar": "Aadhaar card (front)",
-    "aadhaarHint": "Front side only, with your photo. The first 8 digits of the number are hidden automatically and never stored.",
+    "aadhaarHint": "Front side, with your photo. The first 8 digits of the number are hidden automatically and never stored.",
     "aadhaarNumber": "Aadhaar Number (12 digits)",
     "enterPan": "PAN must look like ABCDE1234F",
     "enterAadhaar": "Enter your 12-digit Aadhaar number first",
@@ -817,6 +817,11 @@
     "signLabel": "Sign: type your full name",
     "signMismatch": "The signature must be the same name you entered on the previous page.",
     "signSubmit": "Sign and Submit",
-    "back": "Back"
+    "back": "Back",
+    "aadhaarBack": "Aadhaar card (back)",
+    "aadhaarBackHint": "Back side, with your address. We read the address from it and save the address to your profile; the number is hidden here too.",
+    "addressFromCard": "Address read from your Aadhaar. Check it and correct any mistakes.",
+    "addressNotRead": "The address could not be read from the card. Type it here.",
+    "addressTyped": "A PAN card has no address, so type your address here."
   }
 }

@@ -15,7 +15,7 @@ import re
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile
 from pydantic import BaseModel, Field
 
 from ..core.auth import OwnerScope, owner_scope
@@ -31,10 +31,11 @@ from ..providers.docs import BadImage, get_engine      # (tests replace get_engi
 
 router = APIRouter(prefix="/api/v1", tags=["owner-documents"])
 
-KINDS = ("pan", "aadhaar", "selfie", "deed_first", "deed_last")      # the owner uploads a PAN card OR an Aadhaar card (front), never both needed
+KINDS = ("pan", "aadhaar", "aadhaar_back", "selfie", "deed_first", "deed_last")     # a PAN card, OR an Aadhaar card (front + back, the back has the address)
 ID_KINDS = ("pan", "aadhaar")
+AADHAAR_KINDS = ("aadhaar", "aadhaar_back")
 MAX_BYTES = 6 * 1024 * 1024
-MIN_SIDE = {"selfie": 300, "pan": 700, "aadhaar": 700, "deed_first": 700, "deed_last": 700}
+MIN_SIDE = {"selfie": 300, "pan": 700, "aadhaar": 700, "aadhaar_back": 700, "deed_first": 700, "deed_last": 700}
 AUTO_NOTE = "automatic document check"
 
 
@@ -63,8 +64,7 @@ def list_documents(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(ge
 
 
 @router.put("/owner/documents/{kind}")
-def upload_document(kind: str, file: UploadFile = File(...), typed_number: str | None = Form(default=None),
-                    scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def upload_document(kind: str, file: UploadFile = File(...), scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
     _enabled()
     if kind not in KINDS:
         raise AppError("NOT_FOUND")
@@ -80,30 +80,35 @@ def upload_document(kind: str, file: UploadFile = File(...), typed_number: str |
         raise AppError("VALIDATION", "the photo is too small: move closer or use the camera's normal quality",
                        fields=[{"field": "file", "code": "too_small"}])
     stored, text_enc = data, None
-    if kind == "aadhaar":
+    address = None
+    if kind in AADHAAR_KINDS:
         # The full Aadhaar number must never be stored (only an authorised entity may): read it here, black out its first 8 digits in the
-        # photo, and keep only the masked photo and the masked text.
+        # photo (front and back both print it), and keep only the masked photo and the masked text.
+        side = "FRONT" if kind == "aadhaar" else "BACK"
         text, masked = get_engine().read_aadhaar(data)
         number = docmatch.find_aadhaar(text)
         if number is None:
-            raise AppError("VALIDATION", "the Aadhaar number could not be read: photograph the FRONT of the card, whole, flat and sharp",
+            raise AppError("VALIDATION", f"the Aadhaar number could not be read: photograph the {side} of the card, whole, flat and sharp",
                            fields=[{"field": "file", "code": "aadhaar_unreadable"}])
-        if re.sub(r"\D", "", typed_number or "") != number:           # the number typed in the form: compared here, never stored
-            raise AppError("VALIDATION", "the Aadhaar number you typed does not match the card", fields=[{"field": "id_number", "code": "mismatch"}])
         if masked is None:
             raise AppError("VALIDATION", "the Aadhaar number could not be hidden automatically: try a sharper photo, or use the masked Aadhaar from the mAadhaar app",
                            fields=[{"field": "file", "code": "aadhaar_not_masked"}])
         stored, mime = masked, "image/jpeg"
-        text_enc = encrypt_bytes(docmatch.mask_aadhaar_text(text, number).encode(), "doctext")
+        masked_text = docmatch.mask_aadhaar_text(text, number)
+        text_enc = encrypt_bytes(masked_text.encode(), "doctext")
+        if kind == "aadhaar_back":
+            address = docmatch.extract_address(masked_text)               # shown to the owner to confirm; saved to the profile when verified
     db.exec("DELETE FROM owner_documents WHERE owner_account_id = :o AND kind = :k", o=scope.owner_account_id, k=kind)
-    if kind in ID_KINDS:                                                  # one ID document at a time
-        db.exec("DELETE FROM owner_documents WHERE owner_account_id = :o AND kind = ANY(:ks)", o=scope.owner_account_id, ks=list(ID_KINDS))
+    if kind == "pan":                                                     # one kind of ID at a time: a PAN card replaces an Aadhaar (both sides)
+        db.exec("DELETE FROM owner_documents WHERE owner_account_id = :o AND kind = ANY(:ks)", o=scope.owner_account_id, ks=list(AADHAAR_KINDS))
+    elif kind == "aadhaar":
+        db.exec("DELETE FROM owner_documents WHERE owner_account_id = :o AND kind = 'pan'", o=scope.owner_account_id)
     db.exec("""INSERT INTO owner_documents(owner_account_id, kind, mime, content_enc, sha256, text_enc, uploaded_by, uploaded_phone)
                VALUES (:o, :k, :m, :c, :h, :t, :u, :p)""",
             o=scope.owner_account_id, k=kind, m=mime, c=encrypt_bytes(stored), h=hashlib.sha256(data).hexdigest(), t=text_enc, u=scope.user.id,
             p=_phone(db, scope.user.id))
     db.audit(scope.user.id, scope.owner_account_id, "owner_document.uploaded", "owner_account", scope.owner_account_id, after={"kind": kind})
-    return {"kind": kind, "uploaded": True}
+    return {"kind": kind, "uploaded": True, "address": address}
 
 
 ProofKind = Literal["property_tax", "electricity_bill", "sale_deed", "rent_agreement", "gst", "other"]
@@ -112,8 +117,7 @@ ProofKind = Literal["property_tax", "electricity_bill", "sale_deed", "rent_agree
 class VerifyIn(BaseModel):
     legal_name: str = Field(max_length=100)
     signature: str = Field(max_length=100)          # the full name typed again on the signature page
-    address: str = Field(max_length=1000)           # the owner's own address
-    id_number: str = Field(default="", max_length=20)     # the PAN typed in the form (an Aadhaar number is checked when its card is uploaded and never sent here)
+    address: str = Field(max_length=1000)           # the owner's address: read from the back of the Aadhaar (and corrected if needed), typed with a PAN card
     proof_type: ProofKind                            # the property document named in the form (its pages are uploaded)
     proof_ref: str = Field(max_length=80)           # and its number
     declare: bool = False                            # "the documents I submitted are original and belong to me"
@@ -143,11 +147,12 @@ def verify_documents(body: VerifyIn, scope: OwnerScope = Depends(owner_scope), d
 
     rows = {r["kind"]: r for r in db.all("SELECT kind, content_enc, sha256, text_enc FROM owner_documents WHERE owner_account_id = :o", o=scope.owner_account_id)}
     id_kind = next((k for k in ID_KINDS if k in rows), None)
-    missing = ([] if id_kind else ["pan or aadhaar"]) + [k for k in ("selfie", "deed_first", "deed_last") if k not in rows]
-    if not _check(checks, "documents_missing", not missing, ("Upload all four photos first: " + ", ".join(missing)) if missing else "All four photos are uploaded."):
+    missing = ([] if id_kind else ["pan or aadhaar"]) + (["aadhaar back page"] if id_kind == "aadhaar" and "aadhaar_back" not in rows else []) \
+        + [k for k in ("selfie", "deed_first", "deed_last") if k not in rows]
+    if not _check(checks, "documents_missing", not missing, ("Upload all the photos first: " + ", ".join(missing)) if missing else "All the photos are uploaded."):
         return _finish(db, scope, "failed", checks, phone)
 
-    used = (id_kind, "selfie", "deed_first", "deed_last")
+    used = (id_kind, "selfie", "deed_first", "deed_last") + (("aadhaar_back",) if id_kind == "aadhaar" else ())
     label = "PAN card" if id_kind == "pan" else "Aadhaar card"
     eng = get_engine()
     img = {k: decrypt_bytes(rows[k]["content_enc"]) for k in used}
@@ -156,7 +161,6 @@ def verify_documents(body: VerifyIn, scope: OwnerScope = Depends(owner_scope), d
         pan = docmatch.find_pan(id_text)
         readable, region, born = pan is not None, docmatch.pan_name_region(id_text), docmatch.find_birth_date(id_text)
         id_enc, id_hash, id_masked = (_enc_pan(pan), _pan_hash(pan), _mask_pan(pan)) if pan else (None, None, None)
-        typed_pan = re.sub(r"[^A-Z0-9]", "", body.id_number.upper())
     else:
         # the Aadhaar was read when it was uploaded and its number hidden: only the masked text and the last 4 digits exist
         id_text = decrypt_bytes(rows["aadhaar"]["text_enc"], "doctext").decode() if rows["aadhaar"]["text_enc"] else ""
@@ -170,9 +174,14 @@ def verify_documents(body: VerifyIn, scope: OwnerScope = Depends(owner_scope), d
         name_ok = docmatch.name_in_text(name, region, s.doc_name_min)
         _check(checks, f"name_matches_{id_kind}", name_ok, f"The name you typed matches the {label}." if name_ok
                else f"The name you typed was not found on the {label}. Type it exactly as printed on the card.")
-        if id_kind == "pan":
-            _check(checks, "pan_number_matches", typed_pan == pan, "The PAN you typed matches the card." if typed_pan == pan
-                   else "The PAN you typed does not match the number on the card photo.")
+        if id_kind == "aadhaar":
+            back_text = decrypt_bytes(rows["aadhaar_back"]["text_enc"], "doctext").decode() if rows["aadhaar_back"]["text_enc"] else ""
+            same_card = last4 is not None and docmatch.aadhaar_last4(back_text) == last4
+            _check(checks, "aadhaar_back_matches", same_card, "The back page belongs to the same Aadhaar card." if same_card
+                   else "The back page does not match the front. Upload both sides of the same card.")
+            on_card = docmatch.address_in_text(address, None, back_text, 0.6)       # (the pincode alone is not enough: the words must match)
+            _check(checks, "address_on_card", on_card, "The address matches the back of your Aadhaar." if on_card
+                   else "The address does not match the back of your Aadhaar. Use the address read from the card.")
         if born is not None:
             _check(checks, "adult", docmatch.age_on(born, date.today()) >= 18, "The owner must be at least 18 years old.")
 
@@ -197,8 +206,8 @@ def verify_documents(body: VerifyIn, scope: OwnerScope = Depends(owner_scope), d
     # across all owners (row-level security hides other accounts, so this uses the system connection)
     hashes = [rows[k]["sha256"] for k in used]
     with transaction() as sdb:
-        photo_dup = bool(sdb.scalar("SELECT 1 FROM owner_documents WHERE owner_account_id <> :o AND sha256 IN (:a, :b, :c, :d) LIMIT 1",
-                                    o=scope.owner_account_id, a=hashes[0], b=hashes[1], c=hashes[2], d=hashes[3]))
+        photo_dup = bool(sdb.scalar("SELECT 1 FROM owner_documents WHERE owner_account_id <> :o AND sha256 = ANY(:hs) LIMIT 1",
+                                    o=scope.owner_account_id, hs=hashes))
         id_other_person = bool(id_hash and sdb.scalar("""SELECT 1 FROM owner_verifications v JOIN owner_accounts a ON a.id = v.owner_account_id
                                                          WHERE v.pan_hash = :p AND v.owner_account_id <> :o AND v.status IN ('submitted','verified')
                                                            AND a.primary_user_id <> :u LIMIT 1""",
@@ -242,6 +251,7 @@ def _approve(*, user_id, owner, name: str, address: str, id_enc: str | None, id_
                       proof_type = :pt, proof_ref = :r, declared_at = now(), status = 'verified', reviewed_at = now(), review_note = :note,
                       copied_from_account = :cf, updated_at = now()""",
                  o=owner, n=name, pe=id_enc, ph=id_hash, pm=id_masked, a=address, pt=proof_type, r=proof_ref, note=AUTO_NOTE, cf=copied_from)
+        sdb.exec("UPDATE users SET address = :a, version = version + 1, updated_at = now() WHERE id = :u", a=address, u=user_id)      # the profile address, and nothing else from the card
         sdb.exec("UPDATE identity_verifications SET status = 'withdrawn', updated_at = now() WHERE user_id = :u AND status IN ('pending', 'manual_review')", u=user_id)
         if not sdb.scalar("SELECT 1 FROM identity_verifications WHERE user_id = :u AND status = 'verified' AND (expires_at IS NULL OR expires_at > now())", u=user_id):
             sdb.exec("UPDATE identity_verifications SET status = 'withdrawn', updated_at = now() WHERE user_id = :u AND status = 'verified'", u=user_id)   # expired
