@@ -15,9 +15,13 @@ import { ownerAccountId, useAuth } from '@/lib/auth';
 import { addressSchema, nameSchema } from '@/lib/validation';
 import { brand, radius } from '@/theme';
 
-type Kind = 'pan' | 'selfie' | 'deed_first' | 'deed_last';
-const ITEMS: { kind: Kind; icon: string; title: string; hint: string; gallery: boolean }[] = [
-  { kind: 'pan', icon: 'card-account-details-outline', title: 'docCheck.pan', hint: 'docCheck.panHint', gallery: true },
+type Kind = 'pan' | 'aadhaar' | 'selfie' | 'deed_first' | 'deed_last';
+type Item = { kind: Kind; icon: string; title: string; hint: string; gallery: boolean };
+const ID_ITEMS: Record<'pan' | 'aadhaar', Item> = {
+  pan: { kind: 'pan', icon: 'card-account-details-outline', title: 'docCheck.pan', hint: 'docCheck.panHint', gallery: true },
+  aadhaar: { kind: 'aadhaar', icon: 'card-account-details', title: 'docCheck.aadhaar', hint: 'docCheck.aadhaarHint', gallery: true },     // front side only
+};
+const OTHER_ITEMS: Item[] = [
   { kind: 'selfie', icon: 'face-recognition', title: 'docCheck.selfie', hint: 'docCheck.selfieHint', gallery: false },      // live camera only
   { kind: 'deed_first', icon: 'file-document-outline', title: 'docCheck.deedFirst', hint: 'docCheck.deedHint', gallery: true },
   { kind: 'deed_last', icon: 'file-sign', title: 'docCheck.deedLast', hint: 'docCheck.deedHint', gallery: true },
@@ -38,7 +42,9 @@ export function OwnerDocumentCheck({ docs }: { docs: { items: { kind: Kind; uplo
   const [err, setErr] = useState<unknown>(null);
   const [checks, setChecks] = useState<Check[] | null>(null);
   const uploaded = (k: Kind) => docs.items.find((i) => i.kind === k)?.uploaded ?? false;
-  const allUploaded = ITEMS.every((i) => uploaded(i.kind));
+  const [idKind, setIdKind] = useState<'pan' | 'aadhaar'>(uploaded('aadhaar') && !uploaded('pan') ? 'aadhaar' : 'pan');      // PAN card OR Aadhaar card
+  const items = [ID_ITEMS[idKind], ...OTHER_ITEMS];
+  const allUploaded = items.every((i) => uploaded(i.kind));
   const e = {
     name: nameSchema.safeParse(name).success ? undefined : t('docCheck.enterName'),
     address: addressSchema.safeParse(address).success ? undefined : t('docCheck.enterAddress'),
@@ -76,7 +82,17 @@ export function OwnerDocumentCheck({ docs }: { docs: { items: { kind: Kind; uplo
   return (
     <Screen>
       <Text style={{ color: brand.muted }}>{t('docCheck.subtitle')}</Text>
-      {ITEMS.map((it) => (
+      <Panel title={t('docCheck.idChoice')} icon="card-account-details-outline">
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+          {(['pan', 'aadhaar'] as const).map((k) => (
+            <Pressable key={k} onPress={() => setIdKind(k)} accessibilityRole="radio" accessibilityState={{ selected: idKind === k }} testID={`doc-id-${k}`}
+                       style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.md, backgroundColor: idKind === k ? brand.teal700 : brand.teal50 }}>
+              <Text style={{ color: idKind === k ? '#fff' : brand.teal700, fontWeight: '700' }}>{t(k === 'pan' ? 'docCheck.pan' : 'docCheck.aadhaar')}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </Panel>
+      {items.map((it) => (
         <Panel key={it.kind} title={t(it.title)} icon={it.icon}>
           <Text style={{ color: brand.muted }}>{t(it.hint)}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

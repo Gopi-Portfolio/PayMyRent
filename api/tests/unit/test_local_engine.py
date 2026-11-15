@@ -11,6 +11,14 @@ import pytest
 from app.domain import docmatch
 
 # (Never call get_settings() at import time here: it is cached, and the integration tests set their environment after collection.)
+@pytest.fixture(autouse=True)
+def _fresh_settings():
+    """The engine reads the (cached) settings; never leave them cached for integration tests that set their own environment later."""
+    yield
+    from app.core.config import get_settings
+    get_settings.cache_clear()
+
+
 needs_tesseract = pytest.mark.skipif(shutil.which("tesseract") is None, reason="tesseract is not installed")
 needs_models = pytest.mark.skipif(not Path("/srv/models/face_recognition_sface_2021dec.onnx").exists(), reason="face models are not installed")
 
@@ -59,3 +67,21 @@ def test_the_face_models_load_and_a_photo_without_a_face_is_reported():
     from app.providers.docs import LocalEngine
     score, problem = LocalEngine().face_score(card(["no face here"]), card(["nor here"]))
     assert score is None and problem == "selfie"
+
+
+@needs_tesseract
+def test_the_real_engine_hides_the_first_eight_digits_of_an_aadhaar_number_in_the_photo():
+    from app.providers.docs import LocalEngine
+    base = "23456789012"
+    number = base + docmatch.verhoeff_check_digit(base)
+    lines = ["Government of India", "RAMESH KUMAR SHARMA", "DOB: 12/05/1980", "Male", f"{number[:4]} {number[4:8]} {number[8:]}", "VID: 9876 5432 1098 7654"]
+    original = card(lines)
+    eng = LocalEngine()
+    text, masked = eng.read_aadhaar(original)
+    assert docmatch.find_aadhaar(text) == number                      # the real engine reads the number...
+    assert masked is not None and masked != original                  # ...and returns a photo with the digits covered
+    again = eng.read_text(masked)
+    assert docmatch.find_aadhaar(again) is None                       # the full number can no longer be read from the stored photo
+    assert number[:8] not in again.replace(" ", "")
+    assert "98765432" not in again.replace(" ", "")                   # a printed VID is covered as well
+    assert "RAMESH" in again                                          # the rest of the card is untouched

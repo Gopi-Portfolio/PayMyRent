@@ -55,3 +55,23 @@ def test_enough_text_rejects_blank_or_wrong_photos():
     assert not m.enough_text("  \n ")
     assert not m.enough_text("page 1 of 2")
     assert m.enough_text(" ".join(["word"] * 40))
+
+
+def test_aadhaar_check_digit_and_number_finding():
+    base = "23456789012"
+    number = base + m.verhoeff_check_digit(base)
+    assert m.verhoeff_valid(number) and not m.verhoeff_valid(number[:-1] + str((int(number[-1]) + 1) % 10))
+    text = f"Government of India\nRamesh\nDOB: 12/05/1980\n{number[:4]} {number[4:8]} {number[8:]}\nVID 9876 5432 1098 7654"
+    assert m.find_aadhaar(text) == number
+    assert m.find_aadhaar("1234 5678 9012") is None                    # starts with 1, and the check digit is wrong
+    assert m.find_aadhaar("2345 6789 0123") is None                    # wrong check digit: a made-up number
+    masked = m.mask_aadhaar_text(text, number)
+    assert number[:8] not in masked.replace(" ", "") and m.aadhaar_last4(masked) == number[8:]
+    assert "98765432" not in masked.replace(" ", "") and "XXXX XXXX XXXX 7654" in masked           # the VID is hidden too
+
+
+def test_aadhaar_name_region_and_year_of_birth():
+    t = "Government of India\nRAMESH KUMAR SHARMA\nYear of Birth: 1980\nMale"
+    assert m.name_in_text("Ramesh Kumar Sharma", m.aadhaar_name_region(t))
+    assert m.find_birth_date_or_year(t) == date(1980, 12, 31)
+    assert m.find_birth_date_or_year("DOB: 01/02/1990") == date(1990, 2, 1)

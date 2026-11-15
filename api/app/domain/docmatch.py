@@ -91,3 +91,68 @@ def enough_text(text: str, minimum_words: int = 25) -> bool:
     """A deed page has pages of text; a blank, dark or wrong photo reads as almost nothing."""
     return len(words(text)) >= minimum_words
 
+
+
+# ───────── Aadhaar (front side) ─────────
+# The full number is never stored: the photo is saved with its first 8 digits blacked out and only the last 4 are kept (providers/docs.py).
+_VD = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [1, 2, 3, 4, 0, 6, 7, 8, 9, 5], [2, 3, 4, 0, 1, 7, 8, 9, 5, 6], [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+       [4, 0, 1, 2, 3, 9, 5, 6, 7, 8], [5, 9, 8, 7, 6, 0, 4, 3, 2, 1], [6, 5, 9, 8, 7, 1, 0, 4, 3, 2], [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+       [8, 7, 6, 5, 9, 3, 2, 1, 0, 4], [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]]
+_VP = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [1, 5, 7, 6, 2, 8, 3, 0, 9, 4], [5, 8, 0, 3, 7, 9, 6, 1, 4, 2], [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+       [9, 4, 5, 3, 1, 2, 6, 8, 7, 0], [4, 2, 8, 6, 5, 7, 3, 9, 0, 1], [2, 7, 9, 3, 8, 0, 6, 4, 1, 5], [7, 0, 4, 6, 9, 1, 3, 2, 5, 8]]
+_VINV = [0, 4, 3, 2, 1, 5, 6, 7, 8, 9]
+
+
+def verhoeff_valid(number: str) -> bool:
+    """An Aadhaar number ends in a Verhoeff check digit, so a made-up 12-digit number almost never passes."""
+    if not number.isdigit():
+        return False
+    c = 0
+    for i, ch in enumerate(reversed(number)):
+        c = _VD[c][_VP[i % 8][int(ch)]]
+    return c == 0
+
+
+def verhoeff_check_digit(number_without_check: str) -> str:
+    c = 0
+    for i, ch in enumerate(reversed(number_without_check)):
+        c = _VD[c][_VP[(i + 1) % 8][int(ch)]]
+    return str(_VINV[c])
+
+
+def find_aadhaar(text: str) -> str | None:
+    """The 12-digit Aadhaar number on the front of a card (printed as three groups of four), checked with its check digit."""
+    # lookahead: overlapping candidates are all tried, and the groups must be on one line (so "1980\n2345 6789" is never joined)
+    for m in re.finditer(r"(?<!\d)(?=(\d{4})[ \t]{0,3}(\d{4})[ \t]{0,3}(\d{4})(?!\d))", text):
+        n = "".join(m.groups())
+        if n[0] in "23456789" and verhoeff_valid(n):          # Aadhaar numbers never start with 0 or 1
+            return n
+    return None
+
+
+def mask_aadhaar_text(text: str, number: str) -> str:
+    """The OCR text with the number replaced by XXXX XXXX 1234, so the full number is never written to the database."""
+    # a printed VID (16 digits, an alias of the Aadhaar number) first, then the number itself
+    text = re.sub(r"(?<!\d)\d{4}[ \t]{0,3}\d{4}[ \t]{0,3}\d{4}[ \t]{0,3}(\d{4})(?!\d)", r"XXXX XXXX XXXX \1", text)
+    pat = r"[ \t]{0,3}".join(re.escape(number[i:i + 4]) for i in (0, 4, 8))
+    return re.sub(pat, f"XXXX XXXX {number[8:]}", text)
+
+
+def aadhaar_last4(masked_text: str) -> str | None:
+    m = re.search(r"XXXX XXXX (\d{4})", masked_text)
+    return m.group(1) if m else None
+
+
+def aadhaar_name_region(text: str) -> str:
+    """The text above the date / year of birth line, where the holder's name is printed."""
+    m = re.search(r"DOB|D\.O\.B|date of birth|year of birth|जन्म", text, re.I)
+    return text[:m.start()] if m else text
+
+
+def find_birth_date_or_year(text: str) -> date | None:
+    """Full date of birth when printed; else the year of birth, taken as 31 December of that year (so the adult check errs on the safe side)."""
+    d = find_birth_date(text)
+    if d:
+        return d
+    m = re.search(r"year of birth\s*[:\-]?\s*(\d{4})", text, re.I)
+    return date(int(m.group(1)), 12, 31) if m and 1900 < int(m.group(1)) <= date.today().year else None

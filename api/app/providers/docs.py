@@ -9,6 +9,7 @@ Heavy libraries are imported only when a photo is processed, so the API starts (
 from __future__ import annotations
 
 import io
+import re
 import threading
 from pathlib import Path
 from typing import Protocol
@@ -26,6 +27,9 @@ class BadImage(ValueError):
 
 class DocEngine(Protocol):
     def read_text(self, image: bytes) -> str: ...
+    def read_aadhaar(self, image: bytes) -> tuple[str, bytes | None]:
+        """(the text on the front of an Aadhaar card, the photo re-saved with the first 8 digits of the number blacked out or None if that failed)."""
+        ...
     def face_score(self, selfie: bytes, card: bytes) -> tuple[float | None, str]:
         """(similarity, '') or (None, 'selfie' | 'card') naming the photo in which no face was found."""
         ...
@@ -80,6 +84,63 @@ class LocalEngine:
                 return pytesseract.image_to_string(gray, lang=s.doc_ocr_langs, timeout=45)
             except RuntimeError:                      # tesseract timed out
                 return ""
+
+    def read_aadhaar(self, image: bytes) -> tuple[str, bytes | None]:
+        """Reads the card, then blacks out in the PHOTO the first 8 digits of the Aadhaar number and the first 12 of a printed 16-digit VID.
+        The returned photo is what gets stored (it is also upright and scaled down, with no camera metadata); the full number never reaches
+        the database. Returns (text, None) when the number is not found or could not be covered."""
+        import cv2
+        import pytesseract
+
+        from ..domain.docmatch import find_aadhaar
+        s = get_settings()
+        img = _decode(image)
+        gray = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
+        with _gate:
+            try:
+                text = pytesseract.image_to_string(gray, lang=s.doc_ocr_langs, timeout=45)
+                number = find_aadhaar(text)
+                if number is None:
+                    return text, None
+                d = pytesseract.image_to_data(gray, lang="eng", output_type=pytesseract.Output.DICT, timeout=45)
+            except RuntimeError:
+                return "", None
+        # every word that is made of digits, with its box and the line it is on
+        toks = []
+        for i in range(len(d["text"])):
+            digits = re.sub(r"\D", "", d["text"][i])
+            if digits:
+                toks.append((digits, d["left"][i], d["top"][i], d["width"][i], d["height"][i], (d["block_num"][i], d["par_num"][i], d["line_num"][i])))
+
+        def cover(target: str, hide: int) -> bool:
+            """Find the words that spell `target` and black out the first `hide` of its digits."""
+            for start in range(len(toks)):
+                digits, run = "", []
+                for t in toks[start:]:
+                    if run and t[5] != run[0][5]:
+                        break
+                    digits += t[0]
+                    run.append(t)
+                    if len(digits) >= len(target):
+                        break
+                if digits != target:
+                    continue
+                covered = 0
+                for dg, x, y, w, h, _ in run:
+                    n = min(len(dg), hide - covered)               # how many of this word's digits are among the ones to hide
+                    if n <= 0:
+                        break
+                    cv2.rectangle(img, (max(x - 6, 0), max(y - 6, 0)), (x + int(w * n / len(dg)) + 6, y + h + 6), (0, 0, 0), -1)
+                    covered += n
+                return True
+            return False
+
+        if not cover(number, 8):
+            return text, None
+        for m in re.finditer(r"(?<!\d)(?=(\d{4})[ \t]{0,3}(\d{4})[ \t]{0,3}(\d{4})[ \t]{0,3}(\d{4})(?!\d))", text):       # a printed VID (16 digits)
+            cover("".join(m.groups()), 12)
+        ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 88])
+        return text, bytes(buf) if ok else None
 
     # -- faces
     def _models(self):

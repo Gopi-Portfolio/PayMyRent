@@ -803,6 +803,9 @@
     "passed": "Your documents are verified.",
     "failed": "We could not verify yet. Fix the items below and try again.",
     "permission": "Allow camera and photo access in your phone settings.",
-    "triesNote": "You can try up to 5 times a day."
+    "triesNote": "You can try up to 5 times a day.",
+    "idChoice": "Which ID will you use?",
+    "aadhaar": "Aadhaar card (front)",
+    "aadhaarHint": "Front side only, with your photo. The first 8 digits of the number are hidden automatically and never stored."
   }
 }

@@ -30,6 +30,10 @@ class FakeEngine:
         self.text: dict[str, str] = {}
         self.score: float | None = 0.8
         self.problem = ""
+        self.mask_ok = True
+
+    def read_aadhaar(self, image: bytes):
+        return self.read_text(image), (image if self.mask_ok else None)      # (text, the photo with the number hidden: here unchanged)
 
     def read_text(self, image: bytes) -> str:
         return self.text.get(hashlib.sha256(image).hexdigest(), "")
@@ -201,3 +205,76 @@ def test_only_the_owner_account_can_see_its_photos(actor, engine, sql):
     acct_b = str(sql("SELECT id FROM owner_accounts WHERE primary_user_id = %s", b.id)[0][0])
     with as_app({"app.user_id": str(b.id), "app.owner_ids": acct_b}) as c:      # b's database session cannot read a's rows
         assert c.execute("SELECT count(*) FROM owner_documents").fetchone()[0] == 0
+
+
+# ───────── Aadhaar instead of PAN ─────────
+def aadhaar_number() -> str:
+    from app.domain import docmatch
+    base = f"2345678{next(_pan_n):04d}"
+    return base + docmatch.verhoeff_check_digit(base)
+
+
+def aadhaar_text(name: str, number: str) -> str:
+    return f"Government of India\n{name.upper()}\nDOB: 12/05/1980\nMale\n{number[:4]} {number[4:8]} {number[8:]}\nVID: 9999 8888 7777 6666"
+
+
+def prepare_aadhaar(owner, eng: FakeEngine, name="Ramesh Kumar Sharma", number=None):
+    number = number or aadhaar_number()
+    n = next(_pan_n)
+    owner.street = f"{n} Gandhi Road, Anna Nagar"
+    imgs = {"aadhaar": photo(), "selfie": photo(500, 500), "deed_first": photo(), "deed_last": photo()}
+    eng.text[hashlib.sha256(imgs["aadhaar"]).hexdigest()] = aadhaar_text(name, number)
+    eng.text[hashlib.sha256(imgs["deed_first"]).hexdigest()] = deed_text(name, f"{owner.street}, Madurai 625020")
+    eng.text[hashlib.sha256(imgs["deed_last"]).hexdigest()] = "Signed and delivered in the presence of the witnesses below at Madurai."
+    for k, d in imgs.items():
+        assert upload(owner, k, d).status_code == 200, k
+    return number, imgs
+
+
+def test_aadhaar_can_replace_the_pan_and_its_number_is_never_stored(actor, engine, sql):
+    o = new_owner(actor)
+    number, _ = prepare_aadhaar(o, engine)
+    r = verify(o)
+    assert r.status_code == 200 and r.json()["status"] == "verified", r.text
+    assert {c["code"] for c in r.json()["checks"]} >= {"aadhaar_readable", "name_matches_aadhaar", "face_match", "aadhaar_not_reused"}
+    row = sql("SELECT status, pan_masked, pan_enc FROM owner_verifications WHERE owner_account_id = (SELECT id FROM owner_accounts WHERE primary_user_id = %s)", o.id)[0]
+    assert row[0] == "verified" and row[1] == f"XXXX XXXX {number[8:]}" and row[2] is None
+    # nowhere in the database is the full number: not in the stored text (decrypted), not in the audit log, not in owner_verifications
+    from app.core.crypto import decrypt_bytes
+    blob = sql("SELECT text_enc FROM owner_documents WHERE uploaded_by = %s AND kind = 'aadhaar'", o.id)[0][0]
+    text = decrypt_bytes(blob, "doctext").decode()
+    assert number not in text.replace(" ", "") and f"XXXX XXXX {number[8:]}" in text
+    assert not sql("SELECT 1 FROM audit_events WHERE after::text LIKE %s", f"%{number}%")
+    assert o.get("/api/v1/me/identity").json()["status"] == "verified"
+
+
+def test_an_unreadable_or_invalid_aadhaar_is_refused_at_upload(actor, engine):
+    o = new_owner(actor)
+    img = photo()
+    engine.text[hashlib.sha256(img).hexdigest()] = "Government of India\nRAMESH KUMAR SHARMA\n2345 6789 0123"        # wrong check digit
+    r = upload(o, "aadhaar", img)
+    assert r.status_code == 422 and "FRONT" in r.json()["error"]["message"]
+    img2 = photo()
+    engine.text[hashlib.sha256(img2).hexdigest()] = aadhaar_text("Ramesh Kumar Sharma", aadhaar_number())
+    engine.mask_ok = False                                                         # the number was found but could not be hidden: never stored
+    assert upload(o, "aadhaar", img2).status_code == 422
+    assert all(not i["uploaded"] for i in o.get("/api/v1/owner/documents").json()["items"])
+
+
+def test_only_one_id_document_is_kept_and_the_wrong_name_still_fails(actor, engine):
+    o = new_owner(actor)
+    prepare(o, engine)
+    prepare_aadhaar(o, engine, name="Someone Else Entirely")                       # uploading the Aadhaar replaces the PAN
+    items = {i["kind"]: i["uploaded"] for i in o.get("/api/v1/owner/documents").json()["items"]}
+    assert items["aadhaar"] and not items["pan"]
+    r = verify(o)
+    assert r.json()["status"] == "failed" and "name_matches_aadhaar" in failed_codes(r)
+
+
+def test_the_same_aadhaar_cannot_back_two_owners(actor, engine):
+    a, b = new_owner(actor), new_owner(actor, "Ramesh Kumar Sharma")
+    number, _ = prepare_aadhaar(a, engine)
+    assert verify(a).json()["status"] == "verified"
+    prepare_aadhaar(b, engine, number=number)                                      # same number, same name and year of birth, different photos
+    r = verify(b)
+    assert r.json()["status"] == "failed" and "aadhaar_not_reused" in failed_codes(r)

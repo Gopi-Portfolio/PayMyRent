@@ -4,7 +4,7 @@
 CREATE TABLE owner_documents (
     id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_account_id uuid NOT NULL REFERENCES owner_accounts(id),
-    kind             text NOT NULL CHECK (kind IN ('pan', 'selfie', 'deed_first', 'deed_last')),
+    kind             text NOT NULL CHECK (kind IN ('pan', 'aadhaar', 'selfie', 'deed_first', 'deed_last')),
     mime             text NOT NULL CHECK (mime IN ('image/jpeg', 'image/png')),
     content_enc      bytea NOT NULL,
     sha256           text NOT NULL,                       -- of the original photo: the same photo cannot back two owner accounts

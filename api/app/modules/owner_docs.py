@@ -29,9 +29,10 @@ from ..providers.docs import BadImage, get_engine      # (tests replace get_engi
 
 router = APIRouter(prefix="/api/v1", tags=["owner-documents"])
 
-KINDS = ("pan", "selfie", "deed_first", "deed_last")
+KINDS = ("pan", "aadhaar", "selfie", "deed_first", "deed_last")      # the owner uploads a PAN card OR an Aadhaar card (front), never both needed
+ID_KINDS = ("pan", "aadhaar")
 MAX_BYTES = 6 * 1024 * 1024
-MIN_SIDE = {"selfie": 300, "pan": 700, "deed_first": 700, "deed_last": 700}
+MIN_SIDE = {"selfie": 300, "pan": 700, "aadhaar": 700, "deed_first": 700, "deed_last": 700}
 AUTO_NOTE = "automatic document check"
 
 
@@ -75,10 +76,26 @@ def upload_document(kind: str, file: UploadFile = File(...), scope: OwnerScope =
     if min(w, h) < MIN_SIDE[kind]:
         raise AppError("VALIDATION", "the photo is too small: move closer or use the camera's normal quality",
                        fields=[{"field": "file", "code": "too_small"}])
+    stored, text_enc = data, None
+    if kind == "aadhaar":
+        # The full Aadhaar number must never be stored (only an authorised entity may): read it here, black out its first 8 digits in the
+        # photo, and keep only the masked photo and the masked text.
+        text, masked = get_engine().read_aadhaar(data)
+        number = docmatch.find_aadhaar(text)
+        if number is None:
+            raise AppError("VALIDATION", "the Aadhaar number could not be read: photograph the FRONT of the card, whole, flat and sharp",
+                           fields=[{"field": "file", "code": "aadhaar_unreadable"}])
+        if masked is None:
+            raise AppError("VALIDATION", "the Aadhaar number could not be hidden automatically: try a sharper photo, or use the masked Aadhaar from the mAadhaar app",
+                           fields=[{"field": "file", "code": "aadhaar_not_masked"}])
+        stored, mime = masked, "image/jpeg"
+        text_enc = encrypt_bytes(docmatch.mask_aadhaar_text(text, number).encode(), "doctext")
     db.exec("DELETE FROM owner_documents WHERE owner_account_id = :o AND kind = :k", o=scope.owner_account_id, k=kind)
-    db.exec("""INSERT INTO owner_documents(owner_account_id, kind, mime, content_enc, sha256, uploaded_by, uploaded_phone)
-               VALUES (:o, :k, :m, :c, :h, :u, :p)""",
-            o=scope.owner_account_id, k=kind, m=mime, c=encrypt_bytes(data), h=hashlib.sha256(data).hexdigest(), u=scope.user.id,
+    if kind in ID_KINDS:                                                  # one ID document at a time
+        db.exec("DELETE FROM owner_documents WHERE owner_account_id = :o AND kind = ANY(:ks)", o=scope.owner_account_id, ks=list(ID_KINDS))
+    db.exec("""INSERT INTO owner_documents(owner_account_id, kind, mime, content_enc, sha256, text_enc, uploaded_by, uploaded_phone)
+               VALUES (:o, :k, :m, :c, :h, :t, :u, :p)""",
+            o=scope.owner_account_id, k=kind, m=mime, c=encrypt_bytes(stored), h=hashlib.sha256(data).hexdigest(), t=text_enc, u=scope.user.id,
             p=_phone(db, scope.user.id))
     db.audit(scope.user.id, scope.owner_account_id, "owner_document.uploaded", "owner_account", scope.owner_account_id, after={"kind": kind})
     return {"kind": kind, "uploaded": True}
@@ -107,32 +124,45 @@ def verify_documents(body: VerifyIn, scope: OwnerScope = Depends(owner_scope), d
     phone = _phone(db, scope.user.id)
     checks: list[dict] = []
 
-    rows = {r["kind"]: r for r in db.all("SELECT kind, content_enc, sha256 FROM owner_documents WHERE owner_account_id = :o", o=scope.owner_account_id)}
-    missing = [k for k in KINDS if k not in rows]
-    if not _check(checks, "documents_missing", not missing, "Upload all four photos first: " + ", ".join(missing) if missing else "All four photos are uploaded."):
+    rows = {r["kind"]: r for r in db.all("SELECT kind, content_enc, sha256, text_enc FROM owner_documents WHERE owner_account_id = :o", o=scope.owner_account_id)}
+    id_kind = next((k for k in ID_KINDS if k in rows), None)
+    missing = ([] if id_kind else ["pan or aadhaar"]) + [k for k in ("selfie", "deed_first", "deed_last") if k not in rows]
+    if not _check(checks, "documents_missing", not missing, ("Upload all four photos first: " + ", ".join(missing)) if missing else "All four photos are uploaded."):
         return _finish(db, scope, "failed", checks, phone)
 
+    used = (id_kind, "selfie", "deed_first", "deed_last")
+    label = "PAN card" if id_kind == "pan" else "Aadhaar card"
     eng = get_engine()
-    img = {k: decrypt_bytes(rows[k]["content_enc"]) for k in KINDS}
-    pan_text = eng.read_text(img["pan"])
-    pan = docmatch.find_pan(pan_text)
-    if _check(checks, "pan_readable", pan is not None, "The PAN number was read from the card." if pan else
-              "The PAN number could not be read: photograph the whole card flat, in good light, without glare."):
-        _check(checks, "name_matches_pan", docmatch.name_in_text(name, docmatch.pan_name_region(pan_text), s.doc_name_min),
-               "The name you typed matches the PAN card." if docmatch.name_in_text(name, docmatch.pan_name_region(pan_text), s.doc_name_min)
-               else "The name you typed was not found on the PAN card. Type it exactly as printed on the card.")
-        born = docmatch.find_birth_date(pan_text)
+    img = {k: decrypt_bytes(rows[k]["content_enc"]) for k in used}
+    if id_kind == "pan":
+        id_text = eng.read_text(img["pan"])
+        pan = docmatch.find_pan(id_text)
+        readable, region, born = pan is not None, docmatch.pan_name_region(id_text), docmatch.find_birth_date(id_text)
+        id_enc, id_hash, id_masked = (_enc_pan(pan), _pan_hash(pan), _mask_pan(pan)) if pan else (None, None, None)
+    else:
+        # the Aadhaar was read when it was uploaded and its number hidden: only the masked text and the last 4 digits exist
+        id_text = decrypt_bytes(rows["aadhaar"]["text_enc"], "doctext").decode() if rows["aadhaar"]["text_enc"] else ""
+        last4 = docmatch.aadhaar_last4(id_text)
+        readable, region, born = last4 is not None, docmatch.aadhaar_name_region(id_text), docmatch.find_birth_date_or_year(id_text)
+        id_enc, id_masked = None, (f"XXXX XXXX {last4}" if last4 else None)
+        # no Aadhaar number is kept, not even a hash of it: duplicates are spotted by last 4 digits + name + year of birth
+        id_hash = _pan_hash("AADHAAR|%s|%s|%s" % (last4, " ".join(sorted(docmatch.name_tokens(name))), born.year if born else "")) if last4 else None
+    if _check(checks, f"{id_kind}_readable", readable, f"The {label} number was read." if readable else
+              f"The {label} number could not be read: photograph the whole card flat, in good light, without glare."):
+        name_ok = docmatch.name_in_text(name, region, s.doc_name_min)
+        _check(checks, f"name_matches_{id_kind}", name_ok, f"The name you typed matches the {label}." if name_ok
+               else f"The name you typed was not found on the {label}. Type it exactly as printed on the card.")
         if born is not None:
             _check(checks, "adult", docmatch.age_on(born, date.today()) >= 18, "The owner must be at least 18 years old.")
 
-    score, problem = eng.face_score(img["selfie"], img["pan"])
+    score, problem = eng.face_score(img["selfie"], img[id_kind])
     if score is None:
         _check(checks, "face_found", False, "No face was found in your selfie: look straight at the camera in good light." if problem == "selfie"
-               else "No face was found on the PAN card photo: photograph the whole card, close and sharp.")
+               else f"No face was found on the {label} photo: photograph the whole card, close and sharp.")
     else:
         _check(checks, "face_match", score >= s.doc_face_min,
-               "Your selfie matches the photo on the PAN card." if score >= s.doc_face_min
-               else "Your selfie does not match the photo on the PAN card. Take it again facing the camera, in good light, without glasses or a cap.")
+               f"Your selfie matches the photo on the {label}." if score >= s.doc_face_min
+               else f"Your selfie does not match the photo on the {label}. Take it again facing the camera, in good light, without glasses or a cap.")
 
     deed_first, deed_last = eng.read_text(img["deed_first"]), eng.read_text(img["deed_last"])
     _check(checks, "deed_readable", docmatch.enough_text(deed_first) and docmatch.enough_text(deed_last, 8),
@@ -144,23 +174,23 @@ def verify_documents(body: VerifyIn, scope: OwnerScope = Depends(owner_scope), d
            else "Your name was not found on the deed pages. The first page must show you as owner.")
 
     # across all owners (row-level security hides other accounts, so this uses the system connection)
-    hashes = [rows[k]["sha256"] for k in KINDS]
+    hashes = [rows[k]["sha256"] for k in used]
     with transaction() as sdb:
         photo_dup = bool(sdb.scalar("SELECT 1 FROM owner_documents WHERE owner_account_id <> :o AND sha256 IN (:a, :b, :c, :d) LIMIT 1",
                                     o=scope.owner_account_id, a=hashes[0], b=hashes[1], c=hashes[2], d=hashes[3]))
-        pan_other_person = bool(pan and sdb.scalar("""SELECT 1 FROM owner_verifications v JOIN owner_accounts a ON a.id = v.owner_account_id
-                                                      WHERE v.pan_hash = :p AND v.owner_account_id <> :o AND v.status IN ('submitted','verified')
-                                                        AND a.primary_user_id <> :u LIMIT 1""",
-                                                   p=_pan_hash(pan), o=scope.owner_account_id, u=scope.user.id))
+        id_other_person = bool(id_hash and sdb.scalar("""SELECT 1 FROM owner_verifications v JOIN owner_accounts a ON a.id = v.owner_account_id
+                                                         WHERE v.pan_hash = :p AND v.owner_account_id <> :o AND v.status IN ('submitted','verified')
+                                                           AND a.primary_user_id <> :u LIMIT 1""",
+                                                      p=id_hash, o=scope.owner_account_id, u=scope.user.id))
         same_person_account = sdb.scalar("""SELECT v.owner_account_id FROM owner_verifications v JOIN owner_accounts a ON a.id = v.owner_account_id
                                             WHERE v.pan_hash = :p AND v.owner_account_id <> :o AND v.status IN ('submitted','verified')
                                               AND v.copied_from_account IS NULL AND a.primary_user_id = :u LIMIT 1""",
-                                         p=_pan_hash(pan) if pan else "", o=scope.owner_account_id, u=scope.user.id)
+                                         p=id_hash or "", o=scope.owner_account_id, u=scope.user.id)
     _check(checks, "photos_not_reused", not photo_dup, "These photos are not used on another account." if not photo_dup
            else "One of these photos is already used on another owner account.")
-    if pan:
-        _check(checks, "pan_not_reused", not pan_other_person, "This PAN is not registered to another owner." if not pan_other_person
-               else "This PAN is already registered to another owner account.")
+    if id_hash:
+        _check(checks, f"{id_kind}_not_reused", not id_other_person, f"This {label} is not registered to another owner." if not id_other_person
+               else f"This {label} is already registered to another owner account.")
 
     ok = all(c["ok"] for c in checks)
     if ok:
@@ -168,18 +198,19 @@ def verify_documents(body: VerifyIn, scope: OwnerScope = Depends(owner_scope), d
         for k, t in (("deed_first", deed_first), ("deed_last", deed_last)):
             db.exec("UPDATE owner_documents SET text_enc = :t WHERE owner_account_id = :o AND kind = :k",
                     t=encrypt_bytes(t.encode(), "doctext"), o=scope.owner_account_id, k=k)
-        _approve(user_id=scope.user.id, owner=scope.owner_account_id, name=name, address=address, pan=pan,
-                 proof_ref="DOC-" + rows["deed_first"]["sha256"][:16].upper(), copied_from=same_person_account)
-    return _finish(db, scope, "verified" if ok else "failed", checks, phone, pan=pan)
+        _approve(user_id=scope.user.id, owner=scope.owner_account_id, name=name, address=address, id_enc=id_enc, id_hash=id_hash, id_masked=id_masked,
+                 method=f"{id_kind}_selfie_ocr", proof_ref="DOC-" + rows["deed_first"]["sha256"][:16].upper(), copied_from=same_person_account)
+    return _finish(db, scope, "verified" if ok else "failed", checks, phone, ident=id_masked)
 
 
-def _finish(db: Db, scope: OwnerScope, status: str, checks: list[dict], phone: str | None, pan: str | None = None) -> dict:
+def _finish(db: Db, scope: OwnerScope, status: str, checks: list[dict], phone: str | None, ident: str | None = None) -> dict:
     db.audit(scope.user.id, scope.owner_account_id, f"owner_documents.{status}", "owner_account", scope.owner_account_id,
-             after={"phone": phone, "pan": _mask_pan(pan) if pan else None, "failed": [c["code"] for c in checks if not c["ok"]]})
+             after={"phone": phone, "id": ident, "failed": [c["code"] for c in checks if not c["ok"]]})
     return {"status": status, "checks": checks}
 
 
-def _approve(*, user_id, owner, name: str, address: str, pan: str, proof_ref: str, copied_from) -> None:
+def _approve(*, user_id, owner, name: str, address: str, id_enc: str | None, id_hash: str | None, id_masked: str | None, method: str,
+             proof_ref: str, copied_from) -> None:
     """Mark the owner's details and photo ID verified. The signed-in role cannot do this (database triggers), so it uses the system connection."""
     s = get_settings()
     with transaction() as sdb:
@@ -189,14 +220,14 @@ def _approve(*, user_id, owner, name: str, address: str, pan: str, proof_ref: st
                     ON CONFLICT (owner_account_id) DO UPDATE SET legal_name = :n, pan_enc = :pe, pan_hash = :ph, pan_masked = :pm, address = :a,
                       proof_type = 'sale_deed', proof_ref = :r, declared_at = now(), status = 'verified', reviewed_at = now(), review_note = :note,
                       copied_from_account = :cf, updated_at = now()""",
-                 o=owner, n=name, pe=_enc_pan(pan), ph=_pan_hash(pan), pm=_mask_pan(pan), a=address, r=proof_ref, note=AUTO_NOTE, cf=copied_from)
+                 o=owner, n=name, pe=id_enc, ph=id_hash, pm=id_masked, a=address, r=proof_ref, note=AUTO_NOTE, cf=copied_from)
         sdb.exec("UPDATE identity_verifications SET status = 'withdrawn', updated_at = now() WHERE user_id = :u AND status IN ('pending', 'manual_review')", u=user_id)
         if not sdb.scalar("SELECT 1 FROM identity_verifications WHERE user_id = :u AND status = 'verified' AND (expires_at IS NULL OR expires_at > now())", u=user_id):
             sdb.exec("UPDATE identity_verifications SET status = 'withdrawn', updated_at = now() WHERE user_id = :u AND status = 'verified'", u=user_id)   # expired
             sdb.exec("""INSERT INTO identity_verifications(user_id, status, provider, method, face_matched, name_matched, consent_version, expires_at,
                                                            reviewed_at, review_note)
-                        VALUES (:u, 'verified', 'selfcheck', 'pan_selfie_ocr', true, true, 'doc-v1', now() + make_interval(days => :d), now(), :note)""",
-                     u=user_id, d=s.kyc_validity_days, note=AUTO_NOTE)
+                        VALUES (:u, 'verified', 'selfcheck', :m, true, true, 'doc-v1', now() + make_interval(days => :d), now(), :note)""",
+                     u=user_id, d=s.kyc_validity_days, note=AUTO_NOTE, m=method)
 
 
 def check_property_against_deed(db: Db, owner_account_id, v: dict) -> None:
