@@ -21,7 +21,7 @@ from ..core.errors import AppError
 from ..core.http import limiter
 from . import owner_docs
 from .action_otp import require_action_otp
-from ..domain.validation import ValidationError, clean_text, validate_address, validate_pincode
+from ..domain.validation import ValidationError, clean_text, validate_address, validate_pincode, validate_proof_ref
 
 router = APIRouter(prefix="/api/v1", tags=["properties"])
 
@@ -43,8 +43,8 @@ class PropertyIn(BaseModel):
     state: str | None = Field(default=None, max_length=80)
     pincode: str
     kind: Literal["commercial", "residential", "mixed"] = "commercial"
-    proof_type: ProofType
-    proof_ref: str = Field(max_length=40)
+    proof_type: ProofType | None = None      # left out when the owner passed the automatic document check: the property document
+    proof_ref: str = Field(default="", max_length=40)      # named in the owner details is used, so the owner is not asked twice
     declare: bool = False            # "I own this property or am legally authorised to rent it out"
     otp_code: str | None = None      # the code sent to the account's own mobile (needed to submit, not to check)
 
@@ -60,14 +60,9 @@ def validate_property(body: PropertyIn) -> dict:
         raise ValidationError("city", "required")
     if not body.declare:
         raise ValidationError("declare", "required")
-    ref = clean_text(body.proof_ref or "")
-    key = re.sub(r"[^A-Za-z0-9]", "", ref).upper()
-    # reject placeholders such as 000000, AAAAAA, 123456, TEST, NA ...
-    if (len(key) < 6 or len(set(key)) < 3 or key in {"123456", "1234567", "12345678", "ABCDEF", "TESTING", "PROOF123", "NOTAVAILABLE"}
-            or "123456" in key or "000000" in key or re.fullmatch(r"(.)\1+", key)):
-        raise ValidationError("proof_ref", "invalid")
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 /\-.]{3,39}", ref):
-        raise ValidationError("proof_ref", "invalid")
+    if body.proof_type is None:
+        raise ValidationError("proof_type", "required")
+    ref = validate_proof_ref(body.proof_ref)         # (rejects placeholders such as 000000, AAAAAA, 123456, TEST, NA ...)
     return {"address": address, "name": (clean_text(body.name) if body.name else None), "city": city,
             "state": clean_text(body.state) if body.state else None, "pincode": pincode, "kind": body.kind,
             "proof_type": body.proof_type, "proof_ref": ref}
@@ -107,6 +102,7 @@ def check_property(body: PropertyIn, scope: OwnerScope = Depends(owner_scope), d
     limiter.check(f"propcheck:{scope.user.id}", 10, 3600)
     _require_owner_details(db, scope.owner_account_id)
     _require_photo_id(db, scope.owner_account_id)
+    owner_docs.use_owner_details_proof(db, scope.owner_account_id, body)      # no-op unless the automatic document check is on
     v = validate_property(body)
     check_conflict(db, v)
     owner_docs.check_property_against_deed(db, scope.owner_account_id, v)      # no-op unless the automatic document check is on
@@ -120,10 +116,12 @@ def create_property(body: PropertyIn, scope: OwnerScope = Depends(owner_scope), 
     _require_owner_details(db, scope.owner_account_id)
     _require_photo_id(db, scope.owner_account_id)
     db.scalar("SELECT rg_require_owner_writable(:o)", o=scope.owner_account_id)
+    auto = owner_docs.use_owner_details_proof(db, scope.owner_account_id, body)      # the owner already named and signed the property document
     v = validate_property(body)
     check_conflict(db, v)
     owner_docs.check_property_against_deed(db, scope.owner_account_id, v)
-    require_action_otp(db, scope.user.id, "property", body.otp_code)      # last, so a wrong form never burns a code
+    if not auto:                                                              # (the signature page replaced the text-message code)
+        require_action_otp(db, scope.user.id, "property", body.otp_code)      # last, so a wrong form never burns a code
     pid = db.scalar("""INSERT INTO properties(owner_account_id, name, address, city, state, pincode, kind, proof_type, proof_ref, declared_at)
                        VALUES (:o, :n, :a, :c, :s, :pc, :k, :pt, :pr, now()) RETURNING id""",
                     o=scope.owner_account_id, n=v["name"], a=v["address"], c=v["city"], s=v["state"], pc=v["pincode"], k=v["kind"],

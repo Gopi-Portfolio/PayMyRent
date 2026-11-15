@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ActionOtp, otpReady } from '@/components/ActionOtp';
 import { AppButton } from '@/components/Buttons';
+import { useOwnerDocs } from '@/components/OwnerDocumentCheck';
 import { PlacesManager } from '@/components/PlacesManager';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { ErrorBanner, Field, Panel, Screen, TabPills, goBack } from '@/components/ui';
@@ -28,6 +29,10 @@ export default function AddProperty() {
   const acct = me?.owner_accounts.find((o) => o.owner_account_id === owner);
   const hasProperty = !!acct?.property_status;
   const idOk = me?.identity_status === 'verified';       // photo ID (government ID + live selfie) must be verified first
+  const docs = useOwnerDocs();
+  const checked = !!docs.data?.enabled;                            // the server runs the automatic document check
+  const auto = checked && !!docs.data?.verified;                   // and this owner passed it: the property document was named and signed there, no code is asked
+  const idPage = checked ? '/(onboarding)/owner-details' : '/(onboarding)/identity';
   const paid = acct?.state === 'active' || acct?.state === 'grace';
   const room = (acct?.property_capacity ?? 1) > (acct?.property_count ?? 0);          // the plan has room for another property in THIS account (Max)
   const addHere = paid && (!hasProperty || room);                                       // paid, and the property goes straight into this account
@@ -47,13 +52,13 @@ export default function AddProperty() {
   const [code, setCode] = useState('');
   const set = <K extends keyof PropertyDraft>(k: K) => (v: PropertyDraft[K]) => setF({ ...f, [k]: v });
   const body = () => ({ name: f.name || null, address: f.address, city: f.city, state: f.state || null, pincode: f.pincode, kind: f.kind,
-                        proof_type: f.proofType, proof_ref: f.proofRef, declare: f.declare });
-  const complete = f.address.trim().length >= 5 && f.city.trim().length >= 2 && /^[1-9]\d{5}$/.test(f.pincode) && f.proofRef.trim().length >= 6 && f.declare;
+                        ...(auto ? {} : { proof_type: f.proofType, proof_ref: f.proofRef }), declare: f.declare });
+  const complete = f.address.trim().length >= 5 && f.city.trim().length >= 2 && /^[1-9]\d{5}$/.test(f.pincode) && (auto || f.proofRef.trim().length >= 6) && f.declare;
 
   async function go() {
     setTouched(true); setErr(null);
     if (!complete) return;
-    if (!idOk) { router.push('/(onboarding)/identity'); return; }
+    if (!idOk) { router.push(idPage); return; }
     setBusy(true);
     try {
       // 1. check everything first (format, ownership proof, already registered?) — nothing is stored and nothing is charged yet
@@ -120,7 +125,7 @@ export default function AddProperty() {
       <Text style={{ color: brand.muted, lineHeight: 22 }}>{t('property.intro')}</Text>
       <Panel title={t('property.photoId')} icon={idOk ? 'shield-check' : 'card-account-details-outline'} tone={idOk ? 'green' : 'amber'}>
         <Text style={{ lineHeight: 21, color: idOk ? brand.green600 : brand.ink, fontWeight: idOk ? '700' : '400' }}>{idOk ? t('property.photoIdDone') : t('property.photoIdNeeded')}</Text>
-        {!idOk ? <AppButton icon="face-recognition" label={t('property.verifyPhotoId')} onPress={() => router.push('/(onboarding)/identity')} testID="verify-photo-id" /> : null}
+        {!idOk ? <AppButton icon="face-recognition" label={t('property.verifyPhotoId')} onPress={() => router.push(idPage)} testID="verify-photo-id" /> : null}
       </Panel>
       <Panel title={t('property.title')} icon="home-city-outline" tone="teal">
         <Field label={t('property.name')} value={f.name} onChangeText={set('name')} kind="text" />
@@ -131,26 +136,28 @@ export default function AddProperty() {
                kind="text" error={touched && !/^[1-9]\d{5}$/.test(f.pincode) ? t('error.required') : undefined} />
         <TabPills value={f.kind} onChange={(v) => set('kind')(v as PropertyDraft['kind'])} tabs={kinds} />
       </Panel>
-      <Panel title={t('property.proofType')} icon="shield-check-outline" tone="green">
-        <TabPills value={f.proofType} onChange={(v) => set('proofType')(v as PropertyDraft['proofType'])} tabs={proofs} />
-        <Field label={t('property.proofRef')} value={f.proofRef} onChangeText={set('proofRef')} kind="text" maxLength={40}
-               error={touched && f.proofRef.trim().length < 6 ? t('error.required') : undefined} />
-      </Panel>
+      {auto ? null : (
+        <Panel title={t('property.proofType')} icon="shield-check-outline" tone="green">
+          <TabPills value={f.proofType} onChange={(v) => set('proofType')(v as PropertyDraft['proofType'])} tabs={proofs} />
+          <Field label={t('property.proofRef')} value={f.proofRef} onChangeText={set('proofRef')} kind="text" maxLength={40}
+                 error={touched && f.proofRef.trim().length < 6 ? t('error.required') : undefined} />
+        </Panel>
+      )}
       <Pressable onPress={() => set('declare')(!f.declare)} accessibilityRole="checkbox" accessibilityState={{ checked: f.declare }}
                  style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', padding: 4 }}>
         <Icon source={f.declare ? 'checkbox-marked' : 'checkbox-blank-outline'} size={26} color={brand.teal700} />
         <Text style={{ flex: 1, lineHeight: 21 }}>{t('property.declare')}</Text>
       </Pressable>
-      {addHere ? <ActionOtp action="property" code={code} onChange={setCode} ownerAccount={owner} /> : null}
+      {addHere && !auto ? <ActionOtp action="property" code={code} onChange={setCode} ownerAccount={owner} /> : null}
       <ErrorBanner error={err} />
       {hasProperty && !addHere ? <Text style={{ color: '#B45309', lineHeight: 21 }}>{t('property.anotherNote')}</Text> : null}
       {(() => {
         // say why Save cannot be pressed yet, instead of a silently grey button
-        const needCode = addHere && !otpReady(code);
+        const needCode = addHere && !auto && !otpReady(code);
         const msg = !idOk ? t('property.whyPhotoId') : !complete ? t('property.whyFields') : needCode ? t('property.whyCode') : null;
         return msg ? <Text style={{ color: '#B45309', fontWeight: '700', lineHeight: 21 }} accessibilityLiveRegion="polite" testID="why-disabled">{msg}</Text> : null;
       })()}
-      <AppButton label={addHere ? t('property.save') : t('property.check')} icon="shield-check" loading={busy} disabled={busy || !idOk || (touched && !complete) || (addHere && !otpReady(code))} onPress={go} testID="check-property" />
+      <AppButton label={addHere ? t('property.save') : t('property.check')} icon="shield-check" loading={busy} disabled={busy || !idOk || (touched && !complete) || (addHere && !auto && !otpReady(code))} onPress={go} testID="check-property" />
     </Screen>
   );
 }

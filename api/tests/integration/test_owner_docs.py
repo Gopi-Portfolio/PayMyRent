@@ -88,11 +88,11 @@ def prepare(owner, eng: FakeEngine, name="Ramesh Kumar Sharma", pan=None, addres
     return pan, imgs
 
 
-def verify(owner, name="Ramesh Kumar Sharma", declare=True, signature=None, proof_ref="SD-2019-004455", address=None):
+def verify(owner, name="Ramesh Kumar Sharma", declare=True, signature=None, proof_ref=None, address=None):
     """The signature page: the form's details, the name typed again as a signature, and the declaration."""
     return owner.post("/api/v1/owner/documents/verify", json={
         "legal_name": name, "signature": name if signature is None else signature, "address": address or getattr(owner, "address", "5 Gandhi Street, Madurai"),
-        "proof_type": "sale_deed", "proof_ref": proof_ref, "declare": declare})
+        "proof_type": "sale_deed", "proof_ref": proof_ref or f"SD-2019-{next(_pan_n):06d}", "declare": declare})
 
 
 def failed_codes(r) -> set[str]:
@@ -338,3 +338,31 @@ def test_the_address_must_come_from_the_card_and_a_missing_back_page_is_listed(a
     r = verify(q)
     assert r.json()["status"] == "failed" and failed_codes(r) == {"documents_missing"}
     assert "aadhaar back page" in r.json()["checks"][0]["message"]
+
+
+# ───────── adding the property afterwards: nothing is asked twice ─────────
+def test_after_the_owner_check_a_property_needs_no_document_and_no_code(actor, engine, sql):
+    o = new_owner(actor)
+    prepare(o, engine)
+    assert verify(o, proof_ref="SD-2021-778811").json()["status"] == "verified"
+    pay_subscription(o)
+    o.auto_otp = False                                                           # the test Actor must NOT fetch a text-message code for us
+    body = property_body(address=o.street, pincode="625020")
+    body.pop("proof_type"), body.pop("proof_ref")                                # the form no longer asks for the document
+    assert o.post("/api/v1/owner/properties/check", json=body).status_code == 200
+    r = o.post("/api/v1/owner/properties", json=body)                            # and sends no code
+    assert r.status_code == 200, r.text
+    assert r.json()["verification_status"] == "verified"
+    assert sql("SELECT proof_type, proof_ref FROM properties WHERE id = %s", r.json()["id"])[0] == ("sale_deed", "SD-2021-778811")   # the one named in the owner details
+
+
+def test_an_owner_who_did_not_pass_the_check_must_still_give_the_document_and_a_code(actor, engine):
+    o = actor(roles=("owner",), name="Plain Owner")                              # verified the old way (a reviewer), not by the automatic check
+    pay_subscription(o)
+    body = property_body()
+    body.pop("proof_type"), body.pop("proof_ref")
+    r = o.post("/api/v1/owner/properties", json=body)
+    assert r.status_code == 422                                                  # the document is required again
+    o.auto_otp = False
+    r = o.post("/api/v1/owner/properties", json=property_body())                 # a full form, but no code
+    assert r.status_code in (400, 401, 403, 409, 422), r.text                    # refused: the code is needed
