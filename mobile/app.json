@@ -12,7 +12,8 @@
       "supportsTablet": false,
       "icon": "./assets/icon.png",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "PayMyRent opens your photos and files only when you choose to attach, import or save a document, such as a payment receipt, a rent statement or a spreadsheet of tenants."
       }
     },
     "android": {
