@@ -822,6 +822,19 @@
     "aadhaarBackHint": "Back side, with your address. We read the address from it and save the address to your profile; the number is hidden here too.",
     "addressFromCard": "Address read from your Aadhaar. Check it and correct any mistakes.",
     "addressNotRead": "The address could not be read from the card. Type it here.",
-    "addressTyped": "A PAN card has no address, so type your address here."
+    "addressTyped": "A PAN card has no address, so type your address here.",
+    "idProof": "ID proof",
+    "front": "Front side",
+    "backSide": "Back side",
+    "propertyDocument": "Property document",
+    "firstPage": "First page",
+    "lastPage": "Last page (signatures)",
+    "cameraShort": "Camera",
+    "galleryShort": "Gallery",
+    "retake": "Retake",
+    "hintPan": "The whole card, flat, in good light.",
+    "hintAadhaar": "Both sides of the card. The number is hidden automatically and never stored.",
+    "hintDeed": "The first and last page of the deed, whole and readable.",
+    "hintSelfie": "Look straight at the camera. No cap or sunglasses."
   }
 }
