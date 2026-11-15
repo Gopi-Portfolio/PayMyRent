@@ -12,7 +12,8 @@ import { AppButton } from '@/components/Buttons';
 import { useOwnerDocs } from '@/components/OwnerDocumentCheck';
 import { PlacesManager } from '@/components/PlacesManager';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import { ErrorBanner, Field, Panel, Screen, TabPills, goBack } from '@/components/ui';
+import { Segmented } from '@/components/Segmented';
+import { ErrorBanner, Field, Panel, Screen, goBack } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { PropertyDraft, getPropertyDraft, setPropertyDraft } from '@/lib/propertyDraft';
@@ -106,7 +107,7 @@ export default function AddProperty() {
         {full ? (
           <Panel title={t('property.planFullTitle', { defaultValue: 'Your plan is full' })} icon="home-alert-outline" tone="amber">
             <Text style={{ lineHeight: 21 }}>{t('property.planFull', { count: cap })}</Text>
-            <AppButton variant="outline" icon="home-plus-outline" label={t('property.addUnderOwnPlan', { defaultValue: 'Add another property with its own plan' })} onPress={() => { setAnother(true); setTarget(NEW); }} testID="add-under-own-plan" />
+            <AppButton compact variant="outline" icon="home-plus-outline" label={t('property.addUnderOwnPlan', { defaultValue: 'Add another property with its own plan' })} onPress={() => { setAnother(true); setTarget(NEW); }} testID="add-under-own-plan" />
           </Panel>
         ) : null}
         <Text style={{ color: brand.muted, lineHeight: 22 }}>{t('property.placesIntro', { defaultValue: 'Add the houses, flats, rooms or shops of this property here. When you add a renter, you choose from these.' })}</Text>
@@ -125,7 +126,7 @@ export default function AddProperty() {
       <Text style={{ color: brand.muted, lineHeight: 22 }}>{t('property.intro')}</Text>
       <Panel title={t('property.photoId')} icon={idOk ? 'shield-check' : 'card-account-details-outline'} tone={idOk ? 'green' : 'amber'}>
         <Text style={{ lineHeight: 21, color: idOk ? brand.green600 : brand.ink, fontWeight: idOk ? '700' : '400' }}>{idOk ? t('property.photoIdDone') : t('property.photoIdNeeded')}</Text>
-        {!idOk ? <AppButton icon="face-recognition" label={t('property.verifyPhotoId')} onPress={() => router.push(idPage)} testID="verify-photo-id" /> : null}
+        {!idOk ? <AppButton compact icon="face-recognition" label={t('property.verifyPhotoId')} onPress={() => router.push(idPage)} testID="verify-photo-id" /> : null}
       </Panel>
       <Panel title={t('property.title')} icon="home-city-outline" tone="teal">
         <Field label={t('property.name')} value={f.name} onChangeText={set('name')} kind="text" />
@@ -134,11 +135,11 @@ export default function AddProperty() {
         <Field label={t('property.state')} value={f.state} onChangeText={set('state')} kind="text" />
         <Field label={t('property.pincode')} value={f.pincode} onChangeText={(v) => set('pincode')(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6}
                kind="text" error={touched && !/^[1-9]\d{5}$/.test(f.pincode) ? t('error.required') : undefined} />
-        <TabPills value={f.kind} onChange={(v) => set('kind')(v as PropertyDraft['kind'])} tabs={kinds} />
+        <Segmented testID="property-kind" value={f.kind} onChange={(v) => set('kind')(v as PropertyDraft['kind'])} options={kinds.map(({ value, label }) => ({ value, label }))} />
       </Panel>
       {auto ? null : (
         <Panel title={t('property.proofType')} icon="shield-check-outline" tone="green">
-          <TabPills value={f.proofType} onChange={(v) => set('proofType')(v as PropertyDraft['proofType'])} tabs={proofs} />
+          <SearchableSelect label={t('property.proofType')} value={f.proofType} options={proofs.map(({ value, label }) => ({ value, label }))} onChange={(v) => set('proofType')(v as PropertyDraft['proofType'])} />
           <Field label={t('property.proofRef')} value={f.proofRef} onChangeText={set('proofRef')} kind="text" maxLength={40}
                  error={touched && f.proofRef.trim().length < 6 ? t('error.required') : undefined} />
         </Panel>
@@ -157,7 +158,7 @@ export default function AddProperty() {
         const msg = !idOk ? t('property.whyPhotoId') : !complete ? t('property.whyFields') : needCode ? t('property.whyCode') : null;
         return msg ? <Text style={{ color: '#B45309', fontWeight: '700', lineHeight: 21 }} accessibilityLiveRegion="polite" testID="why-disabled">{msg}</Text> : null;
       })()}
-      <AppButton label={addHere ? t('property.save') : t('property.check')} icon="shield-check" loading={busy} disabled={busy || !idOk || (touched && !complete) || (addHere && !auto && !otpReady(code))} onPress={go} testID="check-property" />
+      <AppButton compact label={addHere ? t('property.save') : t('property.check')} icon="shield-check" loading={busy} disabled={busy || !idOk || (touched && !complete) || (addHere && !auto && !otpReady(code))} onPress={go} testID="check-property" />
     </Screen>
   );
 }
