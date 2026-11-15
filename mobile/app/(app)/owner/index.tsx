@@ -1,4 +1,4 @@
-// Owner home: 4 metrics and the shortcuts. One screen, minimal scrolling. (The search bar, filters, the renter list and the choice of property live in the Search tab.)
+// Owner home: 4 metrics and the shortcuts. One screen, minimal scrolling. (The search bar, filters and the renter list live in the Search tab.)
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
@@ -7,6 +7,7 @@ import { Banner, Icon, Text } from 'react-native-paper';
 import { Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { PropertySwitcher } from '@/components/PropertySwitcher';
 import { HeroAction, MiniAction } from '@/components/QuickActions';
 import { KIND_GROUPS, floorLabel, kindIcon } from '@/lib/units';
 import { DemoBanner, ErrorBanner, SlideIn, IdentityRow, Metric } from '@/components/ui';
@@ -91,6 +92,7 @@ export default function OwnerHome() {
         contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 32 }}
         ListHeaderComponent={
           <View style={{ gap: 16, marginBottom: 6 }}>
+            <PropertySwitcher />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
               <Metric label={t('owner.collected')} paise={m?.collected_paise.value ?? 0} detail={split(m, 'collected', t)} icon="check-circle-outline" tone="green" onPress={() => router.push('/(app)/owner/report/collected')} />
               <Metric label={t('owner.pending')} paise={m?.pending_paise.value ?? 0} detail={split(m, 'pending', t)} icon="clock-outline" tone="amber" onPress={() => router.push('/(app)/owner/report/pending')} />
