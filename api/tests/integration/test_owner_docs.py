@@ -68,9 +68,8 @@ def new_owner(actor, name="Ramesh Kumar Sharma"):
     return actor(roles=("owner",), name=name, identity=False)
 
 
-def upload(owner, kind: str, data: bytes, name="photo.jpg", typed_number: str | None = None):
-    extra = {"data": {"typed_number": typed_number}} if typed_number is not None else {}       # the Aadhaar number typed in the form
-    return owner.c.put(f"/api/v1/owner/documents/{kind}", headers=owner.h(), files={"file": (name, data, "image/jpeg")}, **extra)
+def upload(owner, kind: str, data: bytes, name="photo.jpg"):
+    return owner.c.put(f"/api/v1/owner/documents/{kind}", headers=owner.h(), files={"file": (name, data, "image/jpeg")})
 
 
 def prepare(owner, eng: FakeEngine, name="Ramesh Kumar Sharma", pan=None, address=None):
@@ -78,7 +77,7 @@ def prepare(owner, eng: FakeEngine, name="Ramesh Kumar Sharma", pan=None, addres
     n = next(_pan_n)
     pan = pan or f"ABCPE{n}F"
     owner.street = f"{n} Market Road, Anna Nagar"                     # what the owner will type as the property address
-    owner.typed_id = pan                                              # what the owner typed in the form
+    owner.address = "5 Gandhi Street, Madurai"                        # a PAN card has no address: the owner types it
     address = address or f"{owner.street}, Madurai 625020"
     imgs = {"pan": photo(), "selfie": photo(500, 500), "deed_first": photo(), "deed_last": photo()}
     eng.text[hashlib.sha256(imgs["pan"]).hexdigest()] = pan_text(name, pan)
@@ -89,11 +88,11 @@ def prepare(owner, eng: FakeEngine, name="Ramesh Kumar Sharma", pan=None, addres
     return pan, imgs
 
 
-def verify(owner, name="Ramesh Kumar Sharma", declare=True, signature=None, proof_ref="SD-2019-004455", id_number=None):
+def verify(owner, name="Ramesh Kumar Sharma", declare=True, signature=None, proof_ref="SD-2019-004455", address=None):
     """The signature page: the form's details, the name typed again as a signature, and the declaration."""
     return owner.post("/api/v1/owner/documents/verify", json={
-        "legal_name": name, "signature": name if signature is None else signature, "address": "5 Gandhi Street, Madurai",
-        "id_number": getattr(owner, "typed_id", "") if id_number is None else id_number, "proof_type": "sale_deed", "proof_ref": proof_ref, "declare": declare})
+        "legal_name": name, "signature": name if signature is None else signature, "address": address or getattr(owner, "address", "5 Gandhi Street, Madurai"),
+        "proof_type": "sale_deed", "proof_ref": proof_ref, "declare": declare})
 
 
 def failed_codes(r) -> set[str]:
@@ -223,17 +222,24 @@ def aadhaar_text(name: str, number: str) -> str:
     return f"Government of India\n{name.upper()}\nDOB: 12/05/1980\nMale\n{number[:4]} {number[4:8]} {number[8:]}\nVID: 9999 8888 7777 6666"
 
 
-def prepare_aadhaar(owner, eng: FakeEngine, name="Ramesh Kumar Sharma", number=None):
+def aadhaar_back_text(number: str, street: str) -> str:
+    return (f"Unique Identification Authority of India\nAddress:\nS/O: Suresh Sharma,\n{street},\nMadurai, Tamil Nadu - 625020\n"
+            f"முகவரி:\nசுரேஷ் சர்மா, மதுரை\n{number[:4]} {number[4:8]} {number[8:]}\nVID: 9999 8888 7777 6666\nhelp@uidai.gov.in")
+
+
+def prepare_aadhaar(owner, eng: FakeEngine, name="Ramesh Kumar Sharma", number=None, back_number=None):
+    """The Aadhaar flow: front + back (the back carries the address, which the app reads and the owner confirms)."""
     number = number or aadhaar_number()
     n = next(_pan_n)
     owner.street = f"{n} Gandhi Road, Anna Nagar"
-    owner.typed_id = ""                                               # an Aadhaar number is typed at upload time and never sent again
-    imgs = {"aadhaar": photo(), "selfie": photo(500, 500), "deed_first": photo(), "deed_last": photo()}
+    owner.address = f"{owner.street}, Madurai, Tamil Nadu - 625020"           # what the owner sees pre-filled from the back page
+    imgs = {"aadhaar": photo(), "aadhaar_back": photo(), "selfie": photo(500, 500), "deed_first": photo(), "deed_last": photo()}
+    eng.text[hashlib.sha256(imgs["aadhaar_back"]).hexdigest()] = aadhaar_back_text(back_number or number, owner.street)
     eng.text[hashlib.sha256(imgs["aadhaar"]).hexdigest()] = aadhaar_text(name, number)
     eng.text[hashlib.sha256(imgs["deed_first"]).hexdigest()] = deed_text(name, f"{owner.street}, Madurai 625020")
     eng.text[hashlib.sha256(imgs["deed_last"]).hexdigest()] = "Signed and delivered in the presence of the witnesses below at Madurai."
     for k, d in imgs.items():
-        assert upload(owner, k, d, typed_number=number if k == "aadhaar" else None).status_code == 200, k
+        assert upload(owner, k, d).status_code == 200, k
     return number, imgs
 
 
@@ -242,14 +248,16 @@ def test_aadhaar_can_replace_the_pan_and_its_number_is_never_stored(actor, engin
     number, _ = prepare_aadhaar(o, engine)
     r = verify(o)
     assert r.status_code == 200 and r.json()["status"] == "verified", r.text
-    assert {c["code"] for c in r.json()["checks"]} >= {"aadhaar_readable", "name_matches_aadhaar", "face_match", "aadhaar_not_reused"}
+    assert {c["code"] for c in r.json()["checks"]} >= {"aadhaar_readable", "name_matches_aadhaar", "aadhaar_back_matches", "address_on_card", "face_match", "aadhaar_not_reused"}
+    assert o.get("/api/v1/me").json()["address"] == o.address                      # the address read from the card is now the profile address
     row = sql("SELECT status, pan_masked, pan_enc FROM owner_verifications WHERE owner_account_id = (SELECT id FROM owner_accounts WHERE primary_user_id = %s)", o.id)[0]
     assert row[0] == "verified" and row[1] == f"XXXX XXXX {number[8:]}" and row[2] is None
     # nowhere in the database is the full number: not in the stored text (decrypted), not in the audit log, not in owner_verifications
     from app.core.crypto import decrypt_bytes
-    blob = sql("SELECT text_enc FROM owner_documents WHERE uploaded_by = %s AND kind = 'aadhaar'", o.id)[0][0]
-    text = decrypt_bytes(blob, "doctext").decode()
-    assert number not in text.replace(" ", "") and f"XXXX XXXX {number[8:]}" in text
+    for kind in ("aadhaar", "aadhaar_back"):                                       # both sides carry the number
+        blob = sql("SELECT text_enc FROM owner_documents WHERE uploaded_by = %s AND kind = %s", o.id, kind)[0][0]
+        text = decrypt_bytes(blob, "doctext").decode()
+        assert number not in text.replace(" ", "") and f"XXXX XXXX {number[8:]}" in text
     assert not sql("SELECT 1 FROM audit_events WHERE after::text LIKE %s", f"%{number}%")
     assert o.get("/api/v1/me/identity").json()["status"] == "verified"
 
@@ -298,19 +306,35 @@ def test_the_signature_must_be_the_same_name_and_the_typed_property_document_is_
     assert row == ("sale_deed", "SD-2019-004455")
 
 
-def test_a_typed_pan_that_differs_from_the_card_fails(actor, engine):
-    o = new_owner(actor)
-    prepare(o, engine)
-    r = verify(o, id_number="ZZZPZ9999Z")
-    assert r.json()["status"] == "failed" and "pan_number_matches" in failed_codes(r)
-
-
-def test_a_typed_aadhaar_number_that_differs_from_the_card_is_refused_at_upload(actor, engine):
+def test_the_back_page_returns_the_address_for_the_owner_to_confirm(actor, engine):
     o = new_owner(actor)
     number = aadhaar_number()
-    img = photo()
-    engine.text[hashlib.sha256(img).hexdigest()] = aadhaar_text("Ramesh Kumar Sharma", number)
-    other = aadhaar_number()
-    assert upload(o, "aadhaar", img, typed_number=other).status_code == 422        # typed another number
-    assert upload(o, "aadhaar", img).status_code == 422                            # typed nothing
-    assert upload(o, "aadhaar", img, typed_number=number[:4] + " " + number[4:8] + " " + number[8:]).status_code == 200      # spaces are fine
+    front, back = photo(), photo()
+    engine.text[hashlib.sha256(back).hexdigest()] = aadhaar_back_text(number, "12 Gandhi Road, Anna Nagar")
+    r = upload(o, "aadhaar_back", back)
+    assert r.status_code == 200 and r.json()["address"] == "S/O: Suresh Sharma, 12 Gandhi Road, Anna Nagar, Madurai, Tamil Nadu - 625020"
+
+
+def test_an_aadhaar_needs_its_back_page_and_it_must_be_the_same_card(actor, engine):
+    o = new_owner(actor)
+    number, imgs = prepare_aadhaar(o, engine)
+    assert upload(o, "pan", photo()).status_code == 200                            # a PAN card replaces both sides of the Aadhaar
+    items = {i["kind"]: i["uploaded"] for i in o.get("/api/v1/owner/documents").json()["items"]}
+    assert items["pan"] and not items["aadhaar"] and not items["aadhaar_back"]
+    p = new_owner(actor)                                                           # the front says one card, the back another
+    prepare_aadhaar(p, engine, back_number=aadhaar_number())
+    r = verify(p)
+    assert r.json()["status"] == "failed" and "aadhaar_back_matches" in failed_codes(r)
+
+
+def test_the_address_must_come_from_the_card_and_a_missing_back_page_is_listed(actor, engine, sql):
+    o = new_owner(actor)
+    prepare_aadhaar(o, engine)
+    r = verify(o, address="99 Somewhere Else Street, Chennai 600001")             # an invented address does not match the card
+    assert r.json()["status"] == "failed" and "address_on_card" in failed_codes(r)
+    q = new_owner(actor)
+    prepare_aadhaar(q, engine)
+    sql("DELETE FROM owner_documents WHERE uploaded_by = %s AND kind = 'aadhaar_back'", q.id)
+    r = verify(q)
+    assert r.json()["status"] == "failed" and failed_codes(r) == {"documents_missing"}
+    assert "aadhaar back page" in r.json()["checks"][0]["message"]

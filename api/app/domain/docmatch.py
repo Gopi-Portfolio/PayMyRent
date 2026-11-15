@@ -156,3 +156,24 @@ def find_birth_date_or_year(text: str) -> date | None:
         return d
     m = re.search(r"year of birth\s*[:\-]?\s*(\d{4})", text, re.I)
     return date(int(m.group(1)), 12, 31) if m and 1900 < int(m.group(1)) <= date.today().year else None
+
+
+def extract_address(text: str) -> str | None:
+    """The address on the BACK of an Aadhaar card: from the 'Address:' label up to and including the 6-digit pincode, keeping only the
+    English (Latin-script) lines, since the card prints the address twice (local language and English). Returns None if there is no pincode."""
+    m = re.search(r"address\s*[:：]?", text, re.I)
+    body = text[m.end():] if m else text
+    pin = re.search(r"(?<!\d)([1-9]\d{5})(?!\d)", body)
+    if not pin:
+        return None
+    body = body[:pin.end()]
+    keep = []
+    for line in body.splitlines():
+        line = line.strip(" ,;|-")
+        letters = sum(ch.isascii() and ch.isalpha() for ch in line)
+        others = sum((not ch.isascii()) and ch.isalpha() for ch in line)       # Tamil, Hindi ... letters
+        if not line or others > letters or re.search(r"\bVID\b|aadhaar|help@|www\.|1947|XXXX", line, re.I):
+            continue
+        keep.append(re.sub(r"\s+", " ", line))
+    out = ", ".join(keep).strip(" ,")
+    return out if len(re.findall(r"[A-Za-z]{3,}", out)) >= 3 else None
