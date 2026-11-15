@@ -2,6 +2,7 @@
 // back and saved to the profile), a live selfie and the deed pages. Page 2: the signature page: "the documents I submitted are original", signed by
 // typing the name. The server reads and compares everything (no person reviews anything). When it passes, the owner goes to the dashboard.
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
@@ -35,6 +36,16 @@ const PROOF_TYPES = ['property_tax', 'electricity_bill', 'sale_deed', 'rent_agre
 const same = (a: string, b: string) => a.trim().replace(/\s+/g, ' ').toLowerCase() === b.trim().replace(/\s+/g, ' ').toLowerCase();
 
 type Check = { code: string; ok: boolean; message: string };
+
+/** A phone photo can be 24 megapixels and over 8 MB, which the server refuses (the phone then only sees "cannot reach the server").
+ *  Scale it to 2000 px on the long side, which is plenty for reading text and faces, and send a JPEG of about 1 to 2 MB. */
+async function shrink(asset: { uri: string; width?: number; height?: number }): Promise<string> {
+  const ctx = ImageManipulator.manipulate(asset.uri);
+  if ((asset.width ?? 0) >= (asset.height ?? 0)) { if ((asset.width ?? 0) > 2000) ctx.resize({ width: 2000 }); }
+  else if ((asset.height ?? 0) > 2000) ctx.resize({ height: 2000 });
+  const img = await ctx.renderAsync();
+  return (await img.saveAsync({ compress: 0.8, format: SaveFormat.JPEG })).uri;
+}
 
 export function OwnerDocumentCheck({ docs }: { docs: { items: { kind: Kind; uploaded: boolean }[]; verified: boolean } }) {
   const { t } = useTranslation();
@@ -74,9 +85,9 @@ export function OwnerDocumentCheck({ docs }: { docs: { items: { kind: Kind; uplo
     const r = source === 'camera' ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
     if (r.canceled || !r.assets?.[0]) return;
     const form = new FormData();
-    form.append('file', { uri: r.assets[0].uri, name: `${kind}.jpg`, type: 'image/jpeg' } as any);
     setBusy(kind); setChecks(null);
     try {
+      form.append('file', { uri: await shrink(r.assets[0]), name: `${kind}.jpg`, type: 'image/jpeg' } as any);
       const res = await api<{ address?: string | null }>(`/api/v1/owner/documents/${kind}`, { method: 'PUT', form, ownerAccount: owner, timeoutMs: 120000 });
       if (kind === 'aadhaar_back') {            // the address printed on the back of the Aadhaar: filled in here, the owner can correct reading mistakes
         if (res.address) { setF((x) => ({ ...x, address: res.address as string })); setFromCard(true); } else setFromCard(false);
