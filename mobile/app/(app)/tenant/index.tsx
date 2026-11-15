@@ -103,7 +103,7 @@ export default function TenantHome() {
             {allRentals.length > 1 ? (
               <SearchableSelect label={t('tenant.chooseRental', { defaultValue: 'Choose a rental' })} value={current?.id ?? null} options={rentalOptions} onChange={setSel} testID="rental-select" openKey={pickKey} />
             ) : null}
-            {allRentals.length > 0 ? <DownloadButtons path="/api/v1/tenant/report/export" fileName="paymyrent-my-rentals" /> : null}
+            {allRentals.length > 0 ? <DownloadButtons path="/api/v1/tenant/report/export" fileName="rentmeezy-my-rentals" /> : null}
             {(invites.data?.items ?? []).map((i: any) => (
               <View key={i.id} style={[card, shadow, { borderLeftWidth: 5, borderLeftColor: brand.amber500 }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>

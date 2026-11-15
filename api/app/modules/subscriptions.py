@@ -316,7 +316,7 @@ def sandbox_page(purpose: Literal["subscription", "rent"], order_id: str, amount
         raise AppError("NOT_FOUND")
     from .sandbox_ui import option, page
     rupees = format_inr(amount)
-    what = "PayMyRent plan" if purpose == "subscription" else "Rent payment"
+    what = "RentMeezy plan" if purpose == "subscription" else "Rent payment"
     body = (f'<div class="card center"><p class="sub">{what}</p><div class="amount">{rupees}</div>'
             '<div class="note">Demo checkout — no money moves. In the real app you would pay with UPI, card or net banking.</div></div>'
             '<form method="post" class="card"><h1 style="font-size:18px">Choose a demo result</h1>'

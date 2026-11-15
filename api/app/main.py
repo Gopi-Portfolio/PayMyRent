@@ -22,7 +22,7 @@ def create_app() -> FastAPI:
     for h in logging.getLogger().handlers:
         h.addFilter(RedactingFilter())
 
-    app = FastAPI(title="PayMyRent API", version="1.0.0",
+    app = FastAPI(title="RentMeezy API", version="1.0.0",
                   description="Indian rental billing & collection. All money in integer paise (INR).",
                   docs_url="/docs" if s.app_env != "production" else None, redoc_url=None,
                   openapi_url="/openapi.json" if s.app_env != "production" else None)   # the route list is not public in production

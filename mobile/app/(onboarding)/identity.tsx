@@ -1,5 +1,5 @@
 // Identity verification (government ID + live selfie + name match) through the verification provider.
-// PayMyRent shows only the outcome; the provider handles the ID and selfie.
+// RentMeezy shows only the outcome; the provider handles the ID and selfie.
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useState } from 'react';

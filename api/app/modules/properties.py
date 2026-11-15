@@ -31,7 +31,7 @@ PROOF_LABEL = {"property_tax": "Property tax receipt no.", "sale_deed": "Sale de
 MAX_WORKSPACES = 25
 MAX_EMPTY_WORKSPACES = 2
 
-TAKEN_MESSAGE = ("This property is already registered on PayMyRent. If you co-own it, ask the registered owner to add your mobile number "
+TAKEN_MESSAGE = ("This property is already registered on RentMeezy. If you co-own it, ask the registered owner to add your mobile number "
                  "under Owner numbers. If you believe this is a mistake, contact support with your ownership proof.")
 PROOF_TAKEN_MESSAGE = "This ownership document number is already registered for another property. Check the number, or contact support."
 

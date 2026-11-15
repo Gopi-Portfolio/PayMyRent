@@ -42,7 +42,7 @@ test('there is no owner button: choosing a plan takes a new owner straight to si
   expect(ui.queryByTestId('cta-owner')).toBeNull();
   expect(ui.getByText('New owner? Choose a plan to get started')).toBeTruthy();
   expect(ui.getByTestId('cta-renter').props.accessibilityState.disabled).toBe(false);
-  expect(ui.getByText('Renters never pay for PayMyRent.')).toBeTruthy();
+  expect(ui.getByText('Renters never pay for RentMeezy.')).toBeTruthy();
   await showPlans(ui);
   await act(async () => { fireEvent.press(ui.getByTestId('choose-growth')); });
   expect(mockRouter.push).toHaveBeenCalledWith('/(public)/phone');

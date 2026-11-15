@@ -116,7 +116,7 @@ def test_fcm_sender_builds_the_message_and_reports_dead_tokens(monkeypatch):
     assert r.status == "sent" and r.provider == "fcm" and r.dead_tokens == (gone,)
     assert sent[0][0] == "https://fcm.googleapis.com/v1/projects/demo-project/messages:send" and sent[0][2]["Authorization"] == "Bearer access-token"
     m = sent[0][1]["message"]
-    assert m["notification"] == {"title": "PayMyRent", "body": "Payment of Rs 1 is confirmed."} and m["data"] == {"template": "payment_received"}
+    assert m["notification"] == {"title": "RentMeezy", "body": "Payment of Rs 1 is confirmed."} and m["data"] == {"template": "payment_received"}
     only_dead = s.send(to=gone, template="payment_received", language="en", params={}, body="x")
     assert only_dead.status == "failed" and only_dead.dead_tokens == (gone,)
 

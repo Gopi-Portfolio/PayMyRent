@@ -104,7 +104,7 @@ def translate_db_error(e: DBAPIError) -> AppError | None:
             "ux_unit_one_live_tenancy": ("CONFLICT", "this unit already has a tenant or pending invitation"),
             "ux_unit_place": ("CONFLICT", "a unit with this number already exists on this floor of this property"),
             "ux_sub_order_open": ("CONFLICT", "a checkout for this plan is already open"),
-            "ux_property_address_key": ("PROPERTY_ALREADY_REGISTERED", "This property is already registered on PayMyRent. If you co-own it, ask the registered owner to add your mobile number under Owner numbers."),
+            "ux_property_address_key": ("PROPERTY_ALREADY_REGISTERED", "This property is already registered on RentMeezy. If you co-own it, ask the registered owner to add your mobile number under Owner numbers."),
             "ux_property_proof": ("PROPERTY_PROOF_ALREADY_USED", "This ownership document number is already registered for another property."),
         }.get(constraint)
         if friendly:

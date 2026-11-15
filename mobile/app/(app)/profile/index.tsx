@@ -153,7 +153,7 @@ export default function ProfileScreen() {
         {isOwner ? <Button icon="home-city-outline" onPress={() => router.push('/(app)/owner/properties')}>{t('property.title')}</Button> : null}
         {isOwner ? <Button icon="account-multiple-plus-outline" onPress={() => router.push('/(app)/owner/owner-numbers')}>{t('ownerNumbers.title')}</Button> : null}
         <Button icon="shield-account-outline" onPress={() => router.push('/privacy')}>{t('privacy.title')}</Button>
-        <FormatSelect label={t('privacy.download')} path="/api/v1/me/export" fileName="paymyrent-my-data" onError={setErr} />
+        <FormatSelect label={t('privacy.download')} path="/api/v1/me/export" fileName="rentmeezy-my-data" onError={setErr} />
         <Button icon="account-remove-outline" textColor="crimson" onPress={() => { if (me.owner_accounts?.[0]?.role === 'owner') { router.push('/(app)/profile/close-account'); return; } if (liveRentals > 0) { router.push('/(app)/tenant/vacate'); return; } setConfirmText(''); setClosing(true); }} testID="close-account">{t('privacy.close')}</Button>
         <Button icon="logout" textColor="crimson" onPress={async () => { await signOut(); router.replace('/'); }}>{t('profile.signOut')}</Button>
       </Panel>

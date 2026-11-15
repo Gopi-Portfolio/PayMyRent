@@ -1,4 +1,4 @@
-// Public landing: brand hero, what PayMyRent does, pricing (visible before login). Tenants never pay.
+// Public landing: brand hero, what RentMeezy does, pricing (visible before login). Tenants never pay.
 import { useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';

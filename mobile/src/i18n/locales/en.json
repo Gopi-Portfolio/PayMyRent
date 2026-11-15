@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "PayMyRent",
-    "tagline": "Collect rent. Stay organised. Get paid on time."
+    "name": "RentMeezy",
+    "tagline": "Manage Rentals with Ease"
   },
   "common": {
     "continue": "Continue",
@@ -22,7 +22,7 @@
   },
   "pricing": {
     "title": "Simple Monthly Plans for Owners",
-    "paidByOwner": "Paid by the owner. Renters always use PayMyRent free.",
+    "paidByOwner": "Paid by the owner. Renters always use RentMeezy free.",
     "perMonth": "/ month",
     "units_one": "{{count}} place",
     "units_other": "Up to {{count}} places",
@@ -59,7 +59,7 @@
     "resent": "New code sent"
   },
   "role": {
-    "title": "How Will You Use PayMyRent?",
+    "title": "How Will You Use RentMeezy?",
     "owner": "I Rent Out Residential/Commercial Places",
     "tenant": "I Pay Rent",
     "both": "Both",
@@ -73,7 +73,7 @@
     "becomeOwnerBody": "This number is a renter account. As an owner you can add your places, choose a plan and invite renters. You will stay a renter too, and can switch between the two any time. Nothing is charged until you pay for a plan.",
     "becomeOwnerYes": "Yes, I want to become an owner",
     "becomeOwnerNo": "No, stay as a renter",
-    "becomeRenterTitle": "Want to use PayMyRent as a renter too?",
+    "becomeRenterTitle": "Want to use RentMeezy as a renter too?",
     "becomeRenterBody": "This number is an owner account. As a renter you can see and pay the rent you owe to other owners. You will stay an owner too, and can switch between the two any time.",
     "becomeRenterYes": "Yes, add renter",
     "becomeRenterNo": "No, stay as an owner"
@@ -207,7 +207,7 @@
     "full": "Pay Full Due",
     "pending": "Confirming your payment with the bank…",
     "success": "Payment Confirmed",
-    "failed": "Payment not completed. No money was taken by PayMyRent.",
+    "failed": "Payment not completed. No money was taken by RentMeezy.",
     "cashLabel": "Cash — Recorded by Owner",
     "dispute": "This Is Wrong",
     "onlineUnavailable": "Online payment isn't set up by this owner yet. Pay directly and ask them to record it.",
@@ -291,7 +291,7 @@
     "ownerRegistered": "I'm an owner · already registered",
     "newOwner": "New owner? Choose a plan to get started",
     "haveAccount": "Already registered? Sign in",
-    "renterNote": "Renters never pay for PayMyRent."
+    "renterNote": "Renters never pay for RentMeezy."
   },
   "ownerDetails": {
     "title": "Owner Details",
@@ -319,7 +319,7 @@
     "step1": "Government ID (DigiLocker or Aadhaar)",
     "step2": "Live selfie with a liveness check",
     "step3": "Name matched to your profile",
-    "privacy": "PayMyRent keeps only the result. Your ID number, ID images and selfie are never stored by PayMyRent.",
+    "privacy": "RentMeezy keeps only the result. Your ID number, ID images and selfie are never stored by RentMeezy.",
     "consent": "I agree to share my ID and selfie with the verification provider for this check.",
     "start": "Verify My Identity",
     "none": "Not Verified",
@@ -346,21 +346,21 @@
     "menuPlans": "Plans and Pricing",
     "menuProfile": "My Profile",
     "menuClose": "Close",
-    "intro": "PayMyRent helps owners of residential and commercial places bill and collect rent, and helps renters see and pay what they owe. Tap a topic to learn more.",
+    "intro": "RentMeezy helps owners of residential and commercial places bill and collect rent, and helps renters see and pay what they owe. Tap a topic to learn more.",
     "s_start": "Getting Started",
-    "b_start": "Owners: sign in with your mobile number, fill in your owner details (name as on PAN, PAN, address and a property document), choose a plan, then add your places (residential or commercial) and renters. Renters: sign in with the mobile number your owner used. You will see your rentals as soon as an owner invites you. Renters never pay for PayMyRent. New owners choose a plan on the first screen and then sign in. Already registered? Use I'm an owner, already registered, or I'm a renter, sign in. To use another number, tap Sign in with a different number.",
+    "b_start": "Owners: sign in with your mobile number, fill in your owner details (name as on PAN, PAN, address and a property document), choose a plan, then add your places (residential or commercial) and renters. Renters: sign in with the mobile number your owner used. You will see your rentals as soon as an owner invites you. Renters never pay for RentMeezy. New owners choose a plan on the first screen and then sign in. Already registered? Use I'm an owner, already registered, or I'm a renter, sign in. To use another number, tap Sign in with a different number.",
     "s_bills": "Clear Monthly Bills",
-    "b_bills": "Every month PayMyRent creates one bill for each tenancy: rent plus any charges such as electricity, water or maintenance. The bill shows each line, what is paid, and the total due, so owners and renters always see the same numbers. Owners approve any extra charge before it appears on a bill.",
+    "b_bills": "Every month RentMeezy creates one bill for each tenancy: rent plus any charges such as electricity, water or maintenance. The bill shows each line, what is paid, and the total due, so owners and renters always see the same numbers. Owners approve any extra charge before it appears on a bill.",
     "s_pay": "Record Cash and Online Payments",
     "b_pay": "Renters can pay online from the bill. Owners can also record cash or other payments they receive in person. Both appear in the same payment history, are matched to the bill, and update the balance at once. Each payment has a receipt.",
     "s_remind": "Smart Reminders",
-    "b_remind": "PayMyRent sends reminders to renters before the due date, on the due day and when a bill is overdue. Owners are also reminded about pending approvals and payments. Reminders stop once a bill is fully paid and continue for any balance still unpaid. Reminders go only to verified contacts, within quiet hours. An owner reviews and approves AI-written messages before they are sent.",
+    "b_remind": "RentMeezy sends reminders to renters before the due date, on the due day and when a bill is overdue. Owners are also reminded about pending approvals and payments. Reminders stop once a bill is fully paid and continue for any balance still unpaid. Reminders go only to verified contacts, within quiet hours. An owner reviews and approves AI-written messages before they are sent.",
     "s_pricing": "Pricing",
-    "b_pricing": "Owners pay a monthly plan. Starter ₹10: up to 10 places, 1 property, no AI. Growth ₹50: up to 100 places, 5 properties, AI voice and text with 1 lakh tokens. Business ₹100: up to 250 places, 10 properties, 5 lakh tokens. Max ₹1,000: up to 1,000 places, 100 properties, 10 lakh tokens. The launch price is what you pay; the crossed-out regular price and the Save percentage show what the plan usually costs. The Plans screen always shows the current numbers. Change your plan any time from your profile or Plans and Pricing. Renters always use PayMyRent free.",
+    "b_pricing": "Owners pay a monthly plan. Starter ₹10: up to 10 places, 1 property, no AI. Growth ₹50: up to 100 places, 5 properties, AI voice and text with 1 lakh tokens. Business ₹100: up to 250 places, 10 properties, 5 lakh tokens. Max ₹1,000: up to 1,000 places, 100 properties, 10 lakh tokens. The launch price is what you pay; the crossed-out regular price and the Save percentage show what the plan usually costs. The Plans screen always shows the current numbers. Change your plan any time from your profile or Plans and Pricing. Renters always use RentMeezy free.",
     "s_verify": "Verification and Safety",
-    "b_verify": "To protect everyone, owners verify their details and identity before collecting real rent. PayMyRent keeps only the result of the identity check, not your ID numbers, photos or selfies. A renter sees a Verified badge on each owner.",
+    "b_verify": "To protect everyone, owners verify their details and identity before collecting real rent. RentMeezy keeps only the result of the identity check, not your ID numbers, photos or selfies. A renter sees a Verified badge on each owner.",
     "s_roles": "Owner and Renter Views",
-    "b_roles": "You can use PayMyRent as an owner, a renter or both. The bar at the top shows which one you are viewing. Tap Switch To at the top right to change. A renter with several owners sees each owner's rentals grouped in their own colour.",
+    "b_roles": "You can use RentMeezy as an owner, a renter or both. The bar at the top shows which one you are viewing. Tap Switch To at the top right to change. A renter with several owners sees each owner's rentals grouped in their own colour.",
     "s_ai": "Ask AI and Excel Import",
     "b_ai": "On higher plans, ask the AI assistant questions such as how much is pending this month, and let it draft reminders for you to approve. To add many renters at once, use Import Excel under Add Renter.",
     "s_more": "Need More Help?",
@@ -381,7 +381,7 @@
     "s_message": "Message a Renter",
     "b_message": "Owners: open Message Renter. Speak or type your message and choose the language it should be delivered in. Send it to the renter's bell, by SMS or by WhatsApp. The renter also sees it in their own notifications.",
     "s_download": "Reports and Downloads",
-    "b_download": "Owners: from the Collected, Pending, Overdue and places lists, and from a renter's statement, download an Excel or PDF file. Renters: download your own statement, or a report of all your rentals, as Excel or PDF. Everyone: Profile, Download My Data gives a CSV or PDF copy of the details PayMyRent holds about you. Files open in the share sheet so you can save or send them.",
+    "b_download": "Owners: from the Collected, Pending, Overdue and places lists, and from a renter's statement, download an Excel or PDF file. Renters: download your own statement, or a report of all your rentals, as Excel or PDF. Everyone: Profile, Download My Data gives a CSV or PDF copy of the details RentMeezy holds about you. Files open in the share sheet so you can save or send them.",
     "s_account": "Profile, Language and Closing",
     "b_account": "In Profile you can change your name, address, language and mobile number, add a second mobile or email, and choose which messages come by SMS, WhatsApp or email. You can pick English, Tamil, Hindi, Telugu, Kannada, Malayalam, Marathi or Bengali on the first screen, in the menu or in Profile. An owner who closes their account is first asked to transfer all places and renters to another mobile number; the new owner must pay for a plan before using them. A renter with a rental must ask each owner to vacate before closing their account.",
     "s_upi": "Receive Rent by UPI (Free)",
@@ -751,7 +751,7 @@
     "reportedTitle": "Waiting for the owner to confirm",
     "reportedHint": "{{owner}} will check their account and confirm. You will get a message and a receipt.",
     "cashTitle": "Pay the owner directly",
-    "cashBody": "{{owner}} collects rent in cash or by bank transfer. Pay them directly and they will record it in PayMyRent.",
+    "cashBody": "{{owner}} collects rent in cash or by bank transfer. Pay them directly and they will record it in RentMeezy.",
     "directTitle": "Pay these directly",
     "directHint": "These owners collect by UPI or cash. Tap a rental to pay it.",
     "noneTitle": "Payment is not set up yet",

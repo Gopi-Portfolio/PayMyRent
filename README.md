@@ -1,4 +1,4 @@
-# PayMyRent — rent billing & collection for Indian shop and house owners
+# RentMeezy — rent billing & collection for Indian shop and house owners
 
 One mobile app (Owner / Tenant / Both), one FastAPI backend, one PostgreSQL database.
 Built for owners with roughly 5–250 shops or houses, and for tenants who just want to see and pay their dues.
@@ -68,7 +68,7 @@ docker compose exec api python -m app.cli reconcile_payments
 
 These block a real launch. Each is described in `docs/DECISIONS.md`.
 
-1. **Payment provider and owner settlement (D-03).** You need to confirm with Razorpay, Cashfree or another provider that rent can settle directly into each owner's own account (Route, linked accounts or sub-merchants), plus the KYC flow for that. Until then, online rent is disabled outside demo mode. PayMyRent never holds rent in the platform's own merchant account.
+1. **Payment provider and owner settlement (D-03).** You need to confirm with Razorpay, Cashfree or another provider that rent can settle directly into each owner's own account (Route, linked accounts or sub-merchants), plus the KYC flow for that. Until then, online rent is disabled outside demo mode. RentMeezy never holds rent in the platform's own merchant account.
 2. **₹1 Starter economics.** Check the provider's minimum charge, the fee on a ₹1 transaction, GST on the subscription, and the refund flow.
 3. **SMS (DLT), WhatsApp (BSP + templates) and SES production access.** The templates in `api/app/i18n/templates.py` must be registered word for word.
 4. **Indian tax and legal review.** This covers GST/TDS on commercial rent, DPDP Act notices and consent, data retention, and the terms of service.
