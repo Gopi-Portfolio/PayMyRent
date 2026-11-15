@@ -19,6 +19,8 @@ def main() -> int:
         print("provision: RG_DEMO_AUTO_VERIFY_PROPERTIES is not allowed in production")
         return 1
     with psycopg.connect(dsn, autocommit=True) as c:
+        c.execute("INSERT INTO system_flags(key, value) VALUES ('doc_auto_verify', %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                  ("on" if s.doc_auto_approve else "off",))
         c.execute("INSERT INTO system_flags(key, value) VALUES ('demo_auto_verify_properties', %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
                   ("on" if demo else "off",))
         pw = os.environ.get("RG_APP_DB_PASSWORD", "")

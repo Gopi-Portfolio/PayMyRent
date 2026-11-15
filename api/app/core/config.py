@@ -48,6 +48,15 @@ class Settings(BaseSettings):
     kyc_notice_version: str = "kyc-v1"
     admin_token: str = ""                        # reviewer API is disabled while empty
 
+    # Automatic owner document check: our own text reading + face comparison (providers/docs.py), no person involved.
+    # OFF unless RG_DOC_AUTO_APPROVE=true, because it lets the server verify an owner and a property by itself (docs/DECISIONS.md D-21).
+    doc_auto_approve: bool = False
+    doc_face_min: float = 0.30                   # selfie vs the photo on the PAN card, cosine similarity (the model's own suggestion is 0.363)
+    doc_name_min: float = 0.80                   # share of the typed name's words that must be found in the PAN / deed text
+    doc_max_tries_per_day: int = 5
+    doc_ocr_langs: str = "eng+tam+hin"
+    doc_models_dir: str = "/srv/models"
+
     # Messaging
     sms_provider: str = "console"
     whatsapp_provider: str = "console"

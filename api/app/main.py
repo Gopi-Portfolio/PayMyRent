@@ -13,7 +13,7 @@ from .core.db import translate_db_error
 from .core.errors import AppError, app_error_handler, field_error_handler, request_validation_handler
 from .core.http import BodyLimitMiddleware, RedactingFilter, RequestContextMiddleware
 from .domain.validation import ValidationError
-from .modules import action_otp, ai, billing, identity, jobs, kyc, notes, onboarding, owner_numbers, payments, privacy, properties, relief, subscriptions, inbox, agreements, messages, renter_messages, vacate, transfer, push
+from .modules import action_otp, ai, billing, identity, jobs, kyc, notes, onboarding, owner_numbers, payments, privacy, properties, relief, subscriptions, inbox, agreements, messages, renter_messages, vacate, transfer, push, owner_docs
 
 
 def create_app() -> FastAPI:
@@ -46,7 +46,7 @@ def create_app() -> FastAPI:
         logging.getLogger("paymyrent").exception("database error")
         return JSONResponse(status_code=500, content={"error": {"code": "INTERNAL", "message": "unexpected error"}})
 
-    for module in (identity, subscriptions, onboarding, billing, payments, notes, ai, jobs, kyc, privacy, owner_numbers, properties, action_otp, relief, inbox, agreements, messages, renter_messages, vacate, transfer, push):
+    for module in (identity, subscriptions, onboarding, billing, payments, notes, ai, jobs, kyc, privacy, owner_numbers, properties, action_otp, relief, inbox, agreements, messages, renter_messages, vacate, transfer, push, owner_docs):
         app.include_router(module.router)
 
     from .providers import storage

@@ -27,6 +27,17 @@ def decrypt(token: str, aad: str = "pan") -> str:
     return AESGCM(_key("enc")).decrypt(raw[:12], raw[12:], aad.encode()).decode()
 
 
+def encrypt_bytes(plain: bytes, aad: str = "doc") -> bytes:
+    """Encrypts a whole file (an uploaded photo). nonce (12 bytes) + ciphertext + tag."""
+    nonce = os.urandom(12)
+    return nonce + AESGCM(_key("enc")).encrypt(nonce, plain, aad.encode())
+
+
+def decrypt_bytes(blob: bytes, aad: str = "doc") -> bytes:
+    blob = bytes(blob)
+    return AESGCM(_key("enc")).decrypt(blob[:12], blob[12:], aad.encode())
+
+
 def lookup_hash(plain: str) -> str:
     return hmac.new(_key("hash"), plain.encode(), hashlib.sha256).hexdigest()
 
