@@ -23,6 +23,8 @@ export default function AppLayout() {
       <Tabs.Screen name="tenant" options={{ title: t('tenant.myRentals'), href: role === 'tenant' ? undefined : null,
         tabBarIcon: ({ color }) => <Icon source="home" size={24} color={color as string} /> }} />
       <Tabs.Screen name="pay-tab" options={{ title: t('pay.tab'), tabBarButton: () => <PayTabButton payer={role === 'tenant'} /> }} />
+      <Tabs.Screen name="search" options={{ title: t('common.search'), href: role === 'owner' ? undefined : null,        // owners: left of Profile
+        tabBarIcon: ({ color }) => <Icon source="magnify" size={24} color={color as string} /> }} />
       <Tabs.Screen name="profile/index" options={{ title: t('profile.title'),
         tabBarIcon: ({ color }) => <Icon source="account" size={24} color={color as string} /> }} />
     </Tabs>

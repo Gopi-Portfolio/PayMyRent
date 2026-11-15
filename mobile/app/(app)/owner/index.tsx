@@ -1,22 +1,21 @@
-// Owner home: 4 metrics, 4 shortcuts, searchable tenant list. One screen, minimal scrolling.
+// Owner home: 4 metrics and the shortcuts. One screen, minimal scrolling. (The search bar, filters and the renter list live in the Search tab.)
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { FlatList, Platform, View } from 'react-native';
-import { Banner, Icon, Searchbar, Text } from 'react-native-paper';
+import { Banner, Icon, Text } from 'react-native-paper';
 import { Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { PropertySwitcher } from '@/components/PropertySwitcher';
 import { HeroAction, MiniAction } from '@/components/QuickActions';
-import { ReliefChip } from '@/components/RentRelief';
 import { KIND_GROUPS, floorLabel, kindIcon } from '@/lib/units';
-import { Avatar, DemoBanner, ErrorBanner, FilterBar, ListFilter, NO_FILTER, SlideIn, IdentityRow, Metric, applyFilter } from '@/components/ui';
+import { DemoBanner, ErrorBanner, SlideIn, IdentityRow, Metric } from '@/components/ui';
 import { brand, radius, shadow } from '@/theme';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { fmtDate } from '@/lib/dates';
-import { formatINR, payNow } from '@/lib/format';
+import { formatINR } from '@/lib/format';
 
 // The Vacant button is hidden for now (asked for). The vacant list, its "add renter" rows and the data behind them are all still here: set this to true to show the button again.
 const SHOW_VACANT_BUTTON = false;
@@ -34,21 +33,17 @@ export default function OwnerHome() {
   const { t, i18n } = useTranslation();
   const { me } = useAuth();
   const owner = ownerAccountId(me);
-  const [q, setQ] = useState('');
-  const [term, setTerm] = useState('');   // what is sent to the server, 300 ms after the owner stops typing
-  useEffect(() => { const id = setTimeout(() => setTerm(q.trim()), 300); return () => clearTimeout(id); }, [q]);
-  const [filter, setFilter] = useState<ListFilter>(NO_FILTER);
   const dash = useQuery({ queryKey: ['dash', owner], queryFn: () => api<any>('/api/v1/owner/dashboard', { ownerAccount: owner }) });
   // units with no renter (e.g. after the renter's period ended and they moved out): one tap to add a new renter
   const [showVacant, setShowVacant] = useState(false);
   const vacant = useQuery({ queryKey: ['vacant', owner], queryFn: () => api<any>('/api/v1/owner/units?vacant=true', { ownerAccount: owner }) });
   const vacantUnits: any[] = vacant.data?.items ?? [];
-  const list = useQuery({ queryKey: ['tenancies', owner, term], placeholderData: (prev) => prev, queryFn: () =>   // keep showing the last result until the new one arrives
-    api<any>(`/api/v1/owner/tenancies?status=live${term ? `&q=${encodeURIComponent(term)}` : ''}`, { ownerAccount: owner }) });
+  const list = useQuery({ queryKey: ['tenancies', owner, ''], placeholderData: (prev) => prev, queryFn: () =>   // the same list the Search tab shows (shared cache)
+    api<any>('/api/v1/owner/tenancies?status=live', { ownerAccount: owner }) });
   const transfers = useQuery({ queryKey: ['transfers', owner], refetchInterval: 20000, queryFn: () => api<any>('/api/v1/owner/payments/pending-transfers', { ownerAccount: owner }) });
   const transferCount: number = transfers.data?.items?.length ?? 0;      // UPI payments tenants reported, waiting for the owner to check and confirm
   // tenants with no chosen way of receiving rent yet (older tenants): the owner is asked to choose
-  const unsetPay: any[] = term ? [] : (list.data?.items ?? []).filter((x: any) => !x.effective_pay_method);
+  const unsetPay: any[] = (list.data?.items ?? []).filter((x: any) => !x.effective_pay_method);
   const m = dash.data?.metrics;
   const state = dash.data?.subscription.state;
   const acct = me?.owner_accounts.find((o) => o.owner_account_id === owner);
@@ -90,10 +85,10 @@ export default function OwnerHome() {
       <ErrorBanner error={dash.error || list.error} onRetry={() => { dash.refetch(); list.refetch(); }} />
       <FlatList
         keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-        data={showVacant ? vacantUnits : applyFilter<any>(list.data?.items ?? [], filter)}
+        data={showVacant ? vacantUnits : []}
         keyExtractor={(i: any) => `${i.vacant ? 'v' : 't'}${i.id}`}
-        refreshing={list.isFetching}
-        onRefresh={() => list.refetch()}
+        refreshing={list.isFetching || dash.isFetching}
+        onRefresh={() => { dash.refetch(); list.refetch(); }}
         contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 32 }}
         ListHeaderComponent={
           <View style={{ gap: 16, marginBottom: 6 }}>
@@ -125,16 +120,10 @@ export default function OwnerHome() {
               ) : null}
             </View>
             {me?.identity_status !== 'verified' ? <IdentityRow /> : null}
-            {showVacant ? null : (
-              <>
-                <Searchbar placeholder={t('common.search')} value={q} onChangeText={setQ} style={{ backgroundColor: '#fff', borderRadius: radius.md }} elevation={0} />
-                <FilterBar items={list.data?.items ?? []} value={filter} onChange={setFilter} />
-              </>
-            )}
           </View>
         }
         ListEmptyComponent={showVacant ? <Text style={{ color: brand.muted, textAlign: 'center', padding: 24 }}>{t('property.noVacant')}</Text> : undefined}
-        renderItem={({ item }) => item.vacant ? (
+        renderItem={({ item }) => (
           <View style={[rowStyle, shadow]}>
             <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: brand.amber100, alignItems: 'center', justifyContent: 'center' }}>
               <Icon source={kindIcon(item.kind)} size={24} color="#B45309" />
@@ -152,26 +141,6 @@ export default function OwnerHome() {
               <Text style={{ color: '#fff', fontWeight: '800' }}>{t('property.addRenter')}</Text>
             </Pressable>
           </View>
-        ) : (
-          <Pressable onPress={() => router.push(`/(app)/owner/tenancy/${item.id}`)} style={({ pressed }) => [rowStyle, shadow, pressed && { backgroundColor: brand.teal50, transform: [{ scale: 0.99 }] }]}>
-            <Avatar name={item.tenant_name ?? item.identifier} />
-            <View style={{ flex: 1 }}>
-              <Text variant="titleSmall" style={{ fontWeight: '700' }}>{item.tenant_name ?? item.identifier}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Icon source={kindIcon(item.unit_kind)} size={14} color={brand.muted} />
-                <Text variant="bodySmall" style={{ color: brand.muted }}>
-                  {`${item.identifier}${item.unit_floor !== null && item.unit_floor !== undefined ? ` · ${floorLabel(item.unit_floor, t, i18n.language)}` : ''} · ${item.status === 'invited' ? t('tenancy.invited') : t('dates.since', { date: fmtDate(item.start_date) })}`}
-                </Text>
-              </View>
-              <ReliefChip relief={item.relief} who="owner" />
-            </View>
-            {/* the same "due now" figure the renter sees on their card; anything relief moves to next month is noted, not added in */}
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={{ fontWeight: '800', fontSize: 16, color: payNow(item) > 0 ? '#B45309' : brand.green600 }}>{formatINR(payNow(item))}</Text>
-              {Number(item.balance_paise) > payNow(item) ? <Text variant="labelSmall" style={{ color: brand.muted }}>{t('relief.movesToNext', { amount: formatINR(Number(item.balance_paise) - payNow(item)) })}</Text> : null}
-            </View>
-            <Icon source="chevron-right" size={20} color={brand.muted} />
-          </Pressable>
         )}
       />
       </SlideIn>
