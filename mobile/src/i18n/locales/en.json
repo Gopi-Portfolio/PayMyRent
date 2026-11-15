@@ -780,7 +780,7 @@
   },
   "docCheck": {
     "title": "Verify Your Documents",
-    "subtitle": "Upload clear photos. We check them automatically in about a minute.",
+    "subtitle": "Enter your details and upload clear photos. Next you will sign. We check everything automatically.",
     "pan": "PAN card",
     "panHint": "The whole card, flat, in good light.",
     "selfie": "Live selfie",
@@ -797,7 +797,7 @@
     "address": "Your address",
     "enterName": "Enter your full name",
     "enterAddress": "Enter your full address",
-    "declare": "These are my own genuine documents, and I am the person in the photos.",
+    "declare": "I confirm that the documents I submitted are original and belong to me.",
     "submit": "Check My Documents",
     "checking": "Checking your documents...",
     "passed": "Your documents are verified.",
@@ -806,6 +806,17 @@
     "triesNote": "You can try up to 5 times a day.",
     "idChoice": "Which ID will you use?",
     "aadhaar": "Aadhaar card (front)",
-    "aadhaarHint": "Front side only, with your photo. The first 8 digits of the number are hidden automatically and never stored."
+    "aadhaarHint": "Front side only, with your photo. The first 8 digits of the number are hidden automatically and never stored.",
+    "aadhaarNumber": "Aadhaar Number (12 digits)",
+    "enterPan": "PAN must look like ABCDE1234F",
+    "enterAadhaar": "Enter your 12-digit Aadhaar number first",
+    "enterProofRef": "Enter the property document number",
+    "incomplete": "Fill in every field and upload all four photos to continue.",
+    "continueSign": "Continue to Signature",
+    "signTitle": "Signature",
+    "signLabel": "Sign: type your full name",
+    "signMismatch": "The signature must be the same name you entered on the previous page.",
+    "signSubmit": "Sign and Submit",
+    "back": "Back"
   }
 }

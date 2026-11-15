@@ -68,8 +68,9 @@ def new_owner(actor, name="Ramesh Kumar Sharma"):
     return actor(roles=("owner",), name=name, identity=False)
 
 
-def upload(owner, kind: str, data: bytes, name="photo.jpg"):
-    return owner.c.put(f"/api/v1/owner/documents/{kind}", headers=owner.h(), files={"file": (name, data, "image/jpeg")})
+def upload(owner, kind: str, data: bytes, name="photo.jpg", typed_number: str | None = None):
+    extra = {"data": {"typed_number": typed_number}} if typed_number is not None else {}       # the Aadhaar number typed in the form
+    return owner.c.put(f"/api/v1/owner/documents/{kind}", headers=owner.h(), files={"file": (name, data, "image/jpeg")}, **extra)
 
 
 def prepare(owner, eng: FakeEngine, name="Ramesh Kumar Sharma", pan=None, address=None):
@@ -77,6 +78,7 @@ def prepare(owner, eng: FakeEngine, name="Ramesh Kumar Sharma", pan=None, addres
     n = next(_pan_n)
     pan = pan or f"ABCPE{n}F"
     owner.street = f"{n} Market Road, Anna Nagar"                     # what the owner will type as the property address
+    owner.typed_id = pan                                              # what the owner typed in the form
     address = address or f"{owner.street}, Madurai 625020"
     imgs = {"pan": photo(), "selfie": photo(500, 500), "deed_first": photo(), "deed_last": photo()}
     eng.text[hashlib.sha256(imgs["pan"]).hexdigest()] = pan_text(name, pan)
@@ -87,8 +89,11 @@ def prepare(owner, eng: FakeEngine, name="Ramesh Kumar Sharma", pan=None, addres
     return pan, imgs
 
 
-def verify(owner, name="Ramesh Kumar Sharma", declare=True):
-    return owner.post("/api/v1/owner/documents/verify", json={"legal_name": name, "address": "5 Gandhi Street, Madurai", "declare": declare})
+def verify(owner, name="Ramesh Kumar Sharma", declare=True, signature=None, proof_ref="SD-2019-004455", id_number=None):
+    """The signature page: the form's details, the name typed again as a signature, and the declaration."""
+    return owner.post("/api/v1/owner/documents/verify", json={
+        "legal_name": name, "signature": name if signature is None else signature, "address": "5 Gandhi Street, Madurai",
+        "id_number": getattr(owner, "typed_id", "") if id_number is None else id_number, "proof_type": "sale_deed", "proof_ref": proof_ref, "declare": declare})
 
 
 def failed_codes(r) -> set[str]:
@@ -222,12 +227,13 @@ def prepare_aadhaar(owner, eng: FakeEngine, name="Ramesh Kumar Sharma", number=N
     number = number or aadhaar_number()
     n = next(_pan_n)
     owner.street = f"{n} Gandhi Road, Anna Nagar"
+    owner.typed_id = ""                                               # an Aadhaar number is typed at upload time and never sent again
     imgs = {"aadhaar": photo(), "selfie": photo(500, 500), "deed_first": photo(), "deed_last": photo()}
     eng.text[hashlib.sha256(imgs["aadhaar"]).hexdigest()] = aadhaar_text(name, number)
     eng.text[hashlib.sha256(imgs["deed_first"]).hexdigest()] = deed_text(name, f"{owner.street}, Madurai 625020")
     eng.text[hashlib.sha256(imgs["deed_last"]).hexdigest()] = "Signed and delivered in the presence of the witnesses below at Madurai."
     for k, d in imgs.items():
-        assert upload(owner, k, d).status_code == 200, k
+        assert upload(owner, k, d, typed_number=number if k == "aadhaar" else None).status_code == 200, k
     return number, imgs
 
 
@@ -278,3 +284,33 @@ def test_the_same_aadhaar_cannot_back_two_owners(actor, engine):
     prepare_aadhaar(b, engine, number=number)                                      # same number, same name and year of birth, different photos
     r = verify(b)
     assert r.json()["status"] == "failed" and "aadhaar_not_reused" in failed_codes(r)
+
+
+# ───────── the form's typed details + the signature ─────────
+def test_the_signature_must_be_the_same_name_and_the_typed_property_document_is_kept(actor, engine, sql):
+    o = new_owner(actor)
+    prepare(o, engine)
+    assert verify(o, signature="Somebody Else").status_code == 422                 # a different name is not a signature
+    assert verify(o, proof_ref="x").status_code == 422                             # the property document number is needed
+    r = verify(o, proof_ref="SD-2019-004455")
+    assert r.json()["status"] == "verified", r.text
+    row = sql("SELECT proof_type, proof_ref FROM owner_verifications WHERE owner_account_id = (SELECT id FROM owner_accounts WHERE primary_user_id = %s)", o.id)[0]
+    assert row == ("sale_deed", "SD-2019-004455")
+
+
+def test_a_typed_pan_that_differs_from_the_card_fails(actor, engine):
+    o = new_owner(actor)
+    prepare(o, engine)
+    r = verify(o, id_number="ZZZPZ9999Z")
+    assert r.json()["status"] == "failed" and "pan_number_matches" in failed_codes(r)
+
+
+def test_a_typed_aadhaar_number_that_differs_from_the_card_is_refused_at_upload(actor, engine):
+    o = new_owner(actor)
+    number = aadhaar_number()
+    img = photo()
+    engine.text[hashlib.sha256(img).hexdigest()] = aadhaar_text("Ramesh Kumar Sharma", number)
+    other = aadhaar_number()
+    assert upload(o, "aadhaar", img, typed_number=other).status_code == 422        # typed another number
+    assert upload(o, "aadhaar", img).status_code == 422                            # typed nothing
+    assert upload(o, "aadhaar", img, typed_number=number[:4] + " " + number[4:8] + " " + number[8:]).status_code == 200      # spaces are fine
