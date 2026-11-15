@@ -1,6 +1,7 @@
 // Authentication. Production: Firebase Phone Auth (+91 OTP) — the backend verifies the Firebase
 // ID token on every request. Local: a DEMO OTP simulator served by the API (never in production).
 import * as SecureStore from 'expo-secure-store';
+import { setActionCodesRequired } from './actionCodes';
 import { markRegistered } from './landing';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -41,7 +42,7 @@ export type Me = {
   owner_accounts: { owner_account_id: string; role: string; state: 'active' | 'grace' | 'read_only' | 'none'; verification?: 'submitted' | 'verified' | 'rejected' | null;
     property_name?: string | null; property_address?: string | null; property_status?: 'submitted' | 'verified' | 'rejected' | null;
     property_count?: number; property_capacity?: number }[];     // how many properties this account holds, and how many its plan allows (Max: up to 100)
-  pending_invitations: number; identity_status?: 'none' | 'pending' | 'verified' | 'manual_review' | 'failed' | 'rejected';
+  pending_invitations: number; action_codes_required?: boolean; identity_status?: 'none' | 'pending' | 'verified' | 'manual_review' | 'failed' | 'rejected';
 };
 
 type OtpSession = { phoneE164: string; confirm?: any; demoCode?: string };
@@ -75,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const m = await api<Me>('/api/v1/me');
       setAuthError(null);
       setMe(m);
+      setActionCodesRequired(m.action_codes_required !== false);
       markRegistered();
       const saved = (await SecureStore.getItemAsync(ROLE_KEY)) as 'owner' | 'tenant' | null;
       setRole(saved && m.roles.includes(saved) ? saved : m.roles[0] ?? null);

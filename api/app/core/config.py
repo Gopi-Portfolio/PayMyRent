@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     dev_jwt_secret: str = "dev-only-not-a-secret"
     otp_hash_secret: str = "dev-otp-hash-key"
     otp_ttl_seconds: int = 300
+    # A fresh one-time code before sensitive steps (payout account, co-owner number, account transfer ...), on top of the login code.
+    # False = the login code is the only code ever asked. A signed-in phone that is lent or stolen can then redirect the money: set
+    # RG_ACTION_CODES_REQUIRED=true before a public launch (docs/DECISIONS.md D-22).
+    action_codes_required: bool = True
     otp_max_attempts: int = 5
     otp_max_per_hour: int = 5
     max_owner_numbers: int = 2          # people who can act as owners of one account (the subscriber + this many minus one)

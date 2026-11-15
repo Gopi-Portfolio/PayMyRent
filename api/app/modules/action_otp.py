@@ -59,7 +59,11 @@ def request_action_otp(body: ActionOtpIn, user: CurrentUser = Depends(current_us
 
 
 def require_action_otp(db: Db, user_id: UUID, action: str, code: str | None) -> None:
-    """Call first in every verification step. Raises unless `code` is the live code sent to this account's own mobile for `action`."""
+    """Call first in every verification step. Raises unless `code` is the live code sent to this account's own mobile for `action`.
+    Does nothing while RG_ACTION_CODES_REQUIRED is false: then the login code is the only one."""
+    from ..core.config import get_settings
+    if not get_settings().action_codes_required:
+        return
     if not code or not code.strip():
         raise AppError("FORBIDDEN", "enter the code sent to your registered mobile number", otp_required=True, action=action)
     limiter.check(f"actotp-try:{user_id}:{action}", 10, 600)     # counted outside the request, so failed tries cannot be undone

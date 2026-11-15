@@ -8,10 +8,12 @@ import { useTranslation } from 'react-i18next';
 import { AppButton } from '@/components/Buttons';
 import { Field, Panel } from '@/components/ui';
 import { api } from '@/lib/api';
+import { actionCodesRequired } from '@/lib/actionCodes';
 import { brand } from '@/theme';
 
 export type OtpAction = 'identity' | 'owner_details' | 'property' | 'payout' | 'co_owner' | 'transfer';
-export const otpReady = (code: string) => /^\d{6}$/.test(code);
+/** With the extra codes switched off on the server (the test server), a step is "ready" without a code. */
+export const otpReady = (code: string) => !actionCodesRequired() || /^\d{6}$/.test(code);
 
 export function ActionOtp({ action, code, onChange, ownerAccount }: { action: OtpAction; code: string; onChange: (c: string) => void; ownerAccount?: string | null }) {
   const { t } = useTranslation();
@@ -28,6 +30,7 @@ export function ActionOtp({ action, code, onChange, ownerAccount }: { action: Ot
     } catch (e: any) { setErr(e?.message ?? t('common.retry')); } finally { setBusy(false); }
   }
 
+  if (!actionCodesRequired()) return null;       // no extra code on this server: the login code is the only one
   return (
     <Panel title={t('otp.title')} icon="message-lock-outline" tone="blue">
       <Text style={{ color: brand.muted, lineHeight: 21 }}>{sentTo ? t('otp.sentTo', { phone: sentTo }) : t('otp.explain')}</Text>

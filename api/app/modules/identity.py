@@ -143,6 +143,7 @@ def me_payload(db: Db, uid: UUID) -> dict:
         "notification_preferences": dict(prefs) if prefs else None,
         "owner_accounts": [dict(o) for o in owners],
         "pending_invitations": invites,
+        "action_codes_required": get_settings().action_codes_required,     # false: the app never shows the extra code boxes
         "identity_status": db.scalar("""SELECT status FROM identity_verifications WHERE user_id = :u AND status <> 'withdrawn'
                                         ORDER BY created_at DESC LIMIT 1""", u=uid) or "none",
     }
