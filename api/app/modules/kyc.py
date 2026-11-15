@@ -1,5 +1,5 @@
 """Identity verification (government ID + liveness selfie + name match) through a licensed provider, plus the reviewer
-API for owner details and inconclusive identity checks. PayMyRent keeps only outcomes (see providers/kyc.py)."""
+API for owner details and inconclusive identity checks. RentMeezy keeps only outcomes (see providers/kyc.py)."""
 from __future__ import annotations
 
 import secrets
@@ -168,10 +168,10 @@ async def sandbox_kyc_post(session_id: str, request: Request) -> str:
         apply_result(db, sid, res)
     from .sandbox_ui import result
     if outcome == "verified":
-        return result(True, "Identity verified", "All checks passed. Your PayMyRent account now shows Verified.")
+        return result(True, "Identity verified", "All checks passed. Your RentMeezy account now shows Verified.")
     if outcome == "manual_review":
         return result(True, "Sent for review", "Some checks were unclear, so a reviewer will look at your result. The app shows the status.")
-    return result(False, "Verification failed", "The checks did not pass. Go back to PayMyRent to see why and try again.")
+    return result(False, "Verification failed", "The checks did not pass. Go back to RentMeezy to see why and try again.")
 
 
 # ───────────────────────── reviewer API (manual fallback) ─────────────────────────

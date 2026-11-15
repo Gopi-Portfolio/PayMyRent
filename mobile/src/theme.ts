@@ -1,4 +1,4 @@
-// PayMyRent design tokens: deep teal brand, warm amber accent, soft neutral canvas, generous radii.
+// RentMeezy design tokens: deep teal brand, warm amber accent, soft neutral canvas, generous radii.
 import { MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
 
 // The brand colours come in two sets. The owner's is deep teal; the renter's is the blue of the renter's top bar. `brand.teal*` and

@@ -43,7 +43,7 @@ def option(value: str, css: str, icon: str, title: str, desc: str) -> str:
             f'<span><div class="tt">{escape(title)}</div><div class="ds">{escape(desc)}</div></span></button>')
 
 
-def result(ok: bool, title: str, detail: str, hint: str = "Tap Done (or the close button) at the top of this window to return to PayMyRent.") -> str:
+def result(ok: bool, title: str, detail: str, hint: str = "Tap Done (or the close button) at the top of this window to return to RentMeezy.") -> str:
     color = "#16A34A" if ok else "#DC2626"
     return page(title, f'<div class="card center"><div class="big" style="background:{color}">{"✓" if ok else "✕"}</div>'
                        f'<h1>{escape(title)}</h1><p>{escape(detail)}</p><div class="note">{escape(hint)}</div></div>')

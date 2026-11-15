@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "PayMyRent",
+    "name": "RentMeezy",
     "slug": "paymyrent",
     "scheme": "paymyrent",
     "version": "1.0.0",
@@ -13,7 +13,7 @@
       "icon": "./assets/icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "PayMyRent opens your photos and files only when you choose to attach, import or save a document, such as a payment receipt, a rent statement or a spreadsheet of tenants."
+        "NSPhotoLibraryUsageDescription": "RentMeezy opens your photos and files only when you choose to attach, import or save a document, such as a payment receipt, a rent statement or a spreadsheet of tenants."
       }
     },
     "android": {
@@ -21,7 +21,7 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0B6E5F"
+        "backgroundColor": "#FFFFFF"
       }
     },
     "plugins": [
@@ -30,8 +30,8 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 180,
-          "backgroundColor": "#0B6E5F",
+          "imageWidth": 280,
+          "backgroundColor": "#FFFFFF",
           "resizeMode": "contain"
         }
       ],
@@ -39,9 +39,9 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "PayMyRent uses the camera to photograph your PAN card and property deed, and to take a live selfie for the identity check.",
-          "photosPermission": "PayMyRent opens your photos and files only when you choose to attach, import or save a document, such as a payment receipt, a rent statement or a spreadsheet of tenants.",
-          "microphonePermission": "PayMyRent uses the microphone only when you tap the mic to dictate a note or question."
+          "cameraPermission": "RentMeezy uses the camera to photograph your PAN card and property deed, and to take a live selfie for the identity check.",
+          "photosPermission": "RentMeezy opens your photos and files only when you choose to attach, import or save a document, such as a payment receipt, a rent statement or a spreadsheet of tenants.",
+          "microphonePermission": "RentMeezy uses the microphone only when you tap the mic to dictate a note or question."
         }
       ],
       "expo-localization",
@@ -59,8 +59,8 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "PayMyRent uses the microphone only when you tap the mic to dictate a note or question.",
-          "speechRecognitionPermission": "PayMyRent converts your speech to text so you can review it before saving."
+          "microphonePermission": "RentMeezy uses the microphone only when you tap the mic to dictate a note or question.",
+          "speechRecognitionPermission": "RentMeezy converts your speech to text so you can review it before saving."
         }
       ]
     ],

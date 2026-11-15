@@ -34,11 +34,11 @@ def send_otp(db: Db, kind: str, target: str, code: str, language: str) -> None:
     channel = "sms" if kind == "mobile" else "email"
     body = render("otp", language, code=code)
     get_sender(channel, get_settings()).send(to=target, template="otp", language=language, params={"code": "***"},
-                                             body=body, subject="PayMyRent verification code")
+                                             body=body, subject="RentMeezy verification code")
 
 
 def invite_sms(phone: str, owner_name: str, unit: str) -> bool:
-    """Text an invited renter straight away, even if the number has no PayMyRent account yet (so there is no user to queue a message for).
+    """Text an invited renter straight away, even if the number has no RentMeezy account yet (so there is no user to queue a message for).
     A failure never blocks the owner's save: the renter can be sent the invitation again from the tenant page."""
     try:
         body = render("invitation_install", "en", owner=owner_name, unit=unit)

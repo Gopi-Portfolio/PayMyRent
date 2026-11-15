@@ -356,7 +356,7 @@ def create_tenancy(db: Db, scope: OwnerScope, d: dict, source: str = "owner") ->
                   k=f"onboard:{tid}", by=actor)
     if d.get("opening_arrears_paise"):
         start_month = d["start_date"].replace(day=1)
-        db.scalar("SELECT rg_add_charge(:t, :m, 'opening_balance', :a, 'Opening balance before PayMyRent', :by, :src)",
+        db.scalar("SELECT rg_add_charge(:t, :m, 'opening_balance', :a, 'Opening balance before RentMeezy', :by, :src)",
                   t=tid, m=start_month, a=d["opening_arrears_paise"], by=actor, src="import" if source == "import" else "owner")
     if d.get("notes"):
         db.exec("""INSERT INTO notes(owner_account_id, tenancy_id, target_type, target_id, author_user_id, author_role, body, visibility)
@@ -369,8 +369,8 @@ def create_tenancy(db: Db, scope: OwnerScope, d: dict, source: str = "owner") ->
     sms_sent = notify.invite_sms(d["tenant_mobile"], owner_name, d["unit_identifier"]) if not tenant_user else None   # no account yet: text the number now
     db.audit(actor, owner, "tenancy.invited", "tenancy", tid, after={"unit": d["unit_identifier"], "source": source})
     return {"tenancy_id": str(tid), "invitation_id": str(inv), "tenant_registered": tenant_user is not None, "invite_sms_sent": sms_sent,
-            "share_text": f"{owner_name} has added you as the tenant of {d['unit_identifier']} on PayMyRent. "
-                          f"Install PayMyRent and sign in with {d['tenant_mobile'][3:]} to accept."}
+            "share_text": f"{owner_name} has added you as the tenant of {d['unit_identifier']} on RentMeezy. "
+                          f"Install RentMeezy and sign in with {d['tenant_mobile'][3:]} to accept."}
 
 
 def validate_tenancy_input(body: TenancyIn) -> dict:
@@ -743,7 +743,7 @@ def decide_proposal(proposal_id: UUID, decision: Literal["accept", "reject"], us
 def import_template(_: OwnerScope = Depends(owner_scope)) -> Response:
     return Response(excel_import.build_template(),
                     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    headers={"Content-Disposition": 'attachment; filename="paymyrent-tenancy-import.xlsx"'})
+                    headers={"Content-Disposition": 'attachment; filename="rentmeezy-tenancy-import.xlsx"'})
 
 
 def _import_context(db: Db, owner: UUID) -> dict:

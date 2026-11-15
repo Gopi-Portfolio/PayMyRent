@@ -54,7 +54,7 @@ COLUMNS: list[tuple[str, bool, str]] = [
     ("tenant_email", False, ""),
     ("tenant_alt_mobile", False, ""),
     ("end_date", False, "DD-MM-YYYY, after start date"),
-    ("opening_arrears", False, "Unpaid amount carried in from before PayMyRent"),
+    ("opening_arrears", False, "Unpaid amount carried in from before RentMeezy"),
     ("notes", False, "Up to 250 characters"),
 ]
 REQUIRED = {k for k, req, _ in COLUMNS if req}
@@ -267,7 +267,7 @@ def build_template() -> bytes:
     wb = Workbook()
     ins = wb.active
     ins.title = "Instructions"
-    ins.append(["PayMyRent bulk tenancy import"])
+    ins.append(["RentMeezy bulk tenancy import"])
     ins.append(["Fill the 'Tenancies' sheet. Columns marked * are required. One row per place (residential or commercial)."])
     ins.append(["Do not use formulas. Amounts are in rupees. Dates as DD-MM-YYYY."])
     ins.append(["Existing places are matched by address + number and are never overwritten."])

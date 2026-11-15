@@ -339,7 +339,7 @@ def dashboard_export(kind: Literal["collected", "pending", "overdue", "units"], 
     names = {"collected": "Collected this month", "pending": "Pending", "overdue": "Overdue", "units": "Residential and commercial"}
     total = (("Total", int(d["total_paise"])) if d["total_paise"] is not None else None)
     t = _t(names[kind], head, rows, money, total)
-    return _file(f"paymyrent-{kind}-{today:%Y%m%d}", fmt, f"PayMyRent — {names[kind]}", f"As on {today:%d-%m-%Y}", [t])
+    return _file(f"rentmeezy-{kind}-{today:%Y%m%d}", fmt, f"RentMeezy — {names[kind]}", f"As on {today:%d-%m-%Y}", [t])
 
 
 def _t(name, head, rows, money, total):
@@ -377,7 +377,7 @@ def statement(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: 
     tenancy_party(db, user, tenancy_id)
     if fmt in ("pdf", "xlsx"):
         title, sub, tables = statement_tables(db, tenancy_id)
-        return _file(f"paymyrent-statement-{date.today():%Y%m%d}", fmt, title, sub, tables)
+        return _file(f"rentmeezy-statement-{date.today():%Y%m%d}", fmt, title, sub, tables)
     from ..i18n.documents import render_statement
     return HTMLResponse(render_statement(db, tenancy_id, user.language))
 
@@ -403,7 +403,7 @@ def tenant_report(fmt: Literal["xlsx", "pdf"] = Query("xlsx", alias="format"), u
         _t("Payments", ["Date", "Unit", "Owner", "Method", "Status", "Amount", "Receipt"],
            [[p["paid_on"], p["identifier"], p["owner_name"], p["method"], p["status"], p["amount_paise"], p["receipt"]] for p in pays], [5], ("Total paid", paid)),
     ]
-    return _file(f"paymyrent-my-rentals-{date.today():%Y%m%d}", fmt, "PayMyRent — My rentals", f"As on {date.today():%d-%m-%Y}", tables)
+    return _file(f"rentmeezy-my-rentals-{date.today():%Y%m%d}", fmt, "RentMeezy — My rentals", f"As on {date.today():%d-%m-%Y}", tables)
 
 
 UPDATE_TEMPLATES = ("transfer_rejected", "pay_method_changed", "terms_changed", "relief_approved", "relief_declined", "cash_recorded", "deposit_changed", "payment_received", "charge_reviewed", "tenancy_closed", "vacate_declined", "owner_transferred")

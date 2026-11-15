@@ -115,7 +115,7 @@ export default function OwnerTenancy() {
           <MessageLink tenancyId={String(id)} />
           <ItemsProvided text={d?.tenancy.items_provided} />
           <BillView bill={bill.data} />
-          <DownloadButtons path={`/api/v1/tenancies/${id}/statement`} fileName="paymyrent-statement" ownerAccount={owner} />
+          <DownloadButtons path={`/api/v1/tenancies/${id}/statement`} fileName="rentmeezy-statement" ownerAccount={owner} />
           <Button icon="file-document" onPress={() => run(() => api(`/api/v1/owner/tenancies/${id}/invoices?month=${month}`, { method: 'POST', ownerAccount: owner }))}>
             {t('bill.generate')}
           </Button>

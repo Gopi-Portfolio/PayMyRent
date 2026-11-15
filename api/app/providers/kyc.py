@@ -1,7 +1,7 @@
 """Identity-verification (eKYC) provider adapters.
 
 The real flow is delegated to a licensed provider (government ID via DigiLocker / Aadhaar eKYC, a liveness selfie,
-and face + name match). PayMyRent never performs face matching itself and never stores ID numbers, ID images or
+and face + name match). RentMeezy never performs face matching itself and never stores ID numbers, ID images or
 selfies — only the outcome flags below. Connect a provider by implementing `KycProvider` and selecting it with
 RG_KYC_PROVIDER; until then `SandboxKyc` simulates outcomes for local demos and `NotConfiguredKyc` refuses.
 """

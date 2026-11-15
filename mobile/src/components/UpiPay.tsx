@@ -1,4 +1,4 @@
-// Tenant pays the owner's UPI ID directly (Google Pay or any UPI app). Free: PayMyRent only records it.
+// Tenant pays the owner's UPI ID directly (Google Pay or any UPI app). Free: RentMeezy only records it.
 // Money moves in the UPI app. Back here the tenant enters the UPI reference (UTR); the owner checks their own bank/UPI app and confirms.
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useRef, useState } from 'react';

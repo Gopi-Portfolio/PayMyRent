@@ -54,7 +54,7 @@ class SesEmailSender:
     def send(self, *, to: str, template: str, language: str, params: dict, body: str, subject: str | None = None) -> SendResult:
         try:
             r = self.client.send_email(FromEmailAddress=self.from_address, Destination={"ToAddresses": [to]},
-                                       Content={"Simple": {"Subject": {"Data": subject or "PayMyRent", "Charset": "UTF-8"},
+                                       Content={"Simple": {"Subject": {"Data": subject or "RentMeezy", "Charset": "UTF-8"},
                                                            "Body": {"Text": {"Data": body, "Charset": "UTF-8"}}}})
             return SendResult("sent", "ses", r.get("MessageId"))
         except Exception as e:  # noqa: BLE001
@@ -90,7 +90,7 @@ class FcmSender:
             return SendResult("failed", "fcm", None, "auth_" + type(e).__name__)
         ok, dead, last_id, err = 0, [], None, None
         for tok in [t for t in to.split(",") if t]:
-            msg = {"message": {"token": tok, "notification": {"title": subject or "PayMyRent", "body": body[:240]},
+            msg = {"message": {"token": tok, "notification": {"title": subject or "RentMeezy", "body": body[:240]},
                                "data": {"template": template}, "android": {"priority": "HIGH"}}}
             try:
                 r = httpx.post(f"https://fcm.googleapis.com/v1/projects/{self.project}/messages:send", json=msg, headers=auth, timeout=10)

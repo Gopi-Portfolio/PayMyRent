@@ -1,4 +1,4 @@
-// Help: plain-language guide to every part of PayMyRent. Reachable from the header menu, signed in or onboarding.
+// Help: plain-language guide to every part of RentMeezy. Reachable from the header menu, signed in or onboarding.
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { Icon, Text } from 'react-native-paper';

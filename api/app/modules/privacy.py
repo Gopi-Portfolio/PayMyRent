@@ -59,7 +59,7 @@ def _file(data: dict, fmt: str) -> Response:
             tables.append(rf.table(name, heads, [[r[h] for h in heads] for r in v]))
         else:
             tables.append(rf.table(name, [name], [[x] for x in v] or [["None"]]))
-    title, sub = "PayMyRent — My data", f"As on {date.today():%d-%m-%Y}"
+    title, sub = "RentMeezy — My data", f"As on {date.today():%d-%m-%Y}"
     if fmt == "csv":
         body, mime = rf.make_csv(title, sub, tables), rf.CSV
     else:
@@ -67,7 +67,7 @@ def _file(data: dict, fmt: str) -> Response:
             body, mime = rf.make_pdf(title, sub, tables), rf.PDF
         except ImportError:
             raise AppError("PDF_UNAVAILABLE", "PDF is not available on this server right now. Download the CSV file instead.", status=503) from None
-    return Response(body, media_type=mime, headers={"Content-Disposition": f'attachment; filename="paymyrent-my-data-{date.today():%Y%m%d}.{fmt}"', "Cache-Control": "no-store"})
+    return Response(body, media_type=mime, headers={"Content-Disposition": f'attachment; filename="rentmeezy-my-data-{date.today():%Y%m%d}.{fmt}"', "Cache-Control": "no-store"})
 
 
 class CloseIn(BaseModel):

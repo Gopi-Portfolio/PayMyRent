@@ -76,7 +76,7 @@ export default function Rental() {
       ) : null}
       {tab === 'history' ? (
         <>
-          <DownloadButtons path={`/api/v1/tenancies/${id}/statement`} fileName="paymyrent-statement" />
+          <DownloadButtons path={`/api/v1/tenancies/${id}/statement`} fileName="rentmeezy-statement" />
           {(hist.data?.months ?? []).map((m: any) => (
             <Panel key={m.period_month}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={{ flex: 1 }}><Text style={{ fontWeight: '800' }}>{fmtMonth(m.period_month)}</Text><Text variant="bodySmall" style={{ color: '#5B6B67' }}>{`${formatINR(m.total_paise)} · ${formatINR(m.open_paise)} open · ${t('dates.dueOn', { date: fmtDate(m.due_date) })}`}</Text></View>

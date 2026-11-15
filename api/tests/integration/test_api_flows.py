@@ -272,7 +272,7 @@ def test_reports_and_statements_download(actor):
     for kind in ("collected", "pending", "overdue", "units"):
         x = owner.get(f"/api/v1/owner/dashboard/{kind}/export", params={"format": "xlsx"})
         assert x.status_code == 200 and "spreadsheetml" in x.headers["content-type"], (kind, x.text[:200])
-        assert load_workbook(io.BytesIO(x.content)).worksheets[0]["A1"].value.startswith("PayMyRent")
+        assert load_workbook(io.BytesIO(x.content)).worksheets[0]["A1"].value.startswith("RentMeezy")
         p = owner.get(f"/api/v1/owner/dashboard/{kind}/export", params={"format": "pdf"})
         assert p.status_code == 200 and p.content[:4] == b"%PDF", (kind, p.text[:200])
     for who in (owner, tenant):
@@ -364,7 +364,7 @@ def test_new_renter_is_texted_automatically_and_invite_can_be_resent(actor, monk
     monkeypatch.setattr(notify, "invite_sms", lambda phone, owner, unit: sent.append((phone, unit)) or True)
     owner = actor(roles=("owner",))
     pay_subscription(owner)
-    newcomer = new_phone()                                                          # no PayMyRent account behind this number
+    newcomer = new_phone()                                                          # no RentMeezy account behind this number
     out = onboard(owner, newcomer)
     assert out["tenant_registered"] is False and out["invite_sms_sent"] is True
     assert [p for p, _ in sent] == ["+91" + newcomer[-10:]]                                      # texted on save, nothing for the owner to forward

@@ -17,7 +17,7 @@ import { MAX_ENTRY_PAISE, capToDue, formatINR } from '@/lib/format';
 import { brand, radius, shadow } from '@/theme';
 import { markLandingSeen } from '@/lib/landing';
 import { type KindGroup, kindGroup } from '@/lib/units';
-import { Logo, PayMyRentBarLogo, PayMyRentsLogo, RGMark, SunriseMark, playLogoIntro } from './Logo';
+import { Logo, RentMeezyBarLogo, playLogoIntro } from './Logo';
 import { RoleIcon } from './RoleIcon';
 import { BellButton } from './Bell';
 import { LanguagePill } from './LanguagePill';
@@ -282,9 +282,9 @@ export function DemoBanner() {
         {/* left: back + the sunrise logo (tap = home) */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }} onLayout={(e) => setLeftW(e.nativeEvent.layout.width)}>
           <BackButton />
-          <Pressable onPress={() => { markLandingSeen(); router.replace('/'); }} accessibilityRole="button" accessibilityLabel="paymyrents home" hitSlop={8} testID="logo"
+          <Pressable onPress={() => { markLandingSeen(); router.replace('/'); }} accessibilityRole="button" accessibilityLabel="RentMeezy home" hitSlop={8} testID="logo"
                      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
-            <PayMyRentBarLogo height={44} light />
+            <RentMeezyBarLogo height={44} light />
           </Pressable>
         </View>
         {/* centre: the page name, equal room on both sides */}
