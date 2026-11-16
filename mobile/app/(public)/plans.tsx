@@ -19,7 +19,7 @@ export default function Plans() {
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       {/* top bar: back and the page name */}
       <View style={{ paddingTop: insets.top + 8, paddingBottom: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" hitSlop={10} testID="plans-back"
+        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t('common.back')} hitSlop={10} testID="plans-back"
                    style={{ position: 'absolute', left: 12, bottom: 6, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
           <Icon source="chevron-left" size={30} color={brand.green600} />
         </Pressable>

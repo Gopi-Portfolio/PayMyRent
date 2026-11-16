@@ -42,7 +42,7 @@ export default function Profile() {
       <Field label={t('profile.fullName')} value={name} onChangeText={setName} kind="name"
              error={name && !nameCheck.success ? nameCheck.error.issues[0].message : undefined} testID="name-input" />
       <TextInput mode="outlined" label={t('profile.primaryMobile')} value={primary?.value ?? ''} editable={false}
-                 right={<TextInput.Icon icon="lock" accessibilityLabel="locked" />} />
+                 right={<TextInput.Icon icon="lock" accessibilityLabel={t('common.locked')} />} />
       <GenderPicker />
       <SearchableSelect label={t('profile.language')} value={lang} onChange={setLang}
                         options={LANGUAGES.map((l) => ({ value: l.code, label: l.label }))} />

@@ -32,13 +32,14 @@ export function goBack() {
 const ROOT_PATHS = ['/', '/owner', '/tenant', '/profile'];
 
 export function BackButton({ light = true }: { light?: boolean }) {
+  const { t } = useTranslation();
   const pathname = usePathname();
   // Shown only when there is really a screen to go back to (re-checked whenever the path changes).
   // The mobile-number screen always has one: after the plans on the landing page, or (if the app opened straight on it) the landing page itself,
   // so a visitor who changes their mind about the plan can go back.
   if (ROOT_PATHS.includes(pathname) || (!router.canGoBack() && pathname !== '/phone')) return null;
   return (
-    <Pressable onPress={goBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8} testID="back"
+    <Pressable onPress={goBack} accessibilityRole="button" accessibilityLabel={t('common.back')} hitSlop={8} testID="back"
                style={({ pressed }) => [styles.back, { backgroundColor: light ? 'rgba(255,255,255,0.18)' : brand.teal100 }, pressed && { backgroundColor: light ? 'rgba(255,255,255,0.35)' : brand.teal50, transform: [{ scale: 0.94 }] }]}>
       <Icon source="chevron-left" size={26} color={light ? '#fff' : brand.teal700} />
     </Pressable>
@@ -276,7 +277,7 @@ export function DemoBanner() {
         {/* left: back + the sunrise logo (tap = home) */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }} onLayout={(e) => setLeftW(e.nativeEvent.layout.width)}>
           <BackButton />
-          <Pressable onPress={() => { markLandingSeen(); router.replace('/'); }} accessibilityRole="button" accessibilityLabel="RentMeezy home" hitSlop={8} testID="logo"
+          <Pressable onPress={() => { markLandingSeen(); router.replace('/'); }} accessibilityRole="button" accessibilityLabel={`${t('app.name')} ${t('help.menuHome')}`} hitSlop={8} testID="logo"
                      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
             <View style={{ marginLeft: -8 }}><RentMeezyBarLogo height={34} light /></View>
           </Pressable>

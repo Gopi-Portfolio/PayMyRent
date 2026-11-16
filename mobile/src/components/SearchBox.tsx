@@ -2,6 +2,7 @@
 import React from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { Icon } from 'react-native-paper';
+import { useTranslation } from 'react-i18next';
 
 import { brand, radius } from '@/theme';
 
@@ -9,6 +10,7 @@ export function SearchBox({ value, onChangeText, placeholder, onFilter, filterAc
   value: string; onChangeText: (v: string) => void; placeholder: string; onFilter?: () => void; filterActive?: boolean; filterEnabled?: boolean;
   disabled?: boolean; filterLabel: string; testID?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', height: 46, borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1.5, borderColor: brand.line,
                    paddingLeft: 12, opacity: disabled ? 0.5 : 1 }}>
@@ -16,7 +18,7 @@ export function SearchBox({ value, onChangeText, placeholder, onFilter, filterAc
       <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={brand.faint} editable={!disabled} testID={testID}
                  returnKeyType="search" autoCorrect={false} accessibilityLabel={placeholder} style={{ flex: 1, height: 44, paddingHorizontal: 8, fontSize: 15, color: brand.ink }} />
       {value ? (
-        <Pressable onPress={() => onChangeText('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="clear" style={{ paddingHorizontal: 6 }}>
+        <Pressable onPress={() => onChangeText('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('common.clear')} style={{ paddingHorizontal: 6 }}>
           <Icon source="close-circle" size={18} color={brand.faint} />
         </Pressable>
       ) : null}

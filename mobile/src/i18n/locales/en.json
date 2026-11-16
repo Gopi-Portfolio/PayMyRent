@@ -20,7 +20,10 @@
     "done": "Done",
     "hide": "Hide details",
     "remove": "Remove this number",
-    "email": "Email"
+    "email": "Email",
+    "clear": "Clear",
+    "locked": "Locked",
+    "voiceInput": "Voice input"
   },
   "pricing": {
     "selectPlan": "Select a Plan",
@@ -47,12 +50,10 @@
     "name_growth": "Growth",
     "name_business": "Business",
     "name_max": "Max",
-    "title": "Simple Monthly Plans for Owners",
     "paidByOwner": "Only the owner pays. It is always free for renters.",
     "perMonth": "/ month",
     "units_one": "{{count}} unit",
     "units_other": "Up to {{count}} units",
-    "noAi": "No AI assistant",
     "ai": "AI voice and text, with findings · {{tokens}} tokens a month",
     "cta": "Get Started",
     "change": "Change Plan",
@@ -62,18 +63,7 @@
     "scheduled": "Your plan will change to {{plan}} on {{date}}. No payment is needed now.",
     "done": "Done",
     "choose": "Choose This Plan",
-    "current": "Your Current Plan",
-    "save": "Saved {{percent}}%",
-    "placesOne": "Up to {{count}} units in 1 property",
-    "placesMany": "Up to {{count}} units across up to {{props}} properties",
-    "billedPer": "Billed separately for each property",
-    "billedAll": "One price covers all {{props}} properties",
-    "aiDetail": "Ask about collections, dues, deposits and reminders by voice or text, in 8 languages. Findings come from your own records.",
-    "noAiDetail": "AI is part of Growth, Business and Max.",
-    "launchBadge": "Launch price",
-    "savePercent": "Save {{percent}}%",
-    "regularLabel": "Regular price",
-    "launchNote": "The launch price is what you pay today. The regular price is the plan's usual price, shown for comparison only. The price shown when you pay is the price you are charged."
+    "current": "Your Current Plan"
   },
   "auth": {
     "enterMobile": "Your mobile number",

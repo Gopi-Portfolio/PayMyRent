@@ -1,6 +1,7 @@
 // Face icons for the role bar. The same person in both roles, told apart at a glance: the OWNER wears teal with a teal ring and a house badge,
 // the RENTER wears blue with a blue ring and a key badge. Until "I Am" is chosen the owner shows a woman and a man together.
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, Path, Rect } from 'react-native-svg';
 
 const SKIN = '#E3A877', HAIR = '#1F1A17', MOUTH = '#8E3B2E';
@@ -56,9 +57,11 @@ function WomanBody({ shirt = '#E0457B' }: { shirt?: string }) {
 
 /** role + gender -> face icon. `size` is the height in px. Falls back to a neutral person until a gender is chosen. */
 export function RoleIcon({ role, gender, size = 30 }: { role: 'owner' | 'tenant'; gender: 'male' | 'female' | null; size?: number }) {
+  const { t } = useTranslation();
+  const ownerLabel = t('role.switchOwner'), renterLabel = t('role.switchTenant');      // what a screen reader says, in the app's language
   if (role === 'owner' && gender) {   // the owner: teal clothes, teal ring, house badge
     return (
-      <Svg width={size} height={size} viewBox="0 0 40 40" accessibilityLabel="Owner">
+      <Svg width={size} height={size} viewBox="0 0 40 40" accessibilityLabel={ownerLabel}>
         <Defs><ClipPath id="rg-owner-one"><Circle cx="20" cy="20" r="20" /></ClipPath></Defs>
         <Circle cx="20" cy="20" r="20" fill="#fff" />
         <G clipPath="url(#rg-owner-one)">{gender === 'male' ? <ManBody shirt={OWNER} /> : <WomanBody shirt={OWNER} />}</G>
@@ -72,7 +75,7 @@ export function RoleIcon({ role, gender, size = 30 }: { role: 'owner' | 'tenant'
   }
   if (role === 'owner') {
     return (
-      <Svg width={size * 1.25} height={size} viewBox="0 0 50 40" accessibilityLabel="Owner">
+      <Svg width={size * 1.25} height={size} viewBox="0 0 50 40" accessibilityLabel={ownerLabel}>
         <Defs><ClipPath id="rg-pair"><Rect width="50" height="40" rx="20" /></ClipPath></Defs>
         <Rect width="50" height="40" rx="20" fill="#fff" />
         <Rect x="0.5" y="0.5" width="49" height="39" rx="19.5" fill="none" stroke="#B7CFC8" strokeWidth="1" />
@@ -92,7 +95,7 @@ export function RoleIcon({ role, gender, size = 30 }: { role: 'owner' | 'tenant'
   );
   if (!gender) {   // neutral person until a gender is chosen: visible on both the dark bar and the pale tab
     return (
-      <Svg width={size} height={size} viewBox="0 0 40 40" accessibilityLabel="Renter">
+      <Svg width={size} height={size} viewBox="0 0 40 40" accessibilityLabel={renterLabel}>
         <Defs><ClipPath id="rg-neutral"><Circle cx="20" cy="20" r="20" /></ClipPath></Defs>
         <Circle cx="20" cy="20" r="19.5" fill="#DCE8FB" />
         <G clipPath="url(#rg-neutral)">
@@ -105,7 +108,7 @@ export function RoleIcon({ role, gender, size = 30 }: { role: 'owner' | 'tenant'
     );
   }
   return (   // the renter: blue clothes, blue ring, key badge
-    <Svg width={size} height={size} viewBox="0 0 40 40" accessibilityLabel="Renter">
+    <Svg width={size} height={size} viewBox="0 0 40 40" accessibilityLabel={renterLabel}>
       <Defs><ClipPath id="rg-one"><Circle cx="20" cy="20" r="20" /></ClipPath></Defs>
       <Circle cx="20" cy="20" r="20" fill="#fff" />
       <G clipPath="url(#rg-one)">{gender === 'male' ? <ManBody shirt={RENTER} /> : <WomanBody shirt={RENTER} />}</G>

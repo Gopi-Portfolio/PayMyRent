@@ -51,7 +51,7 @@ export function NoteInput({ onSubmit, busy }: Props) {
       <DoneBar />
       <TextInput mode="outlined" multiline inputAccessoryViewID={DONE_ID} maxLength={1000} value={text.toLocaleUpperCase()} onChangeText={(v) => { setText(v.toLocaleUpperCase()); }} autoCapitalize="characters" placeholder={t('notes.placeholder')}
                  accessibilityLabel={t('notes.placeholder')} error={over}
-                 right={!speechAvailable ? undefined : <TextInput.Icon icon={listening ? 'microphone-off' : 'microphone'} accessibilityLabel="voice"
+                 right={!speechAvailable ? undefined : <TextInput.Icon icon={listening ? 'microphone-off' : 'microphone'} accessibilityLabel={t('common.voiceInput')}
                                         onPress={() => (listening ? ExpoSpeechRecognitionModule.stop() : startVoice())} />} />
       <HelperText type={over ? 'error' : 'info'} accessibilityLiveRegion="polite">
         {method === 'voice' && text ? `${t('notes.reviewVoice')} · ` : ''}{count}/{NOTE_MAX}
@@ -66,13 +66,13 @@ export function NoteInput({ onSubmit, busy }: Props) {
 }
 
 export function MicButton({ onText, lang }: { onText: (s: string) => void; lang?: string }) {   // lang: listen in this language instead of the app's
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [on, setOn] = useState(false);
   useSpeechRecognitionEvent('result', (e) => { if (e.isFinal) onText(e.results[0]?.transcript ?? ''); });
   useSpeechRecognitionEvent('end', () => setOn(false));
   if (!speechAvailable) return null;
   return (
-    <IconButton icon={on ? 'microphone-off' : 'microphone'} size={28} accessibilityLabel="voice input" onPress={async () => {
+    <IconButton icon={on ? 'microphone-off' : 'microphone'} size={28} accessibilityLabel={t('common.voiceInput')} onPress={async () => {
       if (on) return ExpoSpeechRecognitionModule.stop();
       const p = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!p.granted) return;
