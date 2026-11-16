@@ -20,8 +20,9 @@ const descriptors = (over: Record<string, any> = {}) => ({
   'profile-1': { options: { title: 'Profile', tabBarIcon: icon } },
   ...over,
 });
-const bar = (d = descriptors(), index = 0, navigation: any = { emit: jest.fn(() => ({ defaultPrevented: false })), navigate: jest.fn() }) => ({
-  navigation, ui: render(<PaperProvider><AppTabBar state={{ index, routes }} descriptors={d} navigation={navigation} /></PaperProvider>),
+// the props expo-router really passes to a custom tab bar: state, descriptors, emitter and navigateToTab
+const bar = (d = descriptors(), index = 0, nav: any = { emitter: { emit: jest.fn(() => ({ defaultPrevented: false })) }, navigateToTab: jest.fn() }) => ({
+  nav, ui: render(<PaperProvider><AppTabBar state={{ index, routes }} descriptors={d} emitter={nav.emitter} navigateToTab={nav.navigateToTab} /></PaperProvider>),
 });
 
 test('an owner sees exactly Owner, Search and Profile, each in a slot of the same size, with no gap where Pay would be', () => {
@@ -47,13 +48,27 @@ test('a renter\'s Pay slider sits in a slot of the same width as the other tabs'
 });
 
 test('tapping a tab announces the press and goes there; tapping the open tab does not navigate again', () => {
-  const { ui, navigation } = bar(descriptors(), 0);
+  const { ui, nav } = bar(descriptors(), 0);
   fireEvent.press(ui.getByTestId('tab-search'));
-  expect(navigation.emit).toHaveBeenCalledWith({ type: 'tabPress', target: 'search-1', canPreventDefault: true });
-  expect(navigation.navigate).toHaveBeenCalledWith('search', undefined);
-  navigation.navigate.mockClear();
+  expect(nav.emitter.emit).toHaveBeenCalledWith({ type: 'tabPress', target: 'search-1', canPreventDefault: true });
+  expect(nav.navigateToTab).toHaveBeenCalledWith('search-1');
+  nav.navigateToTab.mockClear();
   fireEvent.press(ui.getByTestId('tab-owner'));
-  expect(navigation.navigate).not.toHaveBeenCalled();
+  expect(nav.navigateToTab).not.toHaveBeenCalled();
+});
+
+test('a tap that something else has cancelled does not navigate', () => {
+  const nav = { emitter: { emit: jest.fn(() => ({ defaultPrevented: true })) }, navigateToTab: jest.fn() };
+  const { ui } = bar(descriptors(), 0, nav);
+  fireEvent.press(ui.getByTestId('tab-profile/index'));
+  expect(nav.navigateToTab).not.toHaveBeenCalled();
+});
+
+test('uses the props the navigator really passes: the library calls a custom tab bar with state, descriptors, emitter and navigateToTab', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '../node_modules/expo-router/build/react-navigation/bottom-tabs/views/BottomTabView.js'), 'utf8');
+  const call = src.slice(src.indexOf('tabBar({'), src.indexOf('tabBar({') + 400);
+  for (const prop of ['state', 'descriptors', 'emitter', 'navigateToTab']) expect(call).toContain(prop);
+  expect(call).not.toMatch(/\bnavigation\b/);                       // there is no navigation object, which is what the first version of the bar wrongly used
 });
 
 test('the open tab is marked as selected for screen readers', () => {

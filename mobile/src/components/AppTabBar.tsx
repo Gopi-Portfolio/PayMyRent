@@ -11,15 +11,17 @@ import { brand } from '@/theme';
 export const TAB_HEIGHT = 56;           // the part of the bar above the home-indicator space
 export const MIN_BOTTOM_SPACE = 8;      // some room under the labels even on a phone with no home indicator
 
-// just the parts of the navigator's props that this bar uses
+// just the parts of the navigator's props that this bar uses. expo-router hands a custom tab bar `emitter` and `navigateToTab` (there is no `navigation`);
+// the test "uses the props the navigator really passes" checks this against the library's own code, so a library update cannot silently break it.
 type RouteLike = { key: string; name: string; params?: object };
 export type AppTabBarProps = {
   state: { index: number; routes: RouteLike[] };
   descriptors: Record<string, { options: any }>;
-  navigation: { emit: (event: any) => { defaultPrevented?: boolean }; navigate: (name: string, params?: object) => void };
+  emitter: { emit: (event: any) => { defaultPrevented?: boolean } };
+  navigateToTab: (routeKey: string) => void;
 };
 
-export function AppTabBar({ state, descriptors, navigation }: AppTabBarProps) {
+export function AppTabBar({ state, descriptors, emitter, navigateToTab }: AppTabBarProps) {
   const insets = useSafeAreaInsets();
   const bottomSpace = Math.max(insets.bottom, MIN_BOTTOM_SPACE);
   return (
@@ -34,8 +36,8 @@ export function AppTabBar({ state, descriptors, navigation }: AppTabBarProps) {
         const focused = state.index === index;
         const label: string = options.title ?? route.name;
         const onPress = () => {
-          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-          if (!focused && !event?.defaultPrevented) navigation.navigate(route.name, route.params);
+          const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+          if (!focused && !event?.defaultPrevented) navigateToTab(route.key);
         };
         return (
           <Pressable key={route.key} onPress={onPress} style={styles.item} accessibilityRole="tab" accessibilityState={{ selected: focused }}
