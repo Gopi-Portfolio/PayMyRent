@@ -4,7 +4,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
@@ -32,6 +32,7 @@ function AllotPanel({ renter, owner, onDone }: { renter: Renter; owner: string |
   const [place, setPlace] = useState<Place | null>(null);
   const [f, setF] = useState({ rent: '', due: '5', start: todayDMY(), end: addMonthsDMY(todayDMY(), 11), deposit: '' });
   const [touched, setTouched] = useState(false);
+  const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v });
@@ -45,6 +46,7 @@ function AllotPanel({ renter, owner, onDone }: { renter: Renter; owner: string |
 
   async function assign() {
     setTouched(true);
+    if (e.due || e.start || e.end) setMore(true);          // show the details that need fixing
     if (!ready || !place) return;
     setBusy(true); setErr(null);
     try {
@@ -72,6 +74,7 @@ function AllotPanel({ renter, owner, onDone }: { renter: Renter; owner: string |
         </View>
       ) : (
         <>
+          <Text style={styles.step}>{t('renter.step1')}</Text>
           {items.length > 1 ? (
             <SearchableSelect label={t('tenancy.property')} value={chosen} options={items.map((p: any) => ({ value: p.id, label: p.name || p.address, subtitle: p.address }))}
                               onChange={(v) => { setPropertyId(v); setPlace(null); }} />
@@ -88,11 +91,26 @@ function AllotPanel({ renter, owner, onDone }: { renter: Renter; owner: string |
                 <Button mode="outlined" icon="door-open" onPress={() => router.push({ pathname: '/(app)/owner/add-property', params: chosen ? { propertyId: String(chosen) } : {} })} testID="add-unit-link">{t('property.addPlace')}</Button>
               </View>
             )}
+          <Text style={styles.step}>{t('renter.step2')}</Text>
           <Field label={t('tenancy.rent')} value={f.rent} onChangeText={set('rent')} kind="amount" error={touched ? e.rent : undefined} testID="allot-rent" />
           <Field label={t('tenancy.advanceReceived')} value={f.deposit} onChangeText={set('deposit')} kind="amount" error={touched ? e.deposit : undefined} testID="allot-advance" />
-          <Field label={t('tenancy.dueDay')} value={f.due} onChangeText={set('due')} kind="day" maxNumber={31} min={1} error={touched ? e.due : undefined} testID="allot-due" />
-          <Field label={`${t('tenancy.startDate')} (DD-MM-YYYY)`} value={f.start} onChangeText={set('start')} kind="date" error={touched ? e.start : undefined} testID="allot-start" />
-          <Field label={`${t('tenancy.endDate')} (DD-MM-YYYY)`} value={f.end} onChangeText={set('end')} kind="date" error={touched ? e.end : undefined} testID="allot-end" />
+          <Pressable onPress={() => setMore(!more)} accessibilityRole="button" testID="allot-more" style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 }}>
+            <Icon source={more ? 'chevron-up' : 'chevron-down'} size={22} color={brand.teal700} />
+            <Text style={{ color: brand.teal700, fontWeight: '800' }}>{t('renter.moreTerms')}</Text>
+          </Pressable>
+          {more ? (
+            <View style={{ gap: 12 }}>
+              <Field label={t('tenancy.dueDay')} value={f.due} onChangeText={set('due')} kind="day" maxNumber={31} min={1} error={touched ? e.due : undefined} testID="allot-due" />
+              <Field label={`${t('tenancy.startDate')} (DD-MM-YYYY)`} value={f.start} onChangeText={set('start')} kind="date" error={touched ? e.start : undefined} testID="allot-start" />
+              <Field label={`${t('tenancy.endDate')} (DD-MM-YYYY)`} value={f.end} onChangeText={set('end')} kind="date" error={touched ? e.end : undefined} testID="allot-end" />
+            </View>
+          ) : null}
+          <Text style={styles.step}>{t('renter.step3')}</Text>
+          {place && !e.rent ? (
+            <View style={{ backgroundColor: brand.green100, borderRadius: radius.md, padding: 12 }} testID="allot-summary">
+              <Text style={{ color: brand.green600, fontWeight: '800', lineHeight: 21 }}>{t('renter.summary', { name: renter.name, unit: place.identifier, rent: f.rent })}</Text>
+            </View>
+          ) : null}
           <Text style={{ color: brand.muted, lineHeight: 20 }} testID="assign-tells">{t('renter.assignTells', { phone: renter.phone })}</Text>
           <ErrorBanner error={err} />
           <AppButton label={t('renter.assign')} icon="send-check" onPress={assign} loading={busy} disabled={busy || !place} testID="assign-button" />
@@ -136,7 +154,9 @@ export default function AllotRenter() {
               <Text variant="bodySmall" style={{ color: brand.muted }} numberOfLines={1}>{[r.phone, r.email].filter(Boolean).join(' · ')}</Text>
               {r.address ? <Text variant="bodySmall" style={{ color: brand.muted }} numberOfLines={1}>{r.address}</Text> : null}
             </View>
-            <AppButton compact icon={open === r.id ? 'chevron-up' : 'home-plus'} label={t('renter.addPlace')} variant={open === r.id ? 'outline' : 'primary'}
+          </View>
+          <View style={{ marginTop: 12 }}>
+            <AppButton icon={open === r.id ? 'chevron-up' : 'home-plus'} label={open === r.id ? t('common.close') : t('renter.addPlace')} variant={open === r.id ? 'outline' : 'primary'}
                        onPress={() => setOpen(open === r.id ? null : r.id)} testID={`allot-open-${r.id}`} />
           </View>
           {open === r.id ? <AllotPanel renter={r} owner={owner} onDone={(m) => { setDone(m); const next = items.find((x) => x.id !== r.id); setOpen(next ? next.id : null); qc.invalidateQueries({ queryKey: ['renters'] }); }} /> : null}
@@ -148,3 +168,5 @@ export default function AllotRenter() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({ step: { fontSize: 16, fontWeight: '800', color: brand.ink, marginTop: 4 } });

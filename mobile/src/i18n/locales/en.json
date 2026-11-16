@@ -1012,6 +1012,11 @@
     "recordPayment": "Record Payment",
     "openSettings": "Open Settings",
     "cameraTitle": "Camera is off",
-    "cameraOff": "Allow the camera for RentMeezy in Settings to take a photo. You can also use Upload to choose a photo you already have."
+    "cameraOff": "Allow the camera for RentMeezy in Settings to take a photo. You can also use Upload to choose a photo you already have.",
+    "step1": "1. Choose the property and unit",
+    "step2": "2. Set the rent",
+    "step3": "3. Confirm",
+    "moreTerms": "Due day and dates (already filled in)",
+    "summary": "{{name}} will get {{unit}} at ₹{{rent}} a month."
   }
 }

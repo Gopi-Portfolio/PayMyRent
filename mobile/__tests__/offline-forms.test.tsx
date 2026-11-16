@@ -83,10 +83,24 @@ describe('Allot Renter', () => {
     const ui = wrap(<AllotRenter />);
     await waitFor(() => ui.getByTestId('allot-panel-r1'));
     await waitFor(() => ui.getByTestId('places-dropdown'));
-    expect(ui.getAllByText('Add property/unit')).toHaveLength(2);        // one beside each waiting renter, none inside the open panel
+    expect(ui.getAllByText('Add property/unit')).toHaveLength(1);        // the other waiting renter's button; the open one says Close, and none is inside the panel
     expect(ui.queryByTestId('add-unit-link')).toBeNull();
     fireEvent.press(ui.getByTestId('allot-done-button'));
     expect(mockRouter.back).toHaveBeenCalled();
+  });
+
+  test('the panel is three plain steps; the dates are already filled in and hidden until asked for, and a summary says what will happen', async () => {
+    const ui = wrap(<AllotRenter />);
+    await waitFor(() => ui.getByTestId('places-dropdown'));
+    for (const step of ['1. Choose the property and unit', '2. Set the rent', '3. Confirm']) expect(ui.getByText(step)).toBeTruthy();
+    expect(ui.queryByTestId('allot-end')).toBeNull();
+    fireEvent.press(ui.getByTestId('allot-more'));
+    expect(ui.getByTestId('allot-end')).toBeTruthy();
+    fireEvent.press(ui.getByTestId('places-dropdown'));
+    fireEvent.press(ui.getByTestId('unit-free-S-01'));
+    fireEvent.changeText(ui.getByTestId('allot-rent'), '12000');
+    expect(ui.getByTestId('allot-summary')).toBeTruthy();
+    expect(ui.getByText('Ravi Kumar will get S-01 at ₹12000 a month.')).toBeTruthy();
   });
 
   test('after one renter is assigned the next waiting renter opens by itself, so the list can be finished one after another', async () => {
