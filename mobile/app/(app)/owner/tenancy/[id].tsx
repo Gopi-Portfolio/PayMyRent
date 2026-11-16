@@ -91,6 +91,11 @@ export default function OwnerTenancy() {
             <Icon source="lock" size={16} color={brand.teal700} />
             <Text variant="bodySmall" style={{ flex: 1, color: brand.teal700, fontWeight: '700' }}>{`${d.contact?.phone ?? d.tenancy.invited_phone} · ${t('tenant.lockedPhone')}`}</Text>
           </View>
+          {d.tenancy.status === 'active' ? (
+            <Button mode="contained" icon="hand-coin" onPress={() => router.push({ pathname: '/(app)/owner/record-payment', params: { tenancyId: String(id) } })} testID="record-payment">
+              {t('renter.recordPayment')}
+            </Button>
+          ) : null}
           {d.tenancy.status === 'invited' ? (
             <Button icon="message-text-outline" onPress={() => run(() => api(`/api/v1/owner/tenancies/${id}/resend-invite`, { method: 'POST', ownerAccount: owner }))} testID="resend-invite">
               {t('tenancy.resendInvite', { defaultValue: 'Send invitation again' })}

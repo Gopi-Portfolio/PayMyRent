@@ -108,8 +108,8 @@ export default function OwnerHome() {
                 colors: ['#176F01', '#1F8A02'], onPress: () => router.push('/(app)/owner/add-property'), testID: 'add-property' },
               { key: 'renter', icon: 'account-plus', title: t('owner.addTenant'), message: t('owner.addRenterMsg'), colors: ['#00346F', '#0B58A8'],
                 onPress: () => router.push('/(app)/owner/add-tenant'), testID: 'add-tenant' },
-              { key: 'rent', icon: 'hand-coin', title: t('owner.addRent'), message: t('owner.addRentMsg'),
-                colors: ['#E0620C', '#F97A1B'], onPress: () => router.push('/(app)/owner/record-payment'), testID: 'record-payment' },
+              { key: 'allot', icon: 'home-account', title: t('owner.allotRenter'), message: t('owner.allotRenterMsg'),
+                colors: ['#E0620C', '#F97A1B'], onPress: () => router.push('/(app)/owner/allot'), testID: 'allot-renter' },
             ]} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <MiniAction icon="bell-ring" label={t('owner.reminders')} fg="#B45309" bg={brand.amber100} onPress={() => router.push('/(app)/owner/ai')} />
@@ -136,11 +136,11 @@ export default function OwnerHome() {
               <Text variant="bodySmall" style={{ color: '#B45309', fontWeight: '700' }}>{item.vacant_since ? t('property.vacantSince', { date: fmtDate(item.vacant_since) }) : t('property.neverLet')}</Text>
               {item.last_rent_paise ? <Text variant="bodySmall" style={{ color: brand.muted }}>{`${t('tenancy.rent')}: ${formatINR(item.last_rent_paise)}`}</Text> : null}
             </View>
-            <Pressable onPress={() => router.push({ pathname: '/(app)/owner/add-tenant', params: { unitId: item.id, identifier: item.identifier, rent: item.last_rent_paise ? String(Math.round(item.last_rent_paise / 100)) : '' } })}
-                       accessibilityRole="button" testID="add-renter-to-vacant"
+            <Pressable onPress={() => router.push('/(app)/owner/allot')}
+                       accessibilityRole="button" testID="allot-to-vacant"
                        style={{ backgroundColor: brand.teal700, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', gap: 6, alignItems: 'center' }}>
               <Icon source="account-plus" size={18} color="#fff" />
-              <Text style={{ color: '#fff', fontWeight: '800' }}>{t('property.addRenter')}</Text>
+              <Text style={{ color: '#fff', fontWeight: '800' }}>{t('owner.allotRenter')}</Text>
             </Pressable>
           </View>
         )}

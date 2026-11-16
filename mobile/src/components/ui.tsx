@@ -246,7 +246,7 @@ function usePageTitle(): string | null {
   const { t } = useTranslation();
   const path = usePathname();
   const rules: [RegExp, () => string][] = [
-    [/^\/owner\/owner-numbers/, () => t('ownerNumbers.title')], [/^\/owner\/add-property/, () => t('property.add')], [/^\/owner\/properties/, () => t('property.title')], [/^\/owner\/add-tenant/, () => t('owner.addTenant')], [/^\/owner\/record-payment/, () => t('owner.recordPayment')],
+    [/^\/owner\/owner-numbers/, () => t('ownerNumbers.title')], [/^\/owner\/add-property/, () => t('property.add')], [/^\/owner\/properties/, () => t('property.title')], [/^\/owner\/allot/, () => t('renter.allotTitle')], [/^\/owner\/add-tenant/, () => t('owner.addTenant')], [/^\/owner\/record-payment/, () => t('owner.recordPayment')],
     [/^\/owner\/ai/, () => t('owner.askAi')], [/^\/owner\/approvals/, () => t('owner.approvals')], [/^\/owner\/relief/, () => t('relief.title')], [/^\/owner\/message/, () => t('message.title')], [/^\/notifications/, () => t('notifications.title')], [/^\/owner\/import/, () => t('owner.import')],
     [/^\/owner\/report\/collected/, () => t('owner.collected')], [/^\/owner\/report\/pending/, () => t('owner.pending')],
     [/^\/owner\/report\/overdue/, () => t('owner.overdue')], [/^\/owner\/report\/units/, () => t('owner.units')],

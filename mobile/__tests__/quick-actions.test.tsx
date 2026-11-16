@@ -44,8 +44,8 @@ test('a small button can show a green tick when nothing is waiting, so Approvals
 
 const CARDS = (onPress = jest.fn()) => [
   { key: 'property', icon: 'home-plus', title: 'Add Property', message: 'Add a building or a shop complex, then the units inside it.', footnote: '2 Vacant', colors: ['#176F01', '#1F8A02'] as const, onPress, testID: 'add-property' },
-  { key: 'renter', icon: 'account-plus', title: 'Add Renter', message: 'Move a renter into a vacant unit and set the rent.', colors: ['#00346F', '#0B58A8'] as const, onPress, testID: 'add-tenant' },
-  { key: 'rent', icon: 'hand-coin', title: 'Add Rent', message: 'Record the cash rent a renter has paid you in hand.', colors: ['#E0620C', '#F97A1B'] as const, onPress, testID: 'record-payment' },
+  { key: 'renter', icon: 'account-plus', title: 'Add Renter', message: "Record a renter's name, mobile, address and photo ID.", colors: ['#00346F', '#0B58A8'] as const, onPress, testID: 'add-tenant' },
+  { key: 'allot', icon: 'home-account', title: 'Allot Renter', message: 'Give a new renter a property and unit, set the rent, and tell them by SMS, WhatsApp and email.', colors: ['#E0620C', '#F97A1B'] as const, onPress, testID: 'allot-renter' },
 ];
 const laidOut = (ui: ReturnType<typeof render>, width = 360) =>
   act(() => ui.getByTestId('action-carousel').props.onLayout({ nativeEvent: { layout: { width, height: 200 } } }));
@@ -54,7 +54,7 @@ test('each swipe card says what it does in a sentence, and opens on a tap', () =
   const onPress = jest.fn();
   const ui = wrap(<ActionCarousel cards={CARDS(onPress)} />);
   laidOut(ui);
-  for (const [title, message] of [['Add Property', 'Add a building or a shop complex, then the units inside it.'], ['Add Renter', 'Move a renter into a vacant unit and set the rent.'], ['Add Rent', 'Record the cash rent a renter has paid you in hand.']]) {
+  for (const [title, message] of [['Add Property', 'Add a building or a shop complex, then the units inside it.'], ['Add Renter', "Record a renter's name, mobile, address and photo ID."], ['Allot Renter', 'Give a new renter a property and unit, set the rent, and tell them by SMS, WhatsApp and email.']]) {
     expect(ui.getByText(title)).toBeTruthy();
     expect(ui.getByText(message)).toBeTruthy();
   }

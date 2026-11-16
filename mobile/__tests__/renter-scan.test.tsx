@@ -139,22 +139,21 @@ describe('the scan button', () => {
 describe('in Add Renter', () => {
   test('a scanned ID fills the name and mobile of the form; the owner can still change them before saving', async () => {
     mockApi.mockImplementation(async (path: string) => (path === '/api/v1/owner/renter-scan' ? { name: 'IMRAN KHAN', mobile: '9123456780', found: true } : { items: [] }));
-    queryClient.setQueryData(['upi-ids', 'o1'], { upi_ids: [], default_upi_id: null, last_pay_method: null, default_pay_method: 'cash', online_available: false });
     const ui = wrap(<AddTenant />);
     expect(ui.getByTestId('renter-scan')).toBeTruthy();
     await act(async () => { fireEvent.press(ui.getByTestId('scan-camera')); });
-    await waitFor(() => expect(ui.getByTestId('quick-name').props.value).toBe('IMRAN KHAN'));
-    expect(ui.getByTestId('quick-mobile').props.value).toBe('9123456780');
-    fireEvent.changeText(ui.getByTestId('quick-name'), 'Imran Khan Sr');         // a reading mistake is simply corrected
-    expect(ui.getByTestId('quick-name').props.value).toBe('IMRAN KHAN SR');
+    await waitFor(() => expect(ui.getByTestId('renter-name').props.value).toBe('IMRAN KHAN'));
+    expect(ui.getByTestId('renter-mobile').props.value).toBe('9123456780');
+    fireEvent.changeText(ui.getByTestId('renter-name'), 'Imran Khan Sr');         // a reading mistake is simply corrected
+    expect(ui.getByTestId('renter-name').props.value).toBe('IMRAN KHAN SR');
   });
 
   test('a scan that found only a name keeps the mobile number the owner had already typed', async () => {
     mockApi.mockImplementation(async (path: string) => (path === '/api/v1/owner/renter-scan' ? { name: 'IMRAN KHAN', mobile: null, found: true } : { items: [] }));
     const ui = wrap(<AddTenant />);
-    fireEvent.changeText(ui.getByTestId('quick-mobile'), '9876543210');
+    fireEvent.changeText(ui.getByTestId('renter-mobile'), '9876543210');
     await act(async () => { fireEvent.press(ui.getByTestId('scan-camera')); });
-    await waitFor(() => expect(ui.getByTestId('quick-name').props.value).toBe('IMRAN KHAN'));
-    expect(ui.getByTestId('quick-mobile').props.value).toBe('9876543210');
+    await waitFor(() => expect(ui.getByTestId('renter-name').props.value).toBe('IMRAN KHAN'));
+    expect(ui.getByTestId('renter-mobile').props.value).toBe('9876543210');
   });
 });

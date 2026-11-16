@@ -152,8 +152,10 @@
     "addProperty": "Add Property",
     "addRent": "Add Rent",
     "addPropertyMsg": "Add a building or a shop complex, then the units inside it.",
-    "addRenterMsg": "Move a renter into a vacant unit and set the rent.",
-    "addRentMsg": "Record the cash rent a renter has paid you in hand."
+    "addRenterMsg": "Record a renter's name, mobile, address and photo ID.",
+    "addRentMsg": "Record the cash rent a renter has paid you in hand.",
+    "allotRenter": "Allot Renter",
+    "allotRenterMsg": "Give a new renter a property and unit, set the rent, and tell them by SMS, WhatsApp and email."
   },
   "tenancy": {
     "property": "Building Address",
@@ -976,5 +978,37 @@
     "foundSome": "Some details were read. Please check them and fill in the rest.",
     "nothing": "Nothing could be read from this photo. Try a clearer, closer photo, or type the details.",
     "needsInternet": "Scanning needs the internet. You can type the details now."
+  },
+  "renter": {
+    "title": "Add Renter",
+    "intro": "Record who is moving in. Name, mobile number and a photo ID are required.",
+    "optional": "optional",
+    "address": "Current Address",
+    "idType": "Type of ID",
+    "id_aadhaar": "Aadhaar",
+    "id_pan": "PAN",
+    "id_voter": "Voter ID",
+    "id_driving": "Driving Licence",
+    "id_passport": "Passport",
+    "idTypeRequired": "Choose the type of ID.",
+    "aadhaarNote": "The first 8 digits of the Aadhaar number are hidden automatically. If they cannot be hidden, the photo is not accepted.",
+    "idPhoto": "Photo of the ID",
+    "upload": "Upload",
+    "photoAdded": "ID photo added",
+    "photoRequired": "A photo of the ID is required.",
+    "privateNote": "The photo is stored encrypted and only you can see it.",
+    "consent": "I confirm I may keep a copy of this ID.",
+    "consentRequired": "Please tick to confirm.",
+    "save": "Save Renter",
+    "allotTitle": "Allot Renter",
+    "allotIntro": "New renters waiting to be allotted. Tap the button next to a renter to pick a property and unit.",
+    "addPlace": "Add property/unit",
+    "noneWaiting": "No new renters are waiting. Add a renter first.",
+    "assign": "Assign",
+    "assignTells": "Assign will tell {{phone}} by SMS, WhatsApp and email. The renter then accepts in the app.",
+    "assigned": "{{name}} is allotted {{unit}}. They have been told by SMS, WhatsApp and email.",
+    "assignedLater": "Saved on this phone. {{name}} will be allotted {{unit}} and told when you're back online.",
+    "itemAllot": "Allot {{name}} to {{unit}}",
+    "recordPayment": "Record Payment"
   }
 }

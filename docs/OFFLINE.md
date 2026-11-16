@@ -62,3 +62,10 @@ parameter wrapped in `idempotent(...)`, add a label text in all languages and, i
 * `mobile/e2e-live/offline-live.test.ts`: the real engine against a real backend (12 scenarios: lost reply, app killed mid-send, two copies at once,
   connection dropping mid-batch, a refusal, expired sign-in, renter side, a batch of 25). `npm run test:offline-live` with `OFFLINE_E2E_URL` set;
   run by `.github/workflows/offline-e2e.yml`.
+
+## Add Renter and Allot Renter
+
+- **Add Renter** records who the renter is (name, mobile and a photo ID are required; email and current address are optional). The ID photo is uploaded, so this needs the internet and is never saved for later (the screen says so while offline).
+- **Allot Renter** lists the renters not yet given a place. Assigning one (`POST /owner/renters/{id}/allot`, kind `renter.allot`) **is** saved for later when offline: the unit shows as rented (waiting) and the renter leaves the waiting list; it is sent with the same `Idempotency-Key` when the connection returns, so the renter is allotted and told once.
+- Assign tells the renter by SMS, WhatsApp and email at the number and email recorded; a channel that fails does not block the allotment (the reply says which channels were sent).
+- The photo ID is stored encrypted and only the owner can view it; an Aadhaar has its first 8 digits blacked out before it is stored (refused if that fails).

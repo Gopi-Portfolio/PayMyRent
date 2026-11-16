@@ -3,7 +3,7 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { PaperProvider } from 'react-native-paper';
 
-import AddTenant from '../app/(app)/owner/add-tenant';
+import AllotRenter from '../app/(app)/owner/allot';
 import { PlacesManager } from '@/components/PlacesManager';
 import { setOnline } from '@/lib/network';
 import { clearOfflineData } from '@/lib/offlineData';
@@ -18,8 +18,9 @@ jest.mock('@/lib/api', () => {
   return { api: jest.fn(), ApiError, newIdempotencyKey: () => 'key-' + Math.random().toString(36).slice(2, 14), API_URL: 'http://api.test' };
 });
 jest.mock('@/lib/auth', () => ({ useAuth: () => ({ me: { owner_accounts: [{ owner_account_id: 'o1', verification: 'verified' }] } }), ownerAccountId: () => 'o1' }));
+let mockParams: Record<string, string> = { open: 'r1' };
 const mockRouter = { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: () => true };
-jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({ unitId: 'u1', identifier: 'S-01' }), Redirect: () => null, get router() { return mockRouter; }, usePathname: () => '/owner/add-tenant' }));
+jest.mock('expo-router', () => ({ useLocalSearchParams: () => mockParams, Redirect: () => null, get router() { return mockRouter; }, usePathname: () => '/owner/add-tenant' }));
 jest.mock('react-native-safe-area-context', () => ({ ...jest.requireActual('react-native-safe-area-context'), useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@/components/ui', () => {
   const R = require('react'); const RN = require('react-native'); const a = jest.requireActual('@/components/ui');
@@ -29,107 +30,118 @@ jest.mock('@/components/ui', () => {
 const mockApi = api as jest.Mock;
 const UNITS = { items: [{ id: 'u1', property_id: 'p1', identifier: 'S-01', vacant: true, tenancy_id: null, tenant_name: null }, { id: 'u2', property_id: 'p1', identifier: 'S-02', vacant: true, tenancy_id: null, tenant_name: null }] };
 const wrap = (ui: React.ReactElement) => render(<QueryClientProvider client={queryClient}><PaperProvider>{ui}</PaperProvider></QueryClientProvider>);
-const tenancyPosts = () => mockApi.mock.calls.filter((c) => c[0] === '/api/v1/owner/tenancies');
+const ALLOT = (id = 'r1') => `/api/v1/owner/renters/${id}/allot`;
+const allotPosts = (id = 'r1') => mockApi.mock.calls.filter((c) => c[0] === ALLOT(id));
 const failure = (code: string) => new (require('@/lib/api').ApiError)(0, code, 'the connection failed');
+const RENTERS = { items: [{ id: 'r1', name: 'Ravi Kumar', phone: '+919876543210', email: 'ravi@example.com', address: null, id_type: 'pan' },
+                          { id: 'r2', name: 'Selvi', phone: '+919123456780', email: null, address: null, id_type: 'aadhaar' }] };
+const PROPS = { items: [{ id: 'p1', name: 'Tower', address: '1 Main Road' }] };
+const respond = (path: string) => {
+  if (path.endsWith('/allot')) return { tenancy_id: 't-new', notified: { sms: 'sent', whatsapp: 'sent', email: 'sent' } };
+  if (path.startsWith('/api/v1/owner/renters')) return RENTERS;
+  if (path === '/api/v1/owner/properties') return PROPS;
+  if (path.startsWith('/api/v1/owner/units')) return UNITS;
+  return { items: [] };
+};
 
-async function fillRenter(ui: ReturnType<typeof render>) {
-  fireEvent.changeText(ui.getByTestId('quick-name'), 'Ravi Kumar');
-  fireEvent.changeText(ui.getByTestId('quick-mobile'), '9876543210');
-  fireEvent.changeText(ui.getByTestId('quick-rent'), '12000');
-  fireEvent.changeText(ui.getByTestId('quick-advance'), '24000');
+async function allot(ui: ReturnType<typeof render>, unit = 'S-01', id = 'r1') {
+  await waitFor(() => ui.getByTestId(`allot-panel-${id}`));
+  await waitFor(() => ui.getByTestId('places-dropdown'));
+  fireEvent.press(ui.getByTestId('places-dropdown'));
+  fireEvent.press(ui.getByTestId(`unit-free-${unit}`));
+  fireEvent.changeText(ui.getByTestId('allot-rent'), '12000');
+  fireEvent.changeText(ui.getByTestId('allot-advance'), '24000');
+  await act(async () => { fireEvent.press(ui.getByTestId('assign-button')); });
 }
 
 beforeEach(async () => {
   mockApi.mockReset(); mockRouter.back.mockReset(); hideToast();
+  mockParams = { open: 'r1' };
   setOnline(true);
   await outbox.idle(); await outbox.setUser(null); await clearOfflineData('u1'); await outbox.setUser('u1');
   queryClient.clear();
-  // what an earlier visit left on the phone: the owner's usual way of receiving rent, and the units
-  queryClient.setQueryData(['upi-ids', 'o1'], { upi_ids: [], default_upi_id: null, last_pay_method: null, default_pay_method: 'cash', online_available: false });
   queryClient.setQueryData(['units', 'o1', 'active'], UNITS);
   queryClient.setQueryData(['vacant', 'o1'], UNITS);
-  mockApi.mockImplementation(async (path: string) => (path === '/api/v1/owner/tenancies' ? { tenancy_id: 't-new' } : { items: [] }));
+  queryClient.setQueryData(['renters', 'o1', 'new'], RENTERS);
+  queryClient.setQueryData(['properties', 'o1'], PROPS);          // what an earlier visit left on the phone, so the panel works offline
+  mockApi.mockImplementation(async (path: string) => respond(path));
 });
 
-describe('Add Renter', () => {
-  test('ONLINE: sent at once with a key, nothing is saved for later', async () => {
-    const ui = wrap(<AddTenant />);
-    await fillRenter(ui);
-    await act(async () => { fireEvent.press(ui.getByTestId('submit-tenancy')); });
-    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled());
-    expect(tenancyPosts()).toHaveLength(1);
-    expect(tenancyPosts()[0][1].idempotencyKey).toMatch(/^key-/);
-    expect(tenancyPosts()[0][1].body).toMatchObject({ unit_id: 'u1', tenant_name: 'RAVI KUMAR', tenant_mobile: '9876543210', monthly_rent: '12000', security_deposit: '24000' });
+describe('Allot Renter', () => {
+  test('ONLINE: sent at once with a key, the renter is told, and nothing is saved for later', async () => {
+    const ui = wrap(<AllotRenter />);
+    await allot(ui);
+    await waitFor(() => ui.getByTestId('allot-done'));
+    expect(ui.getByText(/Ravi Kumar is allotted S-01/)).toBeTruthy();
+    expect(allotPosts()).toHaveLength(1);
+    expect(allotPosts()[0][1].idempotencyKey).toMatch(/^key-/);
+    expect(allotPosts()[0][1].body).toMatchObject({ unit_id: 'u1', monthly_rent: '12000', security_deposit: '24000', due_day: 5 });
     expect(outbox.getSnapshot()).toEqual([]);
   });
 
-  test('OFFLINE: nothing is sent; one entry is saved on the phone, the unit shows as rented (waiting) and is no longer offered, and the person is told', async () => {
+  test('OFFLINE: nothing is sent; one entry is saved, the unit shows as rented (waiting), the renter leaves the waiting list, and the person is told', async () => {
     setOnline(false);
-    const ui = wrap(<AddTenant />);
-    await fillRenter(ui);
-    await act(async () => { fireEvent.press(ui.getByTestId('submit-tenancy')); });
-    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled());           // the form closes: the entry is safe
-    expect(tenancyPosts()).toHaveLength(0);
+    const ui = wrap(<AllotRenter />);
+    await allot(ui);
+    await waitFor(() => expect(outbox.pendingCount()).toBe(1));
+    expect(allotPosts()).toHaveLength(0);
     const [item] = outbox.getSnapshot();
-    expect(outbox.getSnapshot()).toHaveLength(1);
-    expect(item).toMatchObject({ kind: 'tenancy.create', path: '/api/v1/owner/tenancies', ownerAccount: 'o1', status: 'pending', label: 'Add renter RAVI KUMAR to S-01' });
-    expect(item.body).toMatchObject({ unit_id: 'u1', tenant_name: 'RAVI KUMAR', tenant_mobile: '9876543210', monthly_rent: '12000', security_deposit: '24000', due_day: 5, pay_method: 'cash' });
+    expect(item).toMatchObject({ kind: 'renter.allot', path: ALLOT(), ownerAccount: 'o1', status: 'pending', label: 'Allot Ravi Kumar to S-01' });
+    expect(item.body).toMatchObject({ unit_id: 'u1', monthly_rent: '12000', security_deposit: '24000' });
     const units = (queryClient.getQueryData(['units', 'o1', 'active']) as any).items;
-    expect(units[0]).toMatchObject({ vacant: false, tenant_name: 'RAVI KUMAR', pending: true });
+    expect(units[0]).toMatchObject({ vacant: false, tenant_name: 'Ravi Kumar', pending: true });
     expect(units[1]).toMatchObject({ vacant: true });
     expect((queryClient.getQueryData(['vacant', 'o1']) as any).items.map((u: any) => u.id)).toEqual(['u2']);
+    expect((queryClient.getQueryData(['renters', 'o1', 'new']) as any).items.map((r: any) => r.id)).toEqual(['r2']);
     expect(currentToast()).toBe("Saved on this phone. It will be sent when you're back online.");
   });
 
   test('OFFLINE, then the connection returns: the very same entry is sent, once, with the same key', async () => {
     setOnline(false);
-    const ui = wrap(<AddTenant />);
-    await fillRenter(ui);
-    await act(async () => { fireEvent.press(ui.getByTestId('submit-tenancy')); });
+    const ui = wrap(<AllotRenter />);
+    await allot(ui);
     await waitFor(() => expect(outbox.pendingCount()).toBe(1));
     const saved = outbox.getSnapshot()[0];
     setOnline(true);
     await act(async () => { await outbox.flush(); });
-    expect(tenancyPosts()).toHaveLength(1);
-    expect(tenancyPosts()[0][1].idempotencyKey).toBe(saved.idempotencyKey);
-    expect(tenancyPosts()[0][1].body).toEqual(saved.body);
+    expect(allotPosts()).toHaveLength(1);
+    expect(allotPosts()[0][1].idempotencyKey).toBe(saved.idempotencyKey);
+    expect(allotPosts()[0][1].body).toEqual(saved.body);
     expect(outbox.getSnapshot()).toEqual([]);
   });
 
   test('THE LOST REPLY: online, but no answer comes back; the entry is saved and sent again with the same key, so the server does it once', async () => {
-    mockApi.mockImplementation(async (path: string) => { if (path === '/api/v1/owner/tenancies') throw failure('TIMEOUT'); return { items: [] }; });
-    const ui = wrap(<AddTenant />);
-    await fillRenter(ui);
-    await act(async () => { fireEvent.press(ui.getByTestId('submit-tenancy')); });
-    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled());
-    const firstKey = tenancyPosts()[0][1].idempotencyKey;
+    mockApi.mockImplementation(async (path: string) => { if (path === ALLOT()) throw failure('TIMEOUT'); return respond(path); });
+    const ui = wrap(<AllotRenter />);
+    await allot(ui);
+    await waitFor(() => expect(outbox.pendingCount()).toBe(1));
+    const firstKey = allotPosts()[0][1].idempotencyKey;
     expect(outbox.getSnapshot()[0].idempotencyKey).toBe(firstKey);
-    mockApi.mockImplementation(async () => ({ tenancy_id: 't-new' }));
+    mockApi.mockImplementation(async (path: string) => respond(path));
     await act(async () => { await outbox.flush({ force: true }); });
-    expect(tenancyPosts().map((c) => c[1].idempotencyKey)).toEqual([firstKey, firstKey]);
+    expect(allotPosts().map((c) => c[1].idempotencyKey)).toEqual([firstKey, firstKey]);
   });
 
-  test('a refusal while online (the unit was taken meanwhile) is shown on the form as before, and nothing is saved', async () => {
-    mockApi.mockImplementation(async (path: string) => { if (path === '/api/v1/owner/tenancies') throw Object.assign(new Error('S-01 is already let'), { status: 409, code: 'UNIT_OCCUPIED' }); return { items: [] }; });
-    const ui = wrap(<AddTenant />);
-    await fillRenter(ui);
-    await act(async () => { fireEvent.press(ui.getByTestId('submit-tenancy')); });
+  test('a refusal while online (the unit was taken meanwhile) is shown as before, and nothing is saved', async () => {
+    mockApi.mockImplementation(async (path: string) => { if (path === ALLOT()) throw Object.assign(new Error('S-01 is already let'), { status: 409, code: 'UNIT_OCCUPIED' }); return respond(path); });
+    const ui = wrap(<AllotRenter />);
+    await allot(ui);
     await waitFor(() => expect(ui.getByText('S-01 is already let')).toBeTruthy());
-    expect(mockRouter.back).not.toHaveBeenCalled();
+    expect(ui.queryByTestId('allot-done')).toBeNull();
     expect(outbox.getSnapshot()).toEqual([]);
   });
 
-  test('two renters added offline for two different units are two separate saved entries, in order', async () => {
+  test('two renters allotted offline to two different units are two separate saved entries, in order', async () => {
     setOnline(false);
-    for (const [name, mobile] of [['Ravi Kumar', '9876543210'], ['Selvi', '9123456780']]) {
-      const ui = wrap(<AddTenant />);
-      fireEvent.changeText(ui.getByTestId('quick-name'), name); fireEvent.changeText(ui.getByTestId('quick-mobile'), mobile);
-      fireEvent.changeText(ui.getByTestId('quick-rent'), '5000'); fireEvent.changeText(ui.getByTestId('quick-advance'), '10000');
-      await act(async () => { fireEvent.press(ui.getByTestId('submit-tenancy')); });
+    for (const [id, unit] of [['r1', 'S-01'], ['r2', 'S-02']]) {
+      mockParams = { open: id };
+      const ui = wrap(<AllotRenter />);
+      await allot(ui, unit, id);
       await waitFor(() => expect(outbox.pendingCount()).toBeGreaterThanOrEqual(1));
       ui.unmount();
     }
-    expect(outbox.getSnapshot().map((i) => (i.body as any).tenant_name)).toEqual(['RAVI KUMAR', 'SELVI']);
+    expect(outbox.getSnapshot().map((i) => i.path)).toEqual([ALLOT('r1'), ALLOT('r2')]);
+    expect(outbox.getSnapshot().map((i) => (i.body as any).unit_id)).toEqual(['u1', 'u2']);
     expect(new Set(outbox.getSnapshot().map((i) => i.idempotencyKey)).size).toBe(2);
   });
 });
@@ -149,7 +161,7 @@ describe('Add Unit', () => {
     expect(ui.getAllByText(/SHOP 12/).length).toBeGreaterThanOrEqual(2);         // in the list of units already, and in the "added" message
   });
 
-  test('a renter can be added to a unit that was itself added offline: both are sent in order, and the renter gets the unit\'s real id', async () => {
+  test('a renter can be allotted a unit that was itself added offline: both are sent in order, and the renter gets the unit\'s real id', async () => {
     setOnline(false);
     const places = wrap(<PlacesManager propertyId="p1" owner="o1" />);
     fireEvent.press(places.getByTestId('kind-commercial'));
@@ -160,17 +172,17 @@ describe('Add Unit', () => {
     expect(newUnit.id).toMatch(/^local-/);
     places.unmount();
 
-    // the owner adds a renter to that unit (its id is the stand-in until the server gives the real one)
+    // the owner allots a renter to that unit (its id is the stand-in until the server gives the real one)
     const { submitOrQueue } = require('@/lib/offline');
-    await submitOrQueue({ kind: 'tenancy.create', label: 'renter', path: '/api/v1/owner/tenancies', ownerAccount: 'o1', body: { unit_id: newUnit.id, tenant_name: 'RAVI' } });
-    expect(outbox.getSnapshot().map((i) => i.kind)).toEqual(['unit.create', 'tenancy.create']);
+    await submitOrQueue({ kind: 'renter.allot', label: 'renter', path: ALLOT(), ownerAccount: 'o1', body: { unit_id: newUnit.id, monthly_rent: '5000' } });
+    expect(outbox.getSnapshot().map((i) => i.kind)).toEqual(['unit.create', 'renter.allot']);
 
     mockApi.mockImplementation(async (path: string) => (path === '/api/v1/owner/units' ? { id: 'REAL-UNIT', identifier: 'SHOP 12' } : { tenancy_id: 'REAL-TENANCY' }));
     setOnline(true);
     await act(async () => { await outbox.flush(); });
     const sent = mockApi.mock.calls.filter((c) => (c[0] as string).startsWith('/api/v1/owner/') && c[1]?.body).map((c) => [c[0], c[1].body]);
     expect(sent[0][0]).toBe('/api/v1/owner/units');
-    expect(sent[1]).toEqual(['/api/v1/owner/tenancies', { unit_id: 'REAL-UNIT', tenant_name: 'RAVI' }]);
+    expect(sent[1]).toEqual([ALLOT(), { unit_id: 'REAL-UNIT', monthly_rent: '5000' }]);
     expect(outbox.getSnapshot()).toEqual([]);
   });
 });
