@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
+import { Alert } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 
 import RemoveRenter from '../app/(app)/owner/remove-renter';
@@ -40,4 +41,47 @@ test('with nobody living in the units it says so', async () => {
   mockApi.mockResolvedValue({ items: [] });
   const ui = wrap();
   await waitFor(() => ui.getByTestId('no-live-renters'));
+});
+
+const TWO = async (path: string, o: any) => {
+  if (path.includes('/tenancies?status=live')) return { items: o.ownerAccount === 'o1'
+    ? [{ id: 't1', tenant_name: 'Ravi Kumar', identifier: 'S-01', status: 'active' }, { id: 't3', tenant_name: 'Anand', identifier: 'S-03', status: 'invited' }]
+    : [{ id: 't2', tenant_name: 'Selvi', identifier: 'V-1', status: 'active' }] };
+  return {};
+};
+
+test('a property can be chosen to show only its renters, and All properties shows everyone', async () => {
+  mockApi.mockImplementation(TWO);
+  const ui = wrap();
+  await waitFor(() => ui.getByText('Selvi'));
+  fireEvent.press(ui.getByText('All properties (2)'));                      // the property list opens
+  await waitFor(() => ui.getByText('Tower'));
+  fireEvent.press(ui.getAllByText('Tower').slice(-1)[0]);
+  await waitFor(() => expect(ui.queryByText('Selvi')).toBeNull());
+  expect(ui.getByText('Ravi Kumar')).toBeTruthy();
+});
+
+test('several renters can be ticked and removed together: living-in renters are moved out, invitations cancelled, and one refusal does not stop the rest', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  mockApi.mockImplementation(async (path: string, o: any) => {
+    if (path.includes('/tenancies/t2/end')) throw new Error('cannot end');
+    return TWO(path, o);
+  });
+  const ui = wrap();
+  await waitFor(() => ui.getByText('Selvi'));
+  expect(ui.queryByTestId('remove-selected')).toBeNull();                    // nothing ticked: no bulk button
+  fireEvent.press(ui.getByTestId('select-all'));
+  expect(ui.getByText('Remove selected (3)')).toBeTruthy();
+  fireEvent.press(ui.getByTestId('remove-selected'));
+  expect(alert).toHaveBeenCalledWith('Remove 3 renters?', expect.stringContaining('moved out today'), expect.any(Array));
+  expect(mockApi.mock.calls.some((c) => /\/(end|cancel-invite)/.test(String(c[0])))).toBe(false);       // nothing until confirmed
+  await act(async () => { await (alert.mock.calls[0][2] as any[])[1].onPress(); });
+  const calls = mockApi.mock.calls.map((c) => [String(c[0]), c[1]?.ownerAccount]);
+  expect(calls.some(([p, o]) => /\/tenancies\/t1\/end\?end_date=\d{4}-\d{2}-\d{2}$/.test(p) && o === 'o1')).toBe(true);
+  expect(calls.some(([p, o]) => p === '/api/v1/owner/tenancies/t3/cancel-invite' && o === 'o1')).toBe(true);
+  expect(calls.some(([p, o]) => p.includes('/tenancies/t2/end') && o === 'o2')).toBe(true);              // tried even after another was done
+  await waitFor(() => ui.getByTestId('bulk-result'));
+  expect(ui.getByText('2 removed.')).toBeTruthy();
+  expect(ui.getByText('Could not remove: Selvi. Open them one by one to see why.')).toBeTruthy();
+  alert.mockRestore();
 });

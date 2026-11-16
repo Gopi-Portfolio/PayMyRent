@@ -1032,6 +1032,12 @@
     "removeBody": "Their details and ID photo will be erased. You can add them again later.",
     "removePageTitle": "Remove Renter",
     "removePageHelp": "Pick the renter who is leaving. You will see the rent due and the deposit held before you confirm.",
-    "removeNone": "No renters are living in your units right now."
+    "removeNone": "No renters are living in your units right now.",
+    "removeSelected": "Remove selected ({{count}})",
+    "selectAll": "Select all",
+    "bulkTitle": "Remove {{count}} renters?",
+    "bulkBody": "Renters living in a unit are moved out today and waiting invitations are cancelled. Rent due and deposits are not settled here: do that from each renter's page.",
+    "bulkDone": "{{count}} removed.",
+    "bulkFailed": "Could not remove: {{names}}. Open them one by one to see why."
   }
 }
