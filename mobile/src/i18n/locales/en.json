@@ -1009,6 +1009,9 @@
     "assigned": "{{name}} is allotted {{unit}}. They have been told by SMS, WhatsApp and email.",
     "assignedLater": "Saved on this phone. {{name}} will be allotted {{unit}} and told when you're back online.",
     "itemAllot": "Allot {{name}} to {{unit}}",
-    "recordPayment": "Record Payment"
+    "recordPayment": "Record Payment",
+    "openSettings": "Open Settings",
+    "cameraTitle": "Camera is off",
+    "cameraOff": "Allow the camera for RentMeezy in Settings to take a photo. You can also use Upload to choose a photo you already have."
   }
 }

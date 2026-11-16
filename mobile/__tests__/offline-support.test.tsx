@@ -34,15 +34,24 @@ describe('connection state', () => {
     expect(ui.getByTestId('state').props.children).toBe('online');
   });
 
-  test('the phone\'s own connection reports are understood: Wi-Fi with no internet counts as offline, and "not sure yet" does not', () => {
+  test('the phone\'s own connection reports are understood: no connection is offline at once; "internet not confirmed" is settled by asking our own server', async () => {
     const add = NetInfo.addEventListener as jest.Mock;
     add.mockClear();
+    const realFetch = global.fetch;
     const stop = startNetworkMonitor();
     const report = add.mock.calls[0][0];
     report({ isConnected: false, isInternetReachable: false }); expect(isOnline()).toBe(false);
     report({ isConnected: true, isInternetReachable: null }); expect(isOnline()).toBe(true);          // not sure yet: do not assume offline
-    report({ isConnected: true, isInternetReachable: false }); expect(isOnline()).toBe(false);         // connected to a router with no internet
+    // connected, but the phone could not confirm the internet: our server answers, so the app stays online (no false "no internet" banner)
+    global.fetch = jest.fn(async () => ({ ok: true })) as any;
+    report({ isConnected: true, isInternetReachable: false });
+    for (let i = 0; i < 20; i++) await Promise.resolve(); expect(isOnline()).toBe(true);
+    // ...and when our server does not answer either, it is offline
+    global.fetch = jest.fn(async () => { throw new Error('unreachable'); }) as any;
+    report({ isConnected: true, isInternetReachable: false });
+    for (let i = 0; i < 20; i++) await Promise.resolve(); expect(isOnline()).toBe(false);
     report({ isConnected: true, isInternetReachable: true }); expect(isOnline()).toBe(true);
+    global.fetch = realFetch;
     stop();
   });
 });

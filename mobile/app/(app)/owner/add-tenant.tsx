@@ -16,6 +16,7 @@ import { ErrorBanner, Field, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { useOnline } from '@/lib/network';
+import { cameraAllowed } from '@/lib/cameraAccess';
 import { shrink } from '@/lib/photo';
 import { mobileSchema, nameSchema } from '@/lib/validation';
 import { brand, radius } from '@/theme';
@@ -46,8 +47,7 @@ export default function AddRenter() {
 
   async function pick(source: 'camera' | 'gallery') {
     setNote(null);
-    const perm = source === 'camera' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { setNote(t('docCheck.permission')); return; }
+    if (source === 'camera' && !(await cameraAllowed())) return;       // the library needs no permission; a refused camera sends the person to Settings
     const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.8, allowsEditing: false };
     const r = source === 'camera' ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
     if (r.canceled || !r.assets?.[0]) return;

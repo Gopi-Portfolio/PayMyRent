@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { AppButton } from '@/components/Buttons';
 import { api } from '@/lib/api';
 import { useOnline } from '@/lib/network';
+import { cameraAllowed } from '@/lib/cameraAccess';
 import { shrink } from '@/lib/photo';
 import { brand, radius } from '@/theme';
 
@@ -23,8 +24,7 @@ export function RenterScan({ owner, onRead }: { owner?: string | null; onRead: (
 
   async function scan(source: 'camera' | 'gallery') {
     setNote(null);
-    const perm = source === 'camera' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { setNote({ text: t('docCheck.permission'), tone: 'warn' }); return; }
+    if (source === 'camera' && !(await cameraAllowed())) return;       // the library needs no permission; a refused camera sends the person to Settings
     const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.7, allowsEditing: false };
     const picked = source === 'camera' ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
     if (picked.canceled || !picked.assets?.[0]) return;

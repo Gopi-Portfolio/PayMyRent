@@ -2,6 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import React from 'react';
+import { Alert, Linking } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 
 import AddTenant from '../app/(app)/owner/add-tenant';
@@ -90,12 +91,25 @@ describe('the scan button', () => {
   });
 
   test('camera permission refused: the owner is told how to allow it, and nothing is sent', async () => {
-    picker.requestCameraPermissionsAsync.mockResolvedValue({ granted: false });
+    picker.requestCameraPermissionsAsync.mockResolvedValue({ granted: false, canAskAgain: false });
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    const settings = jest.spyOn(Linking, 'openSettings').mockResolvedValue(undefined);
     const ui = wrap(<RenterScan owner="o1" onRead={jest.fn()} />);
     await act(async () => { fireEvent.press(ui.getByTestId('scan-camera')); });
-    expect(ui.getByText('Allow camera and photo access in your phone settings.')).toBeTruthy();
+    expect(alert).toHaveBeenCalledWith('Camera is off', expect.stringContaining('Allow the camera for RentMeezy in Settings'), expect.any(Array));
+    const open = (alert.mock.calls[0][2] as any[]).find((b) => b.text === 'Open Settings');      // one tap takes the person to this app's page in Settings
+    open.onPress();
+    expect(settings).toHaveBeenCalled();
     expect(picker.launchCameraAsync).not.toHaveBeenCalled();
     expect(mockApi).not.toHaveBeenCalled();
+  });
+
+  test('choosing a photo from the library never asks for a permission', async () => {
+    mockApi.mockResolvedValue({ name: 'A B', mobile: null, found: true });
+    const ui = wrap(<RenterScan owner="o1" onRead={jest.fn()} />);
+    await act(async () => { fireEvent.press(ui.getByTestId('scan-gallery')); });
+    expect(picker.requestMediaLibraryPermissionsAsync).not.toHaveBeenCalled();
+    expect(picker.launchImageLibraryAsync).toHaveBeenCalled();
   });
 
   test('closing the camera without taking a photo does nothing', async () => {

@@ -25,7 +25,18 @@ export function onReconnect(fn: () => void): () => void { reconnectors.add(fn); 
 const subscribe = (fn: () => void) => { watchers.add(fn); return () => { watchers.delete(fn); }; };
 export function useOnline(): boolean { return React.useSyncExternalStore(subscribe, isOnline, isOnline); }
 
-/** Starts listening to the phone's connection. Returns the function that stops it. */
+/** Starts listening to the phone's connection. Returns the function that stops it.
+ *  "No connection at all" is believed at once. But "connected, internet not confirmed" is often a false alarm (a simulator, a slow Wi-Fi check),
+ *  so the app's own server is asked before the phone is called offline: a banner that says "no internet" while it works is worse than a short wait. */
 export function startNetworkMonitor(): () => void {
-  return NetInfo.addEventListener((s) => setOnline(s.isConnected !== false && s.isInternetReachable !== false));
+  let seq = 0;
+  return NetInfo.addEventListener((s) => {
+    const mine = ++seq;
+    if (s.isConnected === false) { setOnline(false); return; }
+    if (s.isInternetReachable !== false) { setOnline(true); return; }
+    const url = `${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/v1/plans`;
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 5000);
+    fetch(url, { signal: ctl.signal }).then(() => { if (mine === seq) setOnline(true); }, () => { if (mine === seq) setOnline(false); }).finally(() => clearTimeout(timer));
+  });
 }
