@@ -1024,6 +1024,9 @@
     "summary": "{{name}} will get {{unit}} at ₹{{rent}} a month.",
     "remove": "Remove renter",
     "removeTitle": "Remove {{name}}?",
-    "removeBody": "Their details and ID photo will be erased. You can add them again later."
+    "removeBody": "Their details and ID photo will be erased. You can add them again later.",
+    "removePageTitle": "Remove Renter",
+    "removePageHelp": "Pick the renter who is leaving. You will see the rent due and the deposit held before you confirm.",
+    "removeNone": "No renters are living in your units right now."
   }
 }

@@ -26,7 +26,7 @@ import { brand } from '@/theme';
 
 export default function OwnerTenancy() {
   const { t } = useTranslation();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, remove } = useLocalSearchParams<{ id: string; remove?: string }>();
   const { me } = useAuth();
   const owner = ownerAccountId(me);
   const qc = useQueryClient();
@@ -38,7 +38,15 @@ export default function OwnerTenancy() {
   const [amt, setAmt] = useState('');
   const [dep, setDep] = useState({ type: 'applied_to_dues', amount: '', reason: '' });
   const [endOpen, setEndOpen] = useState(false);
-  const [removeOpen, setRemoveOpen] = useState(false);   // 'wrong number? remove this renter' confirmation
+  const [removeOpen, setRemoveOpen] = useState(false);
+  // opened from Remove Renter on the home screen: the removal is already open (an invited renter gets the confirmation, a living-in renter the end form)
+  const askedRemove = useRef(false);
+  React.useEffect(() => {
+    const st = detail.data?.tenancy?.status;
+    if (remove !== '1' || askedRemove.current || !st) return;
+    askedRemove.current = true;
+    if (st === 'invited') setRemoveOpen(true); else if (st === 'active') setEndOpen(true);
+  }, [remove, detail.data?.tenancy?.status]);   // 'wrong number? remove this renter' confirmation
   const [vac, setVac] = useState({ date: todayDMY(), deposit: '', handover: '' });
   const [terms, setTerms] = useState({ rent: '', from: todayDMY(), due: '', grace: '', advance: '', items: '', increase: '' });
   const [saved, setSaved] = useState(false);
