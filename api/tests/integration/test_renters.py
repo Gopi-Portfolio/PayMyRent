@@ -222,3 +222,14 @@ def test_only_the_owner_of_that_property_can_remove_it(actor, engine):
     owner, other = ready_owner(actor), ready_owner(actor)
     pid = ensure_property(owner)
     assert other.post(f"/api/v1/owner/properties/{pid}/remove").status_code == 404
+
+
+def test_a_renter_who_is_also_an_owner_sees_the_invitation_and_can_accept_it(actor, engine, sent):
+    landlord = ready_owner(actor)
+    both = ready_owner(actor)                                 # an owner of another property, with a verified mobile of their own
+    rid = add(landlord, data=form(phone=both.phone)).json()["id"]
+    assert landlord.post(f"/api/v1/owner/renters/{rid}/allot", json=terms(a_unit(landlord))).status_code == 200
+    inv = both.get("/api/v1/tenant/invitations").json()["items"]
+    assert len(inv) == 1, "the invitation must be visible to a person who is an owner elsewhere"
+    assert both.post(f"/api/v1/tenant/invitations/{inv[0]['id']}/accept").status_code == 200
+    assert len(both.get("/api/v1/tenant/rentals").json()["items"]) == 1

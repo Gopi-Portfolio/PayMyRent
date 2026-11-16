@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { PropertySwitcher } from '@/components/PropertySwitcher';
 import { ActionCarousel, MiniAction } from '@/components/QuickActions';
 import { KIND_GROUPS, floorLabel, kindIcon } from '@/lib/units';
-import { DemoBanner, ErrorBanner, SlideIn, IdentityRow, Metric } from '@/components/ui';
+import { DemoBanner, ErrorBanner, SlideIn, IdentityRow, Metric, useRoleSwitch } from '@/components/ui';
 import { brand, radius, shadow } from '@/theme';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth, ownerProperties } from '@/lib/auth';
@@ -59,6 +59,10 @@ export default function OwnerHome() {
   const dash = useQuery({ queryKey: ['dash', owner], queryFn: () => api<any>('/api/v1/owner/dashboard', { ownerAccount: owner }) });
   // units with no renter (e.g. after the renter's period ended and they moved out): one tap to add a new renter
   const [showVacant, setShowVacant] = useState(false);
+  // an owner who is also invited as a renter by another owner: the invitation is on the renter side, so say so here instead of leaving it unseen
+  const rs = useRoleSwitch();
+  const invites = useQuery({ queryKey: ['invites'], queryFn: () => api<any>('/api/v1/tenant/invitations') });
+  const inviteCount: number = invites.data?.items?.length ?? 0;
   const vacant = useQuery({ queryKey: ['vacant', owner], queryFn: () => api<any>('/api/v1/owner/units?vacant=true', { ownerAccount: owner }) });
   const vacantUnits: any[] = all ? vacantAll.flatMap((q, i) => (q.data?.items ?? []).map((u: any) => ({ ...u, _owner: mine[i].owner_account_id }))) : vacant.data?.items ?? [];
   const list = useQuery({ queryKey: ['tenancies', owner, ''], placeholderData: (prev) => prev, queryFn: () =>   // the same list the Search tab shows (shared cache)
@@ -87,6 +91,9 @@ export default function OwnerHome() {
         </Banner>
       ) : null}
       {propStatus === 'submitted' ? <Banner visible icon="clock-outline">{t('property.verifying')}</Banner> : null}
+      {inviteCount > 0 ? (
+        <Banner visible icon="email-fast-outline" actions={[{ label: t('owner.renterInviteView'), onPress: () => { void rs.toggle(); } }]} testID="renter-invite-banner">{t('owner.renterInviteBanner', { count: inviteCount })}</Banner>
+      ) : null}
       {unsetPay.length > 0 ? (
         <Banner visible icon="wallet-outline" actions={[{ label: t('payhow.bulkCta'), onPress: () => router.push('/(app)/owner/payment-method') }]}>{t('payhow.banner', { count: unsetPay.length })}</Banner>
       ) : null}

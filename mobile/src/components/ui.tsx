@@ -96,7 +96,7 @@ export function SlideIn({ children }: { children: React.ReactNode }) {
 }
 
 /** Switches the active role (adds it to the account when missing). Shared by the header link. */
-function useRoleSwitch() {
+export function useRoleSwitch() {
   const { me, activeRole, setActiveRole, refresh } = useAuth();
   const qc = useQueryClient();
   const [busy, setBusy] = React.useState(false);

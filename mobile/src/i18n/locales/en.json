@@ -155,7 +155,9 @@
     "addRenterMsg": "Record a renter's name, mobile, address and photo ID.",
     "addRentMsg": "Record the cash rent a renter has paid you in hand.",
     "allotRenter": "Allot Renter",
-    "allotRenterMsg": "Give a new renter a property and unit, set the rent, and tell them by SMS, WhatsApp and email."
+    "allotRenterMsg": "Give a new renter a property and unit, set the rent, and tell them by SMS, WhatsApp and email.",
+    "renterInviteBanner": "You have {{count}} invitation(s) to rent a unit from another owner. Open your renter view to accept.",
+    "renterInviteView": "View invitation"
   },
   "tenancy": {
     "property": "Building Address",
