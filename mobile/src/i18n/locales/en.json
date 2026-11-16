@@ -962,7 +962,9 @@
     "err_DEPENDENCY_DISCARDED": "The change this one depended on was discarded.",
     "err_DEPENDENCY_MISSING": "The change this one depended on is gone.",
     "err_EXPIRED": "This was saved more than 30 days ago and can no longer be sent.",
-    "savedTitle": "Saved"
+    "savedTitle": "Saved",
+    "needsInternet": "This needs the internet. Please connect and try again.",
+    "payNeedsInternet": "Paying needs the internet"
   },
   "scan": {
     "button": "Scan ID or Agreement",

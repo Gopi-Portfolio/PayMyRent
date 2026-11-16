@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "i18n:check": "node scripts/check-i18n.mjs",
-    "test:offline-live": "jest --testPathIgnorePatterns=/node_modules/ --runTestsByPath e2e-live/offline-live.test.ts"
+    "test:offline-live": "jest --testPathIgnorePatterns=/node_modules/ --runTestsByPath e2e-live/offline-live.test.ts --forceExit"
   },
   "dependencies": {
     "@expo-google-fonts/baloo-2": "^0.4.2",

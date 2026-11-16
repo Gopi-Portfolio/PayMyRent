@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 import { api } from '@/lib/api';
 import { formatINR, payNow } from '@/lib/format';
+import { useOnline } from '@/lib/network';
 import { OWNER_COLORS, brand, radius, shadow } from '@/theme';
 
 // `payer` is false while signed in as an owner: owners do not pay rent, so the slider stays locked.
@@ -21,7 +22,8 @@ export function PayTabButton({ payer = true }: { payer?: boolean }) {
     .map((r: any) => { if (!owners.includes(r.owner_account_id)) owners.push(r.owner_account_id);
                        return { ...r, color: OWNER_COLORS[owners.indexOf(r.owner_account_id) % OWNER_COLORS.length] }; });
   const onPayScreen = usePathname().includes('/pay/') || usePathname().endsWith('/pay');   // already paying: nothing more to open
-  const enabled = payer && due.length > 0 && !onPayScreen;
+  const online = useOnline();                            // paying needs the internet: the slider is switched off while offline
+  const enabled = payer && due.length > 0 && !onPayScreen && online;
   const totalDue = due.reduce((n: number, r: any) => n + payNow(r), 0);
 
   // slide-to-pay: drag the icon from left to right past 70% of the track to open the list of rentals to pay
@@ -64,7 +66,7 @@ export function PayTabButton({ payer = true }: { payer?: boolean }) {
   return (
     <View style={styles.slot}>
       <View {...pan.panHandlers} onLayout={(e) => setTrackW(e.nativeEvent.layout.width)} testID="tab-pay"
-            accessible accessibilityRole="adjustable" accessibilityLabel={enabled ? t('pay.tab') : `${t('pay.tab')}: ${t('pay.nothingDue')}`}
+            accessible accessibilityRole="adjustable" accessibilityLabel={enabled ? t('pay.tab') : `${t('pay.tab')}: ${online ? t('pay.nothingDue') : t('offline.payNeedsInternet')}`}
             accessibilityState={{ disabled: !enabled }} accessibilityActions={enabled ? [{ name: 'activate', label: t('pay.tab') }] : []}
             onAccessibilityAction={() => enabled && go()}
             style={[styles.track, { backgroundColor: enabled ? '#DCE8F7' : brand.disabledBg }]}>

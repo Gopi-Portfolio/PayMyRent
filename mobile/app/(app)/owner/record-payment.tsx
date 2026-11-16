@@ -1,4 +1,5 @@
 // Select tenant → amount → confirm. Cash is recorded immediately and labelled owner-recorded.
+import { NeedsInternet } from '@/components/NeedsInternet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, View } from 'react-native';
@@ -47,6 +48,7 @@ export default function RecordPayment() {
     const again = () => { setDone(null); setTenancy(null); setAmount(''); setRead(false); setCapped(false); idem.current = newIdempotencyKey(); };
     return (
       <Screen>
+        <NeedsInternet />
         <ResultView kind="success" title={t('pay.cashRecordedTitle', { defaultValue: 'Cash Payment Recorded' })}
                     lines={[`${sel?.tenant_name ?? ''} · ${sel?.identifier ?? ''}`, done.amount_display, `${t('pay.cashLabel')} · ${done.receipt_number}`, `${t('bill.totalDue')}: ${done.balance_after_display}`]}>
           <View style={{ backgroundColor: brand.teal50, borderRadius: radius.md, padding: 12 }} testID="cash-done-note">
@@ -62,6 +64,7 @@ export default function RecordPayment() {
   }
   return (
     <Screen>
+      <NeedsInternet />
       <Panel title={t('tenancy.tenantName')} icon="account-circle-outline">
         <SearchableSelect label={t('tenancy.tenantName')} value={tenancy} onChange={(v) => { setTenancy(v); setAmount(''); setCapped(false); }} testID="select-tenancy"
           options={(list.data?.items ?? []).map((x: any) => ({ value: x.id, label: `${x.tenant_name} · ${x.property_name ?? x.address} · ${x.identifier}`,

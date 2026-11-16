@@ -87,7 +87,13 @@ export class Outbox {
     this.items = []; this.idMap = {}; this.authBlocked = false;
     if (userId) {
       const saved = await this.d.storage.getJson<Saved>(this.d.keyFor(userId));
-      if (saved?.v === 1 && Array.isArray(saved.items) && this.userId === userId) { this.items = saved.items; this.idMap = saved.idMap ?? {}; }
+      if (saved?.v === 1 && Array.isArray(saved.items) && this.userId === userId) {
+        // anything entered while the saved entries were still being read from the phone is kept, after them (never overwritten)
+        const added = this.items.filter((n) => !saved.items.some((o) => o.id === n.id));
+        this.items = [...saved.items, ...added];
+        this.idMap = { ...(saved.idMap ?? {}), ...this.idMap };
+        if (added.length) this.persist();
+      }
     }
     this.changed();
   }

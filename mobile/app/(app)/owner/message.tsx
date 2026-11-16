@@ -1,5 +1,6 @@
 // Message a renter. Speak (in any of the 8 languages) or type, choose the language the renter should get, check the translation and what it says
 // back in your own language, then send it to the renter's bell and, if you choose, by SMS or WhatsApp. You can change "Send in" after speaking and it translates again.
+import { NeedsInternet } from '@/components/NeedsInternet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
@@ -87,6 +88,7 @@ export default function MessageRenter() {
 
   return (
     <Screen>
+      <NeedsInternet />
       <ErrorBanner error={noAi ? null : err} />
       {!tenancyId ? (
         <Panel title={t('message.pickRenter')} icon="account-circle-outline">

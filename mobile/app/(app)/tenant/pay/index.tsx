@@ -1,5 +1,6 @@
 // Pay several rentals at once. Every rental with a balance is listed and ticked; one button pays all the ticked ones in full.
 // Each rental is still its own payment to its own owner with its own receipt (the server works out every amount).
+import { NeedsInternet } from '@/components/NeedsInternet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -57,6 +58,7 @@ export default function PayManyRentals() {
     const st: Record<string, any> = status.data ?? {};
     return (
       <Screen>
+        <NeedsInternet />
         <Panel title={t('pay.bulkTitle')} icon="receipt-text-check-outline">
           {paid.map((i) => {
             const r = due.find((x: any) => x.id === i.tenancy_id);
@@ -83,6 +85,7 @@ export default function PayManyRentals() {
 
   return (
     <Screen>
+      <NeedsInternet />
       <Panel title={t('pay.pickTitle')} icon="cash-fast">
         {due.length === 0 ? <Text style={{ color: brand.muted }}>{t('pay.nothingDue')}</Text> : null}
         {online.map((item: any) => {

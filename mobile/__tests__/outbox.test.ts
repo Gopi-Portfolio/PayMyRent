@@ -359,3 +359,19 @@ test('different things with the same kind are not merged, and an entry another e
   box.enqueue({ ...entry('unit.create'), coalesceKey: 'unit' });
   expect(box.getSnapshot().some((i) => i.id === 'parent')).toBe(true);          // something waits on it, so it stays
 });
+
+test('an entry saved in the first moments after the app opens, while the earlier saved entries are still being read from the phone, is not lost', async () => {
+  const { box, storage, make } = env({ online: false });
+  await box.setUser('u1');
+  const earlier = box.enqueue(entry('note.create', { n: 'earlier' }));
+  await box.idle();
+  const reopened = make();                                                    // the app was closed and is opened again, offline
+  const loading = reopened.setUser('u1');                                     // reading the saved entries from the phone takes a moment ...
+  const quick = reopened.enqueue(entry('charge.create', { n: 'quick' }));     // ... and the person already saves something new
+  await loading;
+  await reopened.idle();
+  expect(reopened.getSnapshot().map((i) => i.id)).toEqual([earlier.id, quick.id]);
+  const again = make(); await again.setUser('u1');
+  expect(again.getSnapshot().map((i) => i.id)).toEqual([earlier.id, quick.id]);   // and both are on the phone
+  expect(storage.data.has('outbox-u1')).toBe(true);
+});

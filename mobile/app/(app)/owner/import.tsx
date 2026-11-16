@@ -2,6 +2,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useState } from 'react';
+import { NeedsInternet } from '@/components/NeedsInternet';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Icon, List, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
@@ -39,6 +40,7 @@ export default function ImportScreen() {
   const ok = preview ? preview.rows.filter((r: any) => r.valid).length : 0;
   return (
     <Screen>
+      <NeedsInternet />
       {/* what this is for, who can use it, what it adds, what the file needs and why: before anything has to be done */}
       <View style={{ gap: 4 }}>
         <Text variant="titleLarge" style={{ fontWeight: '800', color: brand.ink }} accessibilityRole="header">{t('import.title')}</Text>

@@ -55,3 +55,7 @@ Expect a few small fixes on first run. That's normal for code whose HTTP and Rea
 ## Boundary checklist (validation)
 
 Each field's rule is in `api/app/domain/validation.py` (`FIELD_RULES`, also served at `GET /api/v1/meta/validation`) and is tested at both edges: name 1/2/100/101 graphemes; mobile 9/10/11 digits, prefix 5 vs 6; email 254/255; profile address 250/251; property address 4/5; unit identifier 20/21 and bad characters; PIN 5/6/7 digits and leading 0; due day 0/1/31/32/non-integer; amounts 0/0.01/2 vs 3 decimals/exponent/negative/over ₹1 crore; notes 0/1/250/251; dates end ≤ start.
+
+## Offline capture and sync
+
+See `docs/OFFLINE.md`: the queue engine, the screens, the sign-in, the server's safe retries and a live end-to-end run against a real backend (`.github/workflows/offline-e2e.yml`).

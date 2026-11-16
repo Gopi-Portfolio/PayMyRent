@@ -1,4 +1,5 @@
 // Owners must fill these details before adding shops/houses or tenants. They can still switch to the Tenant role at any time.
+import { NeedsInternet } from '@/components/NeedsInternet';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -62,6 +63,7 @@ export default function OwnerDetails() {
 
   return (
     <Screen>
+      <NeedsInternet />
       <Text style={{ color: brand.muted }}>{t('ownerDetails.subtitle')}</Text>
       {status && status !== 'none' ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

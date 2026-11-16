@@ -1,5 +1,6 @@
 // Add a property. Everything is checked before any money is asked for: the details, the ownership proof, and whether the property is already
 // registered by someone else. The first property goes into this account; ANOTHER property becomes its own account with its own plan and payment.
+import { NeedsInternet } from '@/components/NeedsInternet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
@@ -103,6 +104,7 @@ export default function AddProperty() {
     const current = existing.find((p: any) => p.id === cur);
     return (
       <Screen>
+        <NeedsInternet />
         {chooser}
         {full ? (
           <Panel title={t('property.planFullTitle')} icon="home-alert-outline" tone="amber">
@@ -117,6 +119,7 @@ export default function AddProperty() {
   }
   return (
     <Screen>
+      <NeedsInternet />
       {chooser}
       {hasProperty && room ? (
         <Text style={{ color: brand.teal700, fontWeight: '700' }} testID="plan-room">

@@ -1,4 +1,5 @@
 // Owner AI: usage bar, ask (typed or on-device voice), reminder draft → owner review → approve & send.
+import { NeedsInternet } from '@/components/NeedsInternet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import { View } from 'react-native';
@@ -56,6 +57,7 @@ export default function Ai() {
   const exhausted = err instanceof ApiError && ['AI_QUOTA_EXHAUSTED', 'AI_COST_CEILING_REACHED'].includes(err.code);
   return (
     <Screen>
+      <NeedsInternet />
       <MessageLink />
       {u && !u.enabled ? <Text>{t('ai.notInPlan')}</Text> : null}
       {u?.enabled ? (

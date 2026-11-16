@@ -1,5 +1,6 @@
 // Identity verification (government ID + live selfie + name match) through the verification provider.
 // RentMeezy shows only the outcome; the provider handles the ID and selfie.
+import { NeedsInternet } from '@/components/NeedsInternet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useState } from 'react';
@@ -61,6 +62,7 @@ export default function Identity() {
   if (status === 'verified') {
     return (
       <Screen>
+        <NeedsInternet />
         <ResultView kind="success" title={t('identity.verified')} lines={d.expires_at ? [t('identity.valid', { date: fmtDate(String(d.expires_at)) })] : []}>
           <AppButton variant="outline" icon="account-off-outline" label={t('identity.withdraw')} onPress={withdraw} loading={busy} />
         </ResultView>
@@ -70,6 +72,7 @@ export default function Identity() {
   if (status === 'manual_review') {
     return (
       <Screen>
+        <NeedsInternet />
         <ResultView kind="review" title={t('identity.manual_review')} hint={t('identity.reviewHint')} error={q.error} lines={reasons}>
           <AppButton icon="refresh" label={t('identity.check')} onPress={() => q.refetch()} />
           {mode === 'dev' ? <AppButton variant="accent" icon="account-check" label="Approve (Demo Reviewer)" onPress={approveDemo} loading={busy} /> : null}
@@ -81,6 +84,7 @@ export default function Identity() {
   if (status === 'pending') {
     return (
       <Screen>
+        <NeedsInternet />
         <ResultView kind="pending" title={t('identity.pending')} error={q.error}
                     hint={t('identity.waitHint')} lines={reasons}>
           <AppButton icon="refresh" label={t('identity.check')} onPress={() => q.refetch()} />
@@ -93,6 +97,7 @@ export default function Identity() {
   }
   return (
     <Screen>
+      <NeedsInternet />
       <Text style={{ color: brand.muted }}>{t('identity.intro')}</Text>
       {status === 'failed' || status === 'rejected' ? (
         <Panel title={t(`identity.${status}`)} icon="alert-circle-outline" tone="red">

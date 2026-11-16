@@ -1,5 +1,6 @@
 // Owner activation: choose plan → server creates PSP order (price is server-side) → hosted checkout
 // → back to a "confirming" screen that polls the server. Never activates on the client callback.
+import { NeedsInternet } from '@/components/NeedsInternet';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -61,6 +62,7 @@ export default function Plan() {
 
   return (
     <Screen>
+      <NeedsInternet />
       <View style={{ alignItems: 'center', gap: 4 }} accessibilityRole="header">
         <Icon source="crown" size={34} color={brand.green600} />
         <Text style={{ color: '#111', fontSize: 28, fontWeight: '800', textAlign: 'center' }}>
