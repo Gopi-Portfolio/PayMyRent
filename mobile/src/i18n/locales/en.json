@@ -211,7 +211,10 @@
     "step1Help": "Which unit is the renter moving into? Pick a vacant unit from the list.",
     "step2Title": "Renter Details",
     "chooseUnitFirst": "Choose a vacant unit to continue.",
-    "addRenterTo": "Add Renter to {{unit}}"
+    "addRenterTo": "Add Renter to {{unit}}",
+    "unitCounts": "{{vacant}} vacant · {{occupied}} occupied",
+    "rentedTo": "Rented to {{name}}",
+    "occupiedNoName": "Occupied"
   },
   "bill": {
     "title": "Bill for {{month}}",

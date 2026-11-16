@@ -211,7 +211,10 @@
     "step1Help": "भाडेकरू कोणत्या युनिटमध्ये येत आहे? यादीतून रिकामे युनिट निवडा.",
     "step2Title": "भाडेकरूचे तपशील",
     "chooseUnitFirst": "पुढे जाण्यासाठी रिकामे युनिट निवडा.",
-    "addRenterTo": "{{unit}} मध्ये भाडेकरू जोडा"
+    "addRenterTo": "{{unit}} मध्ये भाडेकरू जोडा",
+    "unitCounts": "{{vacant}} रिकामे · {{occupied}} भरलेले",
+    "rentedTo": "{{name}} यांना भाड्याने दिले आहे",
+    "occupiedNoName": "भरलेले"
   },
   "bill": {
     "title": "{{month}} महिन्याचे बिल",

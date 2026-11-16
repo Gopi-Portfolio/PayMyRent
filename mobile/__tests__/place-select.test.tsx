@@ -20,7 +20,8 @@ test('closed it is one line; open it lists every unit, with taken ones locked an
   expect(ui.getByTestId('unit-locked-S-01').props.accessibilityState.disabled).toBe(true);
   expect(ui.getByTestId('unit-locked-Room 3').props.accessibilityState.disabled).toBe(true);
   expect(ui.getByTestId('unit-free-S-02').props.accessibilityState.disabled).toBe(false);
-  expect(ui.getByText('Ravi Kumar')).toBeTruthy();                                        // who holds a locked place
+  expect(ui.getByText('Rented to Ravi Kumar')).toBeTruthy();                              // who holds a locked place, in words
+  expect(ui.getByText('Rented to Selvi')).toBeTruthy();
   fireEvent.press(ui.getByTestId('unit-locked-S-01'));
   expect(onPick).not.toHaveBeenCalled();                                                  // a locked place cannot be chosen
   fireEvent.press(ui.getByTestId('unit-free-S-02'));
@@ -31,4 +32,20 @@ test('closed it is one line; open it lists every unit, with taken ones locked an
 test('when every place is taken it says so', () => {
   const ui = render(<PaperProvider><PlaceSelect places={[places[0], places[2]]} selectedId={null} onPick={jest.fn()} /></PaperProvider>);
   expect(ui.getByTestId('no-free-unit')).toBeTruthy();
+});
+
+test('the open list says how many are vacant and occupied, lists the vacant units first, and says in words which are rented to whom', () => {
+  const ui = render(<PaperProvider><PlaceSelect places={places} selectedId={null} onPick={jest.fn()} /></PaperProvider>);
+  fireEvent.press(ui.getByTestId('places-dropdown'));
+  expect(ui.getByText('1 vacant · 2 occupied')).toBeTruthy();
+  expect(ui.getByTestId('unit-status-S-02').props.children).toBe('Vacant');
+  const order = ui.getAllByTestId(/^unit-(free|locked)-/).map((r) => r.props.testID);
+  expect(order).toEqual(['unit-free-S-02', 'unit-locked-S-01', 'unit-locked-Room 3']);     // vacant first, rented below
+  expect(ui.getByLabelText(/^S-01\. Rented to Ravi Kumar\./)).toBeTruthy();               // a screen reader gets the same words
+});
+
+test('a rented unit with no name on record still says it is occupied', () => {
+  const ui = render(<PaperProvider><PlaceSelect places={[{ id: 'x', identifier: 'G-9', vacant: false, tenancy_id: 't9', tenant_name: null }]} selectedId={null} onPick={jest.fn()} /></PaperProvider>);
+  fireEvent.press(ui.getByTestId('places-dropdown'));
+  expect(ui.getByTestId('unit-status-G-9').props.children).toBe('Occupied');
 });

@@ -17,6 +17,8 @@ export function PlaceSelect({ places, selectedId, onPick }: { places: Place[]; s
   const tag = (u: Place) => (u.floor !== null && u.floor !== undefined ? ` · ${floorChip(u.floor, t, i18n.language)}` : '');
   const sel = places.find((u) => u.id === selectedId);
   const taken = places.filter(isLocked).length;
+  const free = places.length - taken;
+  const ordered = [...places.filter((u) => !isLocked(u)), ...places.filter(isLocked)];       // vacant units first, the ones already rented below them
   return (
     <View style={{ gap: 6 }} testID="property-units">
       <Pressable onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }} testID="places-dropdown"
@@ -29,19 +31,28 @@ export function PlaceSelect({ places, selectedId, onPick }: { places: Place[]; s
         </View>
       </Pressable>
       {open ? (
-        <View style={{ borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: brand.line, overflow: 'hidden', maxHeight: 264 }}>
+        <View style={{ borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: brand.line, overflow: 'hidden', maxHeight: 320 }}>
+          {/* how many can be chosen and how many are already rented */}
+          <Text style={{ paddingHorizontal: 14, paddingVertical: 8, backgroundColor: brand.teal50, color: brand.muted, fontWeight: '700', fontSize: 12 }} testID="unit-counts">
+            {t('tenancy.unitCounts', { vacant: free, occupied: taken })}
+          </Text>
           <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
-            {places.map((u) => {
+            {ordered.map((u) => {
               const locked = isLocked(u);
               const on = u.id === selectedId;
+              const status = locked ? (u.tenant_name ? t('tenancy.rentedTo', { name: u.tenant_name }) : t('tenancy.occupiedNoName')) : t('property.vacant');
               return (
                 <Pressable key={u.id} disabled={locked} onPress={() => { setOpen(false); onPick(u); }} accessibilityRole="button" accessibilityState={{ disabled: locked, selected: on }}
-                           accessibilityLabel={locked ? `${u.identifier}. ${t('tenancy.occupiedLocked')}` : u.identifier} testID={`unit-${locked ? 'locked' : 'free'}-${u.identifier}`}
-                           style={({ pressed }) => ({ height: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: brand.line,
+                           accessibilityLabel={`${u.identifier}. ${status}${locked ? `. ${t('tenancy.occupiedLocked')}` : ''}`} testID={`unit-${locked ? 'locked' : 'free'}-${u.identifier}`}
+                           style={({ pressed }) => ({ minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: brand.line,
                                                       backgroundColor: locked ? brand.disabledBg : on || pressed ? brand.teal50 : '#fff' })}>
-                  <Icon source={locked ? 'lock-outline' : on ? 'check-circle' : 'door-open'} size={20} color={locked ? brand.disabled : brand.teal700} />
-                  <Text numberOfLines={1} style={{ flex: 1, fontWeight: on ? '800' : '700', color: locked ? brand.disabled : brand.ink }}>{`${u.identifier}${tag(u)}`}</Text>
-                  {locked && u.tenant_name ? <Text variant="labelSmall" numberOfLines={1} style={{ maxWidth: 120, color: brand.disabled }}>{u.tenant_name}</Text> : null}
+                  <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: locked ? '#E3E8E6' : brand.green100 }}>
+                    <Icon source={locked ? 'lock-outline' : on ? 'check-circle' : 'door-open'} size={20} color={locked ? brand.disabled : brand.green600} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text numberOfLines={1} style={{ fontWeight: '800', fontSize: 16, color: locked ? brand.disabled : brand.ink }}>{`${u.identifier}${tag(u)}`}</Text>
+                    <Text numberOfLines={1} testID={`unit-status-${u.identifier}`} style={{ fontSize: 13, fontWeight: '700', color: locked ? brand.muted : brand.green600 }}>{status}</Text>
+                  </View>
                 </Pressable>
               );
             })}

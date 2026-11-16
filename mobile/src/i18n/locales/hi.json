@@ -211,7 +211,10 @@
     "step1Help": "किरायेदार किस यूनिट में आ रहा है? सूची से कोई खाली यूनिट चुनें।",
     "step2Title": "किरायेदार का विवरण",
     "chooseUnitFirst": "आगे बढ़ने के लिए कोई खाली यूनिट चुनें।",
-    "addRenterTo": "{{unit}} में किरायेदार जोड़ें"
+    "addRenterTo": "{{unit}} में किरायेदार जोड़ें",
+    "unitCounts": "{{vacant}} खाली · {{occupied}} भरी हुई",
+    "rentedTo": "{{name}} को किराये पर दी है",
+    "occupiedNoName": "भरी हुई"
   },
   "bill": {
     "title": "{{month}} का बिल",

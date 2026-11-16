@@ -211,7 +211,10 @@
     "step1Help": "ভাড়াটিয়া কোন ইউনিটে আসছেন? তালিকা থেকে একটি খালি ইউনিট বেছে নিন।",
     "step2Title": "ভাড়াটিয়ার বিবরণ",
     "chooseUnitFirst": "এগোতে একটি খালি ইউনিট বেছে নিন।",
-    "addRenterTo": "{{unit}}-এ ভাড়াটিয়া যোগ করুন"
+    "addRenterTo": "{{unit}}-এ ভাড়াটিয়া যোগ করুন",
+    "unitCounts": "{{vacant}}টি খালি · {{occupied}}টি ভরা",
+    "rentedTo": "{{name}}-কে ভাড়া দেওয়া হয়েছে",
+    "occupiedNoName": "ভরা"
   },
   "bill": {
     "title": "{{month}} মাসের বিল",
