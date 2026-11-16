@@ -4,7 +4,6 @@ import { useSyncExternalStore } from 'react';
 // Whether this phone has ever signed in to an account. It survives sign-out, so a returning person gets the quick sign-in buttons on the landing page.
 const REGISTERED_KEY = 'rg.registered';
 export async function markRegistered(): Promise<void> { try { await SecureStore.setItemAsync(REGISTERED_KEY, '1'); } catch { /* only the shortcut is lost */ } }
-export async function loadRegistered(): Promise<boolean> { try { return (await SecureStore.getItemAsync(REGISTERED_KEY)) === '1'; } catch { return false; } }
 
 // The landing page is the first screen of every app launch; once the user taps through, '/' goes to their home.
 let seen = false;

@@ -45,12 +45,6 @@ export function BackButton({ light = true }: { light?: boolean }) {
   );
 }
 
-/** Owner = a man and a woman together; Tenant = one person, man or woman according to the user's own choice. */
-export function roleIcon(role: 'owner' | 'tenant', gender: 'male' | 'female' | null): string {
-  if (role === 'owner') return 'human-male-female';
-  return gender === 'male' ? 'human-male' : gender === 'female' ? 'human-female' : 'account';
-}
-
 /** Two big choices (Male / Female). Stored on this device; it decides which person icon the Tenant view shows. */
 export function GenderPicker() {
   const { t } = useTranslation();
@@ -356,21 +350,6 @@ export function AuthShell({ title, subtitle, icon, note, children }: { title: st
   );
 }
 
-/** Page header with a large coloured icon badge, so each task screen is recognisable at a glance. */
-export function ScreenHero({ icon, title, tone = 'teal' }: { icon?: string; title: string; tone?: Tone }) {
-  const c = TONES[tone];
-  return (
-    <View style={[styles.hero2, { backgroundColor: c.bg }]}>
-      {icon ? <View style={[styles.hero2Icon, { backgroundColor: c.fg }]}><Icon source={icon} size={30} color="#fff" /></View> : null}
-      <Text variant="titleLarge" style={{ flex: 1, fontWeight: '800', color: brand.ink }} accessibilityRole="header">{title}</Text>
-    </View>
-  );
-}
-
-export function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <Text variant="titleMedium" style={styles.section}>{children}</Text>;
-}
-
 /** The "Done" bar above the iPhone keyboard. Number and phone pads have no Return key, and in a multi-line box Return starts a new line,
  *  so without this the keyboard cannot be closed. Render <DoneBar /> once on the screen and give each text box inputAccessoryViewID={DONE_ID}. */
 export const DONE_ID = 'pmr-done-bar';
@@ -496,21 +475,6 @@ export function Metric({ label, paise, count, detail, icon = 'cash', tone = 'tea
   );
 }
 
-/** Square-ish quick-action tile used for the owner shortcuts. */
-export function ActionTile({ icon, label, onPress, tone = 'teal', badge, testID, tinted = true }: {
-  icon: string; label: string; onPress: () => void; tone?: Tone; badge?: number; testID?: string; tinted?: boolean;   // default: the whole box takes the tone's light colour; pass false for a plain white box
-}) {
-  const c = TONES[tone];
-  return (
-    <Pressable onPress={onPress} testID={testID} accessibilityRole="button" accessibilityLabel={label}
-               style={({ pressed }) => [styles.tile, shadow, tinted && { backgroundColor: c.bg, borderWidth: 1.5, borderColor: `${c.fg}4D` }, pressed && { backgroundColor: c.bg, transform: [{ scale: 0.96 }] }]}>
-      <View style={[styles.tileIcon, { backgroundColor: c.fg }]}><Icon source={icon} size={24} color="#fff" /></View>
-      <Text variant="labelLarge" numberOfLines={2} style={{ textAlign: 'center', fontWeight: '700' }}>{label}</Text>
-      {badge ? <View style={styles.badge}><Text style={styles.badgeText}>{badge}</Text></View> : null}
-    </Pressable>
-  );
-}
-
 export function Avatar({ name, size = 44 }: { name?: string | null; size?: number }) {
   const letter = (name ?? '?').trim().charAt(0).toUpperCase() || '?';
   return (
@@ -529,77 +493,9 @@ export function ErrorBanner({ error, onRetry }: { error: unknown; onRetry?: () =
   return <Banner visible actions={onRetry ? [{ label: t('common.retry'), onPress: onRetry }] : []} icon="alert-circle" style={styles.errBanner}>{msg}</Banner>;
 }
 
-/** Always-visible Owner / Tenant switch. Roles are additive: tapping a role you don't have yet adds it. */
-export function RoleSwitch() {
-  const { t } = useTranslation();
-  const { me, activeRole, setActiveRole, refresh } = useAuth();
-  const [busy, setBusy] = React.useState<string | null>(null);
-  if (!me) return null;
-  const current = activeRole ?? me.roles[0] ?? 'owner';
-  async function pick(role: 'owner' | 'tenant') {
-    if (role === current || busy) return;
-    setBusy(role);
-    try {
-      if (!me!.roles.includes(role)) {
-        await api('/api/v1/me/roles', { body: { roles: [role] } });
-        await refresh();
-      }
-      setActiveRole(role);
-      router.replace('/');
-    } catch { /* stays on the current role; the next refresh shows the real state */ } finally { setBusy(null); }
-  }
-  const items = [{ role: 'owner' as const, label: t('role.switchOwner'), icon: 'store' }, { role: 'tenant' as const, label: t('role.switchTenant'), icon: 'home' }];
-  return (
-    <View style={[live.tabs, { marginHorizontal: 16, marginTop: 12 }]} accessibilityRole="tablist">
-      {items.map((it) => {
-        const on = it.role === current;
-        const has = me.roles.includes(it.role);
-        return (
-          <Pressable key={it.role} onPress={() => pick(it.role)} accessibilityRole="tab" accessibilityState={{ selected: on }} testID={`switch-${it.role}`}
-                     style={({ pressed }) => [styles.roleTab, on && { backgroundColor: brand.teal700 }, !on && pressed && { backgroundColor: brand.teal100 }]}>
-            {busy === it.role ? <ActivityIndicator size="small" color={on ? '#fff' : brand.teal700} /> : <Icon source={it.icon} size={20} color={on ? '#fff' : brand.teal700} />}
-            <Text style={{ fontWeight: '800', color: on ? '#fff' : brand.teal700 }}>{it.label}</Text>
-            {!has ? <Icon source="plus-circle-outline" size={16} color={brand.teal700} /> : null}
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 export type Plan = { code: string; label: string; price_paise: number; price_display: string; max_units: number; max_properties?: number;
   regular_price_display?: string | null; saving_percent?: number | null;      // the launch price is price_display; the saving is worked out by the server
   ai_enabled: boolean; ai_monthly_tokens: number; paid_message_units?: number; email_messages?: number };
-
-function PlanRow({ icon, text, on = true }: { icon: string; text: string; on?: boolean }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
-      <Icon source={icon} size={16} color={on ? brand.teal600 : brand.muted} />
-      <Text variant="bodySmall" style={{ flex: 1, color: on ? undefined : brand.muted }}>{text}</Text>
-    </View>
-  );
-}
-
-/** Every benefit of a plan in one list, so nobody has to open anything to compare plans. */
-export function PlanBenefits({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
-  const { t } = useTranslation();
-  const n = (v: number) => Number(v).toLocaleString('en-IN');
-  const many = (plan.max_properties ?? 1) > 1;
-  return (
-    <View testID={`benefits-${plan.code}`}>
-      <PlanRow icon="home-city-outline" text={many ? t('pricing.placesMany', { count: n(plan.max_units), props: n(plan.max_properties ?? 1) }) : t('pricing.placesOne', { count: n(plan.max_units) })} />
-      {compact ? null : <PlanRow icon="receipt-text-outline" text={many ? t('pricing.billedAll', { props: n(plan.max_properties ?? 1) }) : t('pricing.billedPer')} />}
-      <PlanRow icon="file-document-outline" text={t('pricing.b_bills')} />
-      {compact ? null : <PlanRow icon="cash-multiple" text={t('pricing.b_payments')} />}
-      {compact || plan.paid_message_units == null ? null : <PlanRow icon="message-text-outline" text={t('pricing.b_sms', { count: n(plan.paid_message_units) })} />}
-      {compact || plan.email_messages == null ? null : <PlanRow icon="email-outline" text={t('pricing.b_email', { count: n(plan.email_messages) })} />}
-      {compact ? null : <PlanRow icon="file-download-outline" text={t('pricing.b_reports')} />}
-      <PlanRow icon={plan.ai_enabled ? 'robot-happy-outline' : 'robot-off-outline'} on={plan.ai_enabled}
-               text={plan.ai_enabled ? t('pricing.ai', { tokens: n(plan.ai_monthly_tokens) }) : t('pricing.noAi')} />
-      <PlanRow icon="account-heart-outline" text={t('pricing.b_renters')} />
-    </View>
-  );
-}
 
 function Tick({ text }: { text: string }) {
   return (
@@ -909,16 +805,9 @@ const styles = StyleSheet.create({
   heroSub: { color: 'rgba(255,255,255,0.8)', fontSize: 14, textAlign: 'center' },
   badgeCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: brand.amber500, alignItems: 'center', justifyContent: 'center', marginTop: 14, borderWidth: 4, borderColor: 'rgba(255,255,255,0.35)' },
   sheet: { flex: 1, marginTop: -26, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
-  section: { fontWeight: '700' },
-  hero2: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: radius.lg },
-  hero2Icon: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   metric: { flex: 1, minWidth: '46%', backgroundColor: '#fff', borderRadius: radius.lg, padding: 14 },
   metricIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   metricValue: { fontSize: 22, fontWeight: '800', marginTop: 2, fontVariant: ['tabular-nums'] },
-  tile: { width: '31%', backgroundColor: '#fff', borderRadius: radius.lg, paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center', gap: 8 },
-  tileIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  badge: { position: 'absolute', top: 6, right: 8, backgroundColor: brand.red600, borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
-  badgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   errBanner: { borderRadius: radius.md, marginVertical: 6 },
   cards: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   planCard: { backgroundColor: '#fff', borderRadius: radius.lg, padding: 16, borderWidth: 2 },
@@ -928,7 +817,6 @@ const styles = StyleSheet.create({
   amountDeco: { position: 'absolute', right: -40, top: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.10)' },
   amountBig: { color: '#fff', fontSize: 38, fontWeight: '800', fontVariant: ['tabular-nums'] },
   tab: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 8, paddingHorizontal: 2, borderRadius: radius.sm + 2 },
-  roleTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 11, borderRadius: radius.sm + 2 },
   planRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: radius.lg, padding: 12 },
   planBox: { backgroundColor: '#fff', borderRadius: radius.lg, padding: 16 },
   planIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },

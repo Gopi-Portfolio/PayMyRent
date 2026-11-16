@@ -1,7 +1,7 @@
 // Branded buttons with visible press feedback (colour shift + slight scale) and optional icon.
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, type ViewStyle } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
 
 import { brand, radius } from '@/theme';
@@ -36,10 +36,6 @@ export function AppButton({ label, onPress, icon, loading, disabled, testID, var
       )}
     </Pressable>
   );
-}
-
-export function ButtonRow({ children }: { children: React.ReactNode }) {
-  return <View style={{ gap: 10 }}>{children}</View>;
 }
 
 const styles = StyleSheet.create({

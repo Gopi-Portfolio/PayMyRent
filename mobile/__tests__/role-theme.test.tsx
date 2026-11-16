@@ -7,20 +7,20 @@ import { brand, setBrandRole, themeFor } from '@/theme';
 
 afterEach(() => setBrandRole('owner'));
 
-test('owners see the teal set and renters see the blue one, through the same names', () => {
+test('owners see the logo-green set and renters see the logo-blue one, through the same names', () => {
   setBrandRole('owner');
-  expect([brand.teal900, brand.teal700, brand.teal50, brand.canvas]).toEqual(['#064E45', '#0B6E5F', '#EDF9F6', '#F4F7F6']);
+  expect([brand.teal900, brand.teal700, brand.teal50, brand.canvas]).toEqual(['#0F4D00', '#1F8A02', '#F1F9EE', '#F4F7F4']);
   setBrandRole('tenant');
-  expect([brand.teal900, brand.teal700, brand.teal600, brand.teal100, brand.teal50, brand.canvas]).toEqual(['#1E3A8A', '#1D4ED8', '#2563EB', '#DBEAFE', '#EFF6FF', '#EEF3FD']);
+  expect([brand.teal900, brand.teal700, brand.teal600, brand.teal100, brand.teal50, brand.canvas]).toEqual(['#001F4D', '#003472', '#003472', '#DCE8F7', '#EEF4FB', '#EEF3FA']);
   setBrandRole('owner');
-  expect(brand.teal700).toBe('#0B6E5F');                                        // and back again
+  expect(brand.teal700).toBe('#1F8A02');                                        // and back again
 });
 
 test('the Paper theme follows the role: primary colour and window background', () => {
-  expect(themeFor('owner').colors.primary).toBe('#0B6E5F');
-  expect(themeFor('tenant').colors.primary).toBe('#1D4ED8');
-  expect(themeFor('tenant').colors.background).toBe('#EEF3FD');
-  expect(themeFor('owner').colors.background).toBe('#F4F7F6');
+  expect(themeFor('owner').colors.primary).toBe('#1F8A02');
+  expect(themeFor('tenant').colors.primary).toBe('#003472');
+  expect(themeFor('tenant').colors.background).toBe('#EEF3FA');
+  expect(themeFor('owner').colors.background).toBe('#F4F7F4');
 });
 
 test('a button is drawn in the colours of the role in use', () => {
@@ -29,8 +29,8 @@ test('a button is drawn in the colours of the role in use', () => {
   const owner = colorsOf(render(<PaperProvider theme={themeFor('owner')}><AppButton label="Pay" onPress={() => undefined} /></PaperProvider>));
   setBrandRole('tenant');
   const renter = colorsOf(render(<PaperProvider theme={themeFor('tenant')}><AppButton label="Pay" onPress={() => undefined} /></PaperProvider>));
-  expect(owner).toContain('#0B6E5F');                                           // owner: teal glow under the button
-  expect(renter).toContain('#1D4ED8');                                          // renter: blue glow under the button
-  expect(renter).not.toContain('#0B6E5F');
+  expect(owner).toContain('#1F8A02');                                           // owner: green glow under the button
+  expect(renter).toContain('#003472');                                          // renter: blue glow under the button
+  expect(renter).not.toContain('#1F8A02');
   expect(owner).not.toBe(renter);                                               // the gradient itself differs too
 });

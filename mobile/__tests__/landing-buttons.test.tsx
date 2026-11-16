@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
-import { View } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 
 import Role from '../app/(onboarding)/role';
@@ -24,30 +23,19 @@ jest.mock('@/components/ui', () => {
 });
 
 const PLANS = [
-  { code: 'starter', label: 'Starter', price_paise: 1000, price_display: '₹10', max_units: 10, max_properties: 1, ai_enabled: false, ai_monthly_tokens: 0 },
-  { code: 'growth', label: 'Growth', price_paise: 5000, price_display: '₹50', max_units: 100, max_properties: 5, regular_price_display: '₹65', saving_percent: 23, ai_enabled: true, ai_monthly_tokens: 100000 },
+  { code: 'starter', label: 'Starter', price_paise: 1000, price_display: '₹50', max_units: 10, max_properties: 1, ai_enabled: false, ai_monthly_tokens: 0 },
+  { code: 'growth', label: 'Growth', price_paise: 5000, price_display: '₹100', max_units: 50, max_properties: 5, regular_price_display: '₹65', saving_percent: 23, ai_enabled: true, ai_monthly_tokens: 100000 },
 ];
 const wrap = (ui: React.ReactElement) => render(<QueryClientProvider client={new QueryClient()}><PaperProvider>{ui}</PaperProvider></QueryClientProvider>);
 beforeEach(() => { mockRouter.push.mockReset(); (api as jest.Mock).mockReset(); setPendingPlan(null); setPendingRole(null); });
 
-async function showPlans(ui: ReturnType<typeof render>) {
-  await waitFor(() => expect(ui.UNSAFE_getAllByType(View).some((v) => typeof v.props.onLayout === 'function')).toBe(true));
-  act(() => ui.UNSAFE_getAllByType(View).find((v) => typeof v.props.onLayout === 'function')!.props.onLayout({ nativeEvent: { layout: { width: 360, height: 800 } } }));
-  await waitFor(() => expect(ui.getByTestId('choose-growth')).toBeTruthy());
-}
-
-test('there is no owner button: choosing a plan takes a new owner straight to sign-in, and the Renter button is always ready', async () => {
-  (api as jest.Mock).mockResolvedValue({ plans: PLANS });
+test('there is no owner sign-up button: a new owner is sent to the plans screen, and the Renter door is always ready', async () => {
   const ui = wrap(<Welcome />);
   expect(ui.queryByTestId('cta-owner')).toBeNull();
-  expect(ui.getByText('New owner? Choose a plan to get started')).toBeTruthy();
-  expect(ui.getByTestId('cta-renter').props.accessibilityState.disabled).toBe(false);
-  expect(ui.getByText('Renters never pay for RentMeezy.')).toBeTruthy();
-  await showPlans(ui);
-  await act(async () => { fireEvent.press(ui.getByTestId('choose-growth')); });
-  expect(mockRouter.push).toHaveBeenCalledWith('/(public)/phone');
-  expect(getPendingPlan()).toBe('growth');
-  expect(getPendingRole()).toBe('owner');
+  expect(ui.getByText('Not a registered owner? Choose a plan')).toBeTruthy();
+  expect(ui.getByTestId('cta-renter').props.accessibilityState.disabled).not.toBe(true);
+  fireEvent.press(ui.getByTestId('cta-plans'));
+  expect(mockRouter.push).toHaveBeenCalledWith('/(public)/plans');
 });
 
 test('the Renter button goes straight to sign-in with no plan and the renter role', async () => {
@@ -87,11 +75,11 @@ test('someone already signed in can still enter a different number straight from
   } finally { mockAuth.me = null; }
 });
 
-test('an owner who is already registered signs in with the green button, with no plan chosen and nothing disabled', async () => {
+test('an owner who is already registered signs in through the owner door, with no plan chosen and nothing disabled', async () => {
   (api as jest.Mock).mockResolvedValue({ plans: PLANS });
   const ui = wrap(<Welcome />);
-  expect(ui.getByText("I'm an owner · already registered")).toBeTruthy();
-  expect(ui.getByTestId('cta-owner-registered').props.accessibilityState.disabled).toBe(false);
+  expect(ui.getByText('Login as Owner')).toBeTruthy();
+  expect(ui.getByTestId('cta-owner-registered')).toBeTruthy();
   expect(ui.queryByTestId('cta-signin')).toBeNull();
   await act(async () => { fireEvent.press(ui.getByTestId('cta-owner-registered')); });
   expect(getPendingRole()).toBe('owner');

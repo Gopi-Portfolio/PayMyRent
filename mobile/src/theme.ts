@@ -1,5 +1,5 @@
 // RentMeezy design tokens: the logo's green (`teal*` is the historical name) brand, warm amber accent, soft neutral canvas, generous radii.
-import { MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
+import { MD3LightTheme } from 'react-native-paper';
 
 // The brand colours come in two sets. The owner's is deep teal; the renter's is the blue of the renter's top bar. `brand.teal*` and
 // `brand.canvas` read whichever set is current, so signing in as a renter turns the whole window blue without touching each screen.
@@ -74,26 +74,6 @@ export const lightTheme = buildLight('owner');
 export const renterTheme = buildLight('tenant');
 /** The Paper theme for the role in use. */
 export const themeFor = (role: RoleName) => (role === 'tenant' ? renterTheme : lightTheme);
-
-export const darkTheme = {
-  ...MD3DarkTheme,
-  roundness: 3,
-  colors: {
-    ...MD3DarkTheme.colors,
-    primary: '#5ED1B5',
-    onPrimary: '#00382F',
-    primaryContainer: '#0B4A40',
-    onPrimaryContainer: '#C9F5EA',
-    secondary: '#FBBF24',
-    background: '#0B1513',
-    surface: '#13211E',
-    surfaceVariant: '#1B2D29',
-    onSurface: '#E6F1EE',
-    onSurfaceVariant: '#9DB2AD',
-    outline: '#38504A',
-    outlineVariant: '#25382F',
-  },
-};
 
 /** One accent per landlord, so a tenant with several owners can tell them apart at a glance. */
 export const OWNER_COLORS = [

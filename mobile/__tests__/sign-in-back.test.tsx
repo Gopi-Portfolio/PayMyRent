@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render } from '@testing-library/react-native';
 import React from 'react';
 import { PaperProvider } from 'react-native-paper';
@@ -8,10 +9,13 @@ import '@/i18n';
 const mockRouter = { canGoBack: jest.fn(() => true), back: jest.fn(), replace: jest.fn(), push: jest.fn() };
 jest.mock('expo-router', () => ({ usePathname: () => '/phone', get router() { return mockRouter; }, useFocusEffect: () => undefined }));
 jest.mock('react-native-safe-area-context', () => ({ ...jest.requireActual('react-native-safe-area-context'), useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
+jest.mock('@/lib/api', () => ({ api: jest.fn(async () => ({ plans: [] })) }));
 jest.mock('@/lib/auth', () => ({ useAuth: () => ({ requestOtp: jest.fn(), me: null }) }));
 
+const wrap = () => render(<QueryClientProvider client={new QueryClient()}><PaperProvider><Phone /></PaperProvider></QueryClientProvider>);
+
 test('the mobile-number screen has a visible Back button under Send OTP that goes back to the plans', () => {
-  const ui = render(<PaperProvider><Phone /></PaperProvider>);
+  const ui = wrap();
   expect(ui.getByText('Send OTP')).toBeTruthy();
   fireEvent.press(ui.getByTestId('back-below'));
   expect(ui.getByText('Back')).toBeTruthy();
@@ -28,6 +32,6 @@ function strayStrings(node: any, parent = 'root', out: string[] = []): string[] 
 }
 
 test('the mobile-number screen draws no bare text outside a text element', () => {
-  const ui = render(<PaperProvider><Phone /></PaperProvider>);
+  const ui = wrap();
   expect(strayStrings(ui.toJSON())).toEqual([]);
 });

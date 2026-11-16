@@ -12,7 +12,6 @@ export function fmtMonth(iso: string | null | undefined): string {
   return m ? `${MONTHS[Number(m[2]) - 1] ?? m[2]} ${m[1]}` : '';
 }
 export const todayDMY = () => fmtDate(new Date().toISOString().slice(0, 10));
-export const thisMonthMY = () => { const d = new Date().toISOString().slice(0, 7); return `${d.slice(5, 7)}-${d.slice(0, 4)}`; };
 
 /** 05-11-2026 -> 2026-11-05 (null if not a real calendar date) */
 export function dmyToIso(s: string): string | null {
@@ -27,7 +26,6 @@ export function myToYm(s: string): string | null {
   const m = /^(\d{2})-(\d{4})$/.exec(s);
   return m && +m[1] >= 1 && +m[1] <= 12 && +m[2] >= 2000 ? `${m[2]}-${m[1]}` : null;
 }
-export const ymToMy = (ym: string) => `${ym.slice(5, 7)}-${ym.slice(0, 4)}`;
 
 /** Last day of the month of an ISO date, as ISO. 2026-11-01 -> 2026-11-30 */
 export function monthEndIso(iso: string): string {
