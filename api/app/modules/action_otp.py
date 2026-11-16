@@ -41,7 +41,7 @@ class ActionOtpIn(BaseModel):
 
 
 @router.post("/me/action-otp/request")
-def request_action_otp(body: ActionOtpIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
+def request_action_otp(body: ActionOtpIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """Send a code to the number attached to this account. The destination is never taken from the request."""
     from ..core.config import get_settings
     s = get_settings()

@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api/v1", tags=["owner-transfer"])
 
 
 @router.get("/owner/close-preview")
-def close_preview(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def close_preview(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """What closing would affect: shown before the owner is asked whether to transfer."""
     o = scope.owner_account_id
     return {"renters": db.scalar("SELECT count(*) FROM tenancies WHERE owner_account_id = :o AND status IN ('invited','active')", o=o),
@@ -57,7 +57,7 @@ class TransferIn(BaseModel):
 
 
 @router.post("/owner/transfer")
-def transfer_owner_account(body: TransferIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def transfer_owner_account(body: TransferIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     from .action_otp import require_action_otp
     if scope.membership_role != "owner":
         raise AppError("FORBIDDEN", "only the account's main owner can transfer it")

@@ -86,13 +86,13 @@ def bill_view(db: Db, tenancy_id: UUID, month: date, role: str) -> dict:
 
 
 @router.get("/tenancies/{tenancy_id}/bill")
-def get_bill(tenancy_id: UUID, month: date | None = None, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def get_bill(tenancy_id: UUID, month: date | None = None, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     _, role, _ = tenancy_party(db, user, tenancy_id)
     return bill_view(db, tenancy_id, _month(month), role)
 
 
 @router.get("/tenancies/{tenancy_id}/history")
-def history(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def history(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     tenancy_party(db, user, tenancy_id)
     months = db.all("""SELECT period_month, number, due_date, total_paise, open_paise, status FROM v_invoice_status
                        WHERE tenancy_id = :t ORDER BY period_month DESC LIMIT 120""", t=tenancy_id)
@@ -110,7 +110,7 @@ class ChargeIn(BaseModel):
 
 
 @router.post("/owner/tenancies/{tenancy_id}/charges")
-def add_charge(tenancy_id: UUID, body: ChargeIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+def add_charge(tenancy_id: UUID, body: ChargeIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function"), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
     def work() -> dict:
         owned_tenancy(db, scope, tenancy_id)
         amount = parse_inr(body.amount)
@@ -122,7 +122,7 @@ def add_charge(tenancy_id: UUID, body: ChargeIn, scope: OwnerScope = Depends(own
 
 
 @router.get("/owner/tenancies/{tenancy_id}/charge-suggestions")
-def charge_suggestions(tenancy_id: UUID, month: date, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def charge_suggestions(tenancy_id: UUID, month: date, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Last month's utility amounts as *editable suggestions* — never billed automatically."""
     owned_tenancy(db, scope, tenancy_id)
     prev = (_month(month) - timedelta(days=1)).replace(day=1)
@@ -140,7 +140,7 @@ class AdjustIn(BaseModel):
 
 
 @router.post("/owner/invoice-lines/{line_id}/adjust")
-def adjust_line(line_id: UUID, body: AdjustIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def adjust_line(line_id: UUID, body: AdjustIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     row = db.must("""SELECT i.tenancy_id, i.period_month FROM invoice_lines l JOIN monthly_invoices i ON i.id = l.invoice_id
                      WHERE l.id = :l AND i.owner_account_id = :o""", "line", l=line_id, o=scope.owner_account_id)
     new = db.scalar("SELECT rg_adjust_line(:l, :a, :r, :by)", l=line_id, a=parse_inr(body.new_total, allow_zero=True), r=body.reason, by=scope.user.id)
@@ -149,7 +149,7 @@ def adjust_line(line_id: UUID, body: AdjustIn, scope: OwnerScope = Depends(owner
 
 
 @router.post("/owner/tenancies/{tenancy_id}/invoices")
-def generate_invoice(tenancy_id: UUID, month: date, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def generate_invoice(tenancy_id: UUID, month: date, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     owned_tenancy(db, scope, tenancy_id)
     backfill_invoices(db, tenancy_id, _month(month))      # earlier unbilled months become dues too
     return bill_view(db, tenancy_id, _month(month), "owner")
@@ -166,7 +166,7 @@ class SubmissionIn(BaseModel):
 
 
 @router.post("/tenancies/{tenancy_id}/charge-submissions")
-def submit_charge(tenancy_id: UUID, body: SubmissionIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def submit_charge(tenancy_id: UUID, body: SubmissionIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     t, role, _ = tenancy_party(db, user, tenancy_id)
     if role != "tenant":
         raise AppError("FORBIDDEN", "owners add charges directly")
@@ -195,14 +195,14 @@ class ReviewIn(BaseModel):
 
 
 @router.get("/owner/charge-submissions")
-def pending_submissions(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def pending_submissions(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     return {"items": [dict(r) for r in db.all(
         """SELECT s.*, u.identifier FROM charge_submissions s JOIN tenancies t ON t.id = s.tenancy_id JOIN units u ON u.id = t.unit_id
            WHERE t.owner_account_id = :o AND s.status = 'proposed' ORDER BY s.created_at""", o=scope.owner_account_id)]}
 
 
 @router.post("/owner/charge-submissions/{submission_id}/review")
-def review_submission(submission_id: UUID, body: ReviewIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def review_submission(submission_id: UUID, body: ReviewIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     s = db.must("""SELECT s.*, t.tenant_user_id, u.identifier FROM charge_submissions s JOIN tenancies t ON t.id = s.tenancy_id
                    JOIN units u ON u.id = t.unit_id WHERE s.id = :s AND t.owner_account_id = :o""", "submission", s=submission_id, o=scope.owner_account_id)
     db.scalar("SELECT rg_review_charge_submission(:s, :by, :a, :r)", s=submission_id, by=scope.user.id, a=body.approve, r=body.reason)
@@ -215,7 +215,7 @@ def review_submission(submission_id: UUID, body: ReviewIn, scope: OwnerScope = D
 
 # ───────────────────────── dashboard & reports ─────────────────────────
 @router.get("/owner/dashboard")
-def dashboard(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def dashboard(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     o = scope.owner_account_id
     m = db.one("""SELECT
         (SELECT COALESCE(sum(amount_paise), 0) FROM payments WHERE owner_account_id = :o AND status = 'confirmed' AND method <> 'deposit'
@@ -252,7 +252,7 @@ def dashboard(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)
 
 @router.get("/owner/dashboard/{kind}")
 def dashboard_detail(kind: Literal["collected", "pending", "overdue", "units"], scope: OwnerScope = Depends(owner_scope),
-                     db: Db = Depends(get_db)) -> dict:
+                     db: Db = Depends(get_db, scope="function")) -> dict:
     """The rows behind each dashboard box, so a tap shows exactly what makes up the number."""
     o = scope.owner_account_id
     who = "(SELECT name FROM tenancy_contact_snapshots WHERE tenancy_id = t.id ORDER BY created_at DESC LIMIT 1)"
@@ -285,7 +285,7 @@ def dashboard_detail(kind: Literal["collected", "pending", "overdue", "units"], 
 
 
 @router.get("/owner/reports/collections.csv")
-def collections_csv(start: date, end: date, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> Response:
+def collections_csv(start: date, end: date, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> Response:
     """Export works in every subscription state, including read-only after lapse."""
     rows = db.all("""SELECT p.paid_on, u.identifier, s.name AS tenant, p.method, p.verification, p.status, p.amount_paise, r.number AS receipt
                      FROM payments p JOIN tenancies t ON t.id = p.tenancy_id JOIN units u ON u.id = t.unit_id
@@ -318,7 +318,7 @@ def _file(name: str, fmt: str, title: str, subtitle: str, tables: list) -> Respo
 
 @router.get("/owner/dashboard/{kind}/export")
 def dashboard_export(kind: Literal["collected", "pending", "overdue", "units"], fmt: Literal["xlsx", "pdf"] = Query("xlsx", alias="format"),
-                     scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> Response:
+                     scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> Response:
     """The rows behind a home-screen box as an Excel sheet or PDF. Works in every subscription state."""
     d = dashboard_detail(kind, scope, db)
     items = d["items"]
@@ -373,7 +373,7 @@ def statement_tables(db: Db, tenancy_id: UUID) -> tuple[str, str, list]:
 
 
 @router.get("/tenancies/{tenancy_id}/statement")
-def statement(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db),
+def statement(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function"),
               fmt: Literal["html", "pdf", "xlsx"] = Query("html", alias="format")) -> Response:
     """Rent statement for the owner or the renter of this rental, as a web page, PDF or Excel sheet.
     The app downloads it with the sign-in token (a plain browser link has none and gets 401)."""
@@ -386,7 +386,7 @@ def statement(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: 
 
 
 @router.get("/tenant/report/export")
-def tenant_report(fmt: Literal["xlsx", "pdf"] = Query("xlsx", alias="format"), user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> Response:
+def tenant_report(fmt: Literal["xlsx", "pdf"] = Query("xlsx", alias="format"), user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> Response:
     """A renter's own report across all their rentals: what is due per rental and every payment they made."""
     rentals = db.all("""SELECT u.identifier, p.name AS property_name, p.address, o.display_name AS owner_name, t.monthly_rent_paise, t.status,
                                b.balance_paise, b.deposit_held_paise
@@ -413,7 +413,7 @@ UPDATE_TEMPLATES = ("transfer_rejected", "pay_method_changed", "terms_changed", 
 
 
 @router.get("/tenant/updates")
-def tenant_updates(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def tenant_updates(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """What the owner changed or recorded lately (rent, advance, cash received, deposit), in the renter's language.
     Read from the same notification records the SMS/push messages use, so the app and the message always say the same thing.
     The in-app copy exists even when SMS is off, over the plan cap or held for quiet hours."""

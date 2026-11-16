@@ -72,7 +72,7 @@ class RequestIn(BaseModel):
 
 
 @router.post("/tenancies/{tenancy_id}/rent-relief")
-def request_relief(tenancy_id: UUID, body: RequestIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def request_relief(tenancy_id: UUID, body: RequestIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """The renter asks to pay less than the full month now. Nothing changes on the bill until the owner agrees."""
     t = tenant_tenancy(db, user, tenancy_id)
     if t["status"] != "active":
@@ -98,7 +98,7 @@ def request_relief(tenancy_id: UUID, body: RequestIn, user: CurrentUser = Depend
 
 
 @router.get("/tenancies/{tenancy_id}/rent-relief")
-def list_relief(tenancy_id: UUID, month: date | None = None, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def list_relief(tenancy_id: UUID, month: date | None = None, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     tenancy_party(db, user, tenancy_id)
     rows = db.all(f"""SELECT {COLUMNS} FROM rent_relief r WHERE r.tenancy_id = :t AND (CAST(:m AS date) IS NULL OR r.period_month = :m)
                       ORDER BY r.period_month DESC, r.created_at DESC LIMIT 50""", t=tenancy_id, m=_first(month) if month else None)
@@ -106,7 +106,7 @@ def list_relief(tenancy_id: UUID, month: date | None = None, user: CurrentUser =
 
 
 @router.post("/rent-relief/{relief_id}/cancel")
-def cancel_relief(relief_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def cancel_relief(relief_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     r = db.one("SELECT * FROM rent_relief WHERE id = :i AND requested_by = :u AND initiated_by = 'renter'", i=relief_id, u=user.id)
     if r is None:
         raise AppError("NOT_FOUND", "request not found")
@@ -136,7 +136,7 @@ def _tell_renter(db: Db, t: dict, rid: UUID, month: date, approved: bool, agreed
 
 
 @router.post("/owner/rent-relief/{relief_id}/decide")
-def decide_relief(relief_id: UUID, body: DecideIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def decide_relief(relief_id: UUID, body: DecideIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     r = db.one("SELECT * FROM rent_relief WHERE id = :i AND owner_account_id = :o", i=relief_id, o=scope.owner_account_id)
     if r is None:
         raise AppError("NOT_FOUND", "request not found")
@@ -167,7 +167,7 @@ class GrantIn(BaseModel):
 
 
 @router.post("/owner/tenancies/{tenancy_id}/rent-relief")
-def grant_relief(tenancy_id: UUID, body: GrantIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def grant_relief(tenancy_id: UUID, body: GrantIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """The owner changes what is payable for a month without waiting for a request."""
     t = owned_tenancy(db, scope, tenancy_id)
     month = _first(body.period_month)
@@ -187,7 +187,7 @@ def grant_relief(tenancy_id: UUID, body: GrantIn, scope: OwnerScope = Depends(ow
 
 
 @router.get("/owner/rent-relief")
-def pending_relief(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def pending_relief(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Requests waiting for the owner, newest first."""
     rows = db.all(f"""SELECT {COLUMNS}, u.identifier, (SELECT name FROM tenancy_contact_snapshots WHERE tenancy_id = r.tenancy_id ORDER BY created_at DESC LIMIT 1) AS tenant_name
                       FROM rent_relief r JOIN tenancies t ON t.id = r.tenancy_id JOIN units u ON u.id = t.unit_id

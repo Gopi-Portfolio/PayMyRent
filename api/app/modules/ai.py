@@ -216,7 +216,7 @@ class DraftIn(BaseModel):
 
 
 @router.post("/reminder-draft")
-def reminder_draft(body: DraftIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def reminder_draft(body: DraftIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """AI drafts wording only. The amount/date are inserted by the server from SQL, and nothing is
     sent until the owner calls /reminder-send with the (possibly edited) text."""
     owned_tenancy(db, scope, body.tenancy_id)
@@ -243,7 +243,7 @@ class SendIn(BaseModel):
 
 
 @router.post("/reminder-send")
-def reminder_send(body: SendIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def reminder_send(body: SendIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Explicit owner approval. One approved reminder per tenancy per day per channel."""
     t = owned_tenancy(db, scope, body.tenancy_id)
     if not t["tenant_user_id"] or t["status"] != "active":
@@ -256,7 +256,7 @@ def reminder_send(body: SendIn, scope: OwnerScope = Depends(owner_scope), db: Db
 
 
 @router.get("/usage")
-def usage(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def usage(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     b = db.one("""SELECT b.* FROM ai_usage_balances b JOIN owner_subscriptions s ON s.id = b.subscription_id
                   WHERE s.owner_account_id = :o AND s.status IN ('active','grace')""", o=scope.owner_account_id)
     events = db.all("""SELECT feature, model, billable_tokens, voice_seconds, status, usage_source, created_at FROM ai_usage_events

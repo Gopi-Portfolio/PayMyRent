@@ -89,7 +89,7 @@ def agreement_view(db: Db, t: dict, role: str) -> dict:
 
 
 @router.get("/tenancies/{tenancy_id}/agreement")
-def get_agreement(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def get_agreement(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     t, role, _ = tenancy_party(db, user, tenancy_id)
     return agreement_view(db, t, role)
 
@@ -100,7 +100,7 @@ class RenewIn(BaseModel):
 
 
 @router.post("/owner/tenancies/{tenancy_id}/agreement/renew")
-def renew_agreement(tenancy_id: UUID, body: RenewIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def renew_agreement(tenancy_id: UUID, body: RenewIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     t = owned_tenancy(db, scope, tenancy_id, lock=True)
     if t["status"] != "active":
         raise AppError("INVALID_STATE", "only a running rental can be renewed")

@@ -46,7 +46,7 @@ def channels(scope: OwnerScope = Depends(owner_scope)) -> dict:
 
 
 @router.get("/tenancies/{tenancy_id}/message-info")
-def message_info(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def message_info(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Who the message goes to, and the language they use the app in (the default for 'Send in')."""
     t = owned_tenancy(db, scope, tenancy_id)
     name = db.scalar("SELECT name FROM tenancy_contact_snapshots WHERE tenancy_id = :t ORDER BY created_at DESC LIMIT 1", t=tenancy_id)
@@ -101,7 +101,7 @@ class SendIn(BaseModel):
 
 
 @router.post("/tenancies/{tenancy_id}/messages")
-def send_message(tenancy_id: UUID, body: SendIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def send_message(tenancy_id: UUID, body: SendIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     t = owned_tenancy(db, scope, tenancy_id)
     if not t["tenant_user_id"] or t["status"] != "active":
         raise AppError("INVALID_STATE", "the renter has not accepted this rental yet")
@@ -136,7 +136,7 @@ def send_message(tenancy_id: UUID, body: SendIn, scope: OwnerScope = Depends(own
 
 
 @router.get("/tenancies/{tenancy_id}/messages")
-def list_messages(tenancy_id: UUID, limit: int = Query(default=10, ge=1, le=50), scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def list_messages(tenancy_id: UUID, limit: int = Query(default=10, ge=1, le=50), scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     owned_tenancy(db, scope, tenancy_id)
     rows = db.all("""SELECT id, original_text, original_lang, sent_text, sent_lang, input_method, channels, created_at FROM owner_messages
                      WHERE tenancy_id = :t ORDER BY created_at DESC LIMIT :n""", t=tenancy_id, n=limit)

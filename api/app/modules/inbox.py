@@ -29,7 +29,7 @@ def _templates_for(role: str) -> list[str]:
 
 
 @router.get("/me/notifications")
-def my_notifications(role: Literal["owner", "tenant"] = Query("tenant"), user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def my_notifications(role: Literal["owner", "tenant"] = Query("tenant"), user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     seen = db.scalar(f"SELECT {SEEN_COLUMN[role]} FROM users WHERE id = :u", u=user.id)
     # "a renter asked for relief" is a to-do: once the request is answered or taken back it leaves the bell (the dedupe key is relief-req:<request id>:<user>)
     rows = db.all("""SELECT n.id, n.template, n.payload, n.created_at FROM notification_events n
@@ -64,6 +64,6 @@ def my_notifications(role: Literal["owner", "tenant"] = Query("tenant"), user: C
 
 
 @router.post("/me/notifications/seen")
-def mark_seen(role: Literal["owner", "tenant"] = Query("tenant"), user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def mark_seen(role: Literal["owner", "tenant"] = Query("tenant"), user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     db.exec(f"UPDATE users SET {SEEN_COLUMN[role]} = now() WHERE id = :u", u=user.id)
     return {"unread": 0}

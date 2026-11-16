@@ -65,7 +65,7 @@ class CashIn(BaseModel):
 
 
 @router.post("/owner/tenancies/{tenancy_id}/payments/cash")
-def record_cash(tenancy_id: UUID, body: CashIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def record_cash(tenancy_id: UUID, body: CashIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Select tenant → amount → confirm. Immediately in the ledger, labelled owner-recorded."""
     t = owned_tenancy(db, scope, tenancy_id)                    # whose tenancy first, so a stranger learns nothing from the next check
     if not body.cash_received_confirmed:
@@ -94,7 +94,7 @@ class ReverseIn(BaseModel):
 
 
 @router.post("/owner/payments/{payment_id}/reverse")
-def reverse_payment(payment_id: UUID, body: ReverseIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def reverse_payment(payment_id: UUID, body: ReverseIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     p = db.must("SELECT * FROM payments WHERE id = :p AND owner_account_id = :o", "payment", p=payment_id, o=scope.owner_account_id)
     if p["method"] == "gateway":
         raise AppError("INVALID_STATE", "gateway payments are refunded through the payment provider, not reversed here")
@@ -104,7 +104,7 @@ def reverse_payment(payment_id: UUID, body: ReverseIn, scope: OwnerScope = Depen
 
 
 @router.post("/owner/payments/{payment_id}/confirm-transfer")
-def confirm_transfer(payment_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def confirm_transfer(payment_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     db.must("SELECT 1 FROM payments WHERE id = :p AND owner_account_id = :o", "payment", p=payment_id, o=scope.owner_account_id)
     db.scalar("SELECT rg_owner_confirm_transfer(:p, :by)", p=payment_id, by=scope.user.id)
     db.audit(scope.user.id, scope.owner_account_id, "payment.transfer_confirmed", "payment", payment_id)
@@ -121,7 +121,7 @@ class RejectIn(BaseModel):
 
 
 @router.post("/owner/payments/{payment_id}/reject-transfer")
-def reject_transfer(payment_id: UUID, body: RejectIn | None = None, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def reject_transfer(payment_id: UUID, body: RejectIn | None = None, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """The owner did not receive this transfer. The report is closed; the dues do not change."""
     db.must("SELECT 1 FROM payments WHERE id = :p AND owner_account_id = :o", "payment", p=payment_id, o=scope.owner_account_id)
     reason = (body.reason or "").strip() if body else ""
@@ -136,7 +136,7 @@ def reject_transfer(payment_id: UUID, body: RejectIn | None = None, scope: Owner
 
 
 @router.get("/owner/payments/pending-transfers")
-def pending_transfers(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def pending_transfers(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """UPI / bank transfers the tenants say they made, waiting for the owner to check their bank or UPI app."""
     rows = db.all("""SELECT p.id, p.tenancy_id, p.amount_paise, p.paid_on, p.created_at, u.identifier,
                             (SELECT name FROM tenancy_contact_snapshots WHERE tenancy_id = t.id ORDER BY created_at DESC LIMIT 1) AS tenant_name,
@@ -218,7 +218,7 @@ def resolve_pay_method(db: Db, scope: OwnerScope, method: str | None, upi_id: st
 
 
 @router.get("/owner/upi-ids")
-def my_upi_ids(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def my_upi_ids(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     last = db.scalar("""SELECT pay_method FROM tenancies WHERE owner_account_id = :o AND pay_method IS NOT NULL ORDER BY updated_at DESC, created_at DESC LIMIT 1""",
                      o=scope.owner_account_id)
     return {"upi_ids": known_upi_ids(db, scope.owner_account_id), "default_upi_id": owner_default_upi(db, scope.owner_account_id), "last_pay_method": last, "online_available": online_available(),
@@ -231,7 +231,7 @@ class DefaultUpiIn(BaseModel):
 
 
 @router.put("/owner/upi-default")
-def set_default_upi(body: DefaultUpiIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def set_default_upi(body: DefaultUpiIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """The owner's UPI ID in the profile. Every tenant set to UPI (without an ID of their own) pays this one."""
     if scope.membership_role != "owner":
         raise AppError("FORBIDDEN", "only the account owner can change the UPI ID")
@@ -260,7 +260,7 @@ class PayMethodIn(BaseModel):
 
 
 @router.put("/owner/payment-method/unset")
-def set_pay_method_for_unset(body: PayMethodIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def set_pay_method_for_unset(body: PayMethodIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """One choice for every live tenant that has no way of receiving rent chosen yet (tenants added before the choice existed).
     Tenants who already have a choice are left alone."""
     method, upi = resolve_pay_method(db, scope, body.method, body.upi_id, body.otp_code)
@@ -273,7 +273,7 @@ def set_pay_method_for_unset(body: PayMethodIn, scope: OwnerScope = Depends(owne
 
 
 @router.put("/owner/tenancies/{tenancy_id}/payment-method")
-def set_pay_method(tenancy_id: UUID, body: PayMethodIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def set_pay_method(tenancy_id: UUID, body: PayMethodIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     t = owned_tenancy(db, scope, tenancy_id, lock=True)
     if t["status"] not in ("invited", "active"):
         raise AppError("INVALID_STATE", "this rental has ended")
@@ -302,7 +302,7 @@ class DefaultMethodIn(BaseModel):
 
 
 @router.put("/owner/pay-default")
-def set_default_method(body: DefaultMethodIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def set_default_method(body: DefaultMethodIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """The owner's usual way of receiving rent. Every tenant without a choice of their own follows it. For UPI the profile UPI ID is
     used; if there is none yet, the one given here (with a code) becomes the profile UPI ID."""
     if scope.membership_role != "owner":
@@ -337,7 +337,7 @@ class TransferIn(BaseModel):
 
 
 @router.post("/tenant/tenancies/{tenancy_id}/payments/manual-transfer")
-def report_transfer(tenancy_id: UUID, body: TransferIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def report_transfer(tenancy_id: UUID, body: TransferIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """A UPI/bank transfer made outside the app. Stays 'pending verification' — no effect on dues —
     until the owner confirms it against their bank statement."""
     t = tenant_tenancy(db, user, tenancy_id)
@@ -415,7 +415,7 @@ def _checkout(db: Db, user: CurrentUser, tenancy_id: UUID, amount: int | None, k
 
 
 @router.post("/tenant/tenancies/{tenancy_id}/payments/checkout")
-def online_checkout(tenancy_id: UUID, body: CheckoutIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def online_checkout(tenancy_id: UUID, body: CheckoutIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     limiter.check(f"rentcheckout:{user.id}", 10, 600)
     return _checkout(db, user, tenancy_id, parse_inr(body.amount), body.idempotency_key)
 
@@ -430,7 +430,7 @@ class BulkCheckoutIn(BaseModel):
 
 
 @router.post("/tenant/payments/checkout-bulk")
-def bulk_checkout(body: BulkCheckoutIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def bulk_checkout(body: BulkCheckoutIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """Pay several rentals in one go. Every rental is its own payment to its own owner for its FULL current balance (the server's
     figure, never the app's), with its own receipt. One rental failing does not stop the others."""
     limiter.check(f"rentbulk:{user.id}", 5, 600)
@@ -446,7 +446,7 @@ def bulk_checkout(body: BulkCheckoutIn, user: CurrentUser = Depends(complete_use
 
 
 @router.post("/tenant/payments/{payment_id}/refresh")
-def refresh_payment(payment_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def refresh_payment(payment_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """'Check status' on the pending screen: server-to-server status check, never the client's word."""
     p = db.must("""SELECT p.* FROM payments p JOIN tenancies t ON t.id = p.tenancy_id
                    WHERE p.id = :p AND t.tenant_user_id = :u""", "payment", p=payment_id, u=user.id)
@@ -487,7 +487,7 @@ class AckIn(BaseModel):
 
 
 @router.post("/tenant/payments/{payment_id}/ack")
-def ack_payment(payment_id: UUID, body: AckIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def ack_payment(payment_id: UUID, body: AckIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     p = db.must("""SELECT p.* FROM payments p JOIN tenancies t ON t.id = p.tenancy_id WHERE p.id = :p AND t.tenant_user_id = :u""",
                 "payment", p=payment_id, u=user.id)
     if body.response == "disputed":
@@ -502,7 +502,7 @@ def ack_payment(payment_id: UUID, body: AckIn, user: CurrentUser = Depends(compl
 
 
 @router.get("/payments/{payment_id}")
-def get_payment(payment_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def get_payment(payment_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     tid = db.scalar("SELECT tenancy_id FROM payments WHERE id = :p", p=payment_id)
     if tid is None:
         raise AppError("NOT_FOUND", "payment not found")
@@ -511,7 +511,7 @@ def get_payment(payment_id: UUID, user: CurrentUser = Depends(complete_user), db
 
 
 @router.get("/receipts/{receipt_id}", response_class=HTMLResponse)
-def receipt_html(receipt_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> str:
+def receipt_html(receipt_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> str:
     tid = db.scalar("SELECT tenancy_id FROM receipts WHERE id = :r", r=receipt_id)
     if tid is None:
         raise AppError("NOT_FOUND", "receipt not found")
@@ -550,7 +550,7 @@ def _within_deposit_limits(db: Db, tenancy_id: UUID, kind: str, amount: int, key
 
 
 @router.post("/owner/tenancies/{tenancy_id}/deposit")
-def deposit_txn(tenancy_id: UUID, body: DepositIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def deposit_txn(tenancy_id: UUID, body: DepositIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     t = owned_tenancy(db, scope, tenancy_id)
     amount = parse_inr(body.amount)
     if body.type != "received" and not body.reason:
@@ -577,7 +577,7 @@ def deposit_view(db: Db, tenancy_id: UUID) -> dict:
 
 
 @router.get("/tenancies/{tenancy_id}/deposit")
-def get_deposit(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def get_deposit(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     tenancy_party(db, user, tenancy_id)
     return deposit_view(db, tenancy_id)
 
@@ -590,7 +590,7 @@ class PayoutIn(BaseModel):
 
 
 @router.post("/owner/payout-account")
-def set_payout_account(body: PayoutIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def set_payout_account(body: PayoutIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Sensitive: requires a fresh OTP sign-in (step-up) and notifies the owner on every change.
     Raw bank/UPI details are entered on the PSP's onboarding, never stored here."""
     if scope.membership_role != "owner":

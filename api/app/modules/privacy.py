@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/v1", tags=["privacy"])
 
 
 @router.get("/me/export")
-def export_my_data(fmt: Literal["json", "csv", "pdf"] = Query("json", alias="format"), user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)):
+def export_my_data(fmt: Literal["json", "csv", "pdf"] = Query("json", alias="format"), user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")):
     """The person's own data. The app always asks for csv or pdf (what people can open and keep); json stays for programs that call the API."""
     limiter.check(f"export:{user.id}", 5, 3600)
     u = db.must("SELECT id, full_name, address, preferred_language, created_at FROM users WHERE id = :u", "user", u=user.id)
@@ -92,7 +92,7 @@ def _close_owned_rentals(db: Db, user_id) -> None:  # noqa: ANN001
 
 
 @router.post("/me/close-account")
-def close_account(body: CloseIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
+def close_account(body: CloseIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")) -> dict:
     if body.confirm.strip().upper() != "DELETE":
         raise AppError("VALIDATION", "type DELETE to confirm", fields=[{"field": "confirm", "code": "required"}])
     if body.close_rentals:

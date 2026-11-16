@@ -44,7 +44,7 @@ def _row(r: dict) -> dict:
 @router.post("/owner/renters")
 def add_renter(name: str = Form(...), phone: str = Form(...), id_type: str = Form(...), keep_copy_ok: bool = Form(False),
                email: str | None = Form(None), address: str | None = Form(None), file: UploadFile = File(...),
-               scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+               scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     owner, actor = scope.owner_account_id, scope.user.id
     limiter.check(f"renter-add:{owner}", 60, 3600)
     nm = validate_full_name(name, "name")
@@ -85,21 +85,21 @@ def add_renter(name: str = Form(...), phone: str = Form(...), id_type: str = For
 
 
 @router.get("/owner/renters")
-def list_renters(allotted: bool | None = None, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def list_renters(allotted: bool | None = None, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     where = "" if allotted is None else (" AND tenancy_id IS NOT NULL" if allotted else " AND tenancy_id IS NULL")
     rows = db.all(f"SELECT * FROM renters WHERE owner_account_id = :o{where} ORDER BY created_at DESC", o=scope.owner_account_id)
     return {"items": [_row(r) for r in rows]}
 
 
 @router.get("/owner/renters/{renter_id}/id-photo")
-def renter_id_photo(renter_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> Response:
+def renter_id_photo(renter_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> Response:
     r = db.must("SELECT id_mime, id_enc FROM renters WHERE id = :i AND owner_account_id = :o", "renter", i=renter_id, o=scope.owner_account_id)
     db.audit(scope.user.id, scope.owner_account_id, "renter.id_viewed", "renter", renter_id)
     return Response(decrypt_bytes(bytes(r["id_enc"])), media_type=r["id_mime"], headers={"Cache-Control": "no-store"})
 
 
 @router.delete("/owner/renters/{renter_id}")
-def remove_renter(renter_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def remove_renter(renter_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Remove a renter who has not been given a place yet. Their details and ID photo are erased. A renter who has a rental is removed from
     the unit instead (End Tenancy), which keeps the rent history."""
     r = db.must("SELECT id, tenancy_id FROM renters WHERE id = :i AND owner_account_id = :o", "renter", i=renter_id, o=scope.owner_account_id)
@@ -142,7 +142,7 @@ def _tell_renter(renter: dict, owner_name: str, unit: str, sms_already: bool) ->
 
 
 @router.post("/owner/renters/{renter_id}/allot")
-def allot_renter(renter_id: UUID, body: AllotIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db),
+def allot_renter(renter_id: UUID, body: AllotIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function"),
                  idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
     def work() -> dict:
         owner = scope.owner_account_id

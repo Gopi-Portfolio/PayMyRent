@@ -410,3 +410,14 @@ test('15. REMOVING: a waiting renter is deleted with their ID; a rental is remov
   expect(removed.status).toBe(200);
   expect((await ok(call('GET', '/api/v1/owner/properties', { token: solo.actor.token }), 'properties')).items).toHaveLength(0);
 });
+
+test('16. READ YOUR OWN WRITES: what was just saved is there the instant the reply arrives, every time (the next screen reads it straight away)', async () => {
+  const fast = await makeOwner('Live Fast Owner');                           // its own account, so the hourly limit on adding renters is untouched
+  const missing: string[] = [];
+  for (let i = 0; i < 40; i++) {
+    const id = await addRenter(fast.actor.token, `Live Fast ${i}`);
+    const list = (await ok(call('GET', '/api/v1/owner/renters?allotted=false', { token: fast.actor.token }), 'renters')).items as any[];
+    if (!list.some((r) => r.id === id)) missing.push(`#${i}`);
+  }
+  expect(missing).toEqual([]);
+});

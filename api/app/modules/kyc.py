@@ -63,7 +63,7 @@ def apply_result(db: Db, session_id: str, res: KycResult) -> dict | None:
 
 
 @router.get("/me/identity")
-def my_identity(user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
+def my_identity(user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")) -> dict:
     return _out(_latest(db, user.id))
 
 
@@ -74,7 +74,7 @@ class StartIn(BaseModel):
 
 
 @router.post("/me/identity/start")
-def start_identity(body: StartIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def start_identity(body: StartIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     from .action_otp import require_action_otp
     s = get_settings()
     if not body.consent or body.notice_version != s.kyc_notice_version:
@@ -94,7 +94,7 @@ def start_identity(body: StartIn, user: CurrentUser = Depends(complete_user), db
 
 
 @router.post("/me/identity/refresh")
-def refresh_identity(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def refresh_identity(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     cur = _latest(db, user.id)
     if cur and cur["status"] == "pending":
         apply_result(db, cur["provider_session_id"], get_kyc_provider(get_settings()).fetch_result(cur["provider_session_id"]))
@@ -103,7 +103,7 @@ def refresh_identity(user: CurrentUser = Depends(complete_user), db: Db = Depend
 
 
 @router.post("/me/identity/demo-approve")
-def demo_approve(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def demo_approve(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """Demo mode only: stands in for the human reviewer so a manual-review result can be completed locally."""
     if not get_settings().is_demo:
         raise AppError("NOT_FOUND")
@@ -116,7 +116,7 @@ def demo_approve(user: CurrentUser = Depends(complete_user), db: Db = Depends(ge
 
 
 @router.delete("/me/identity")
-def withdraw_identity(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def withdraw_identity(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """Withdraw consent: the stored outcome is marked withdrawn and no longer counts as verification."""
     db.exec("UPDATE identity_verifications SET status = 'withdrawn', updated_at = now() WHERE user_id = :u AND status <> 'withdrawn'", u=user.id)
     db.audit(user.id, None, "identity.withdrawn", "user", user.id)
@@ -182,7 +182,7 @@ def admin(x_admin_token: str | None = Header(default=None)) -> None:
 
 
 @router.get("/admin/review")
-def review_queue(_: None = Depends(admin), db: Db = Depends(get_db)) -> dict:
+def review_queue(_: None = Depends(admin), db: Db = Depends(get_db, scope="function")) -> dict:
     owners = db.all("""SELECT v.owner_account_id, v.legal_name, v.address, v.proof_type, v.proof_ref, v.declared_at,
                               v.pan_masked
                        FROM owner_verifications v WHERE v.status = 'submitted' ORDER BY v.declared_at""")
@@ -204,7 +204,7 @@ class DecisionIn(BaseModel):
 
 
 @router.post("/admin/review/owner/{owner_account_id}")
-def review_owner(owner_account_id: UUID, body: DecisionIn, _: None = Depends(admin), db: Db = Depends(get_db)) -> dict:
+def review_owner(owner_account_id: UUID, body: DecisionIn, _: None = Depends(admin), db: Db = Depends(get_db, scope="function")) -> dict:
     n = db.exec("""UPDATE owner_verifications SET status = :s, reviewed_at = now(), review_note = :n, updated_at = now()
                    WHERE owner_account_id = :o AND status = 'submitted'""",
                 s="verified" if body.decision == "approve" else "rejected", n=body.note, o=owner_account_id)
@@ -233,7 +233,7 @@ def review_property(property_id: UUID, body: DecisionIn, _: None = Depends(admin
 
 
 @router.post("/admin/review/identity/{identity_id}")
-def review_identity(identity_id: UUID, body: DecisionIn, _: None = Depends(admin), db: Db = Depends(get_db)) -> dict:
+def review_identity(identity_id: UUID, body: DecisionIn, _: None = Depends(admin), db: Db = Depends(get_db, scope="function")) -> dict:
     days = get_settings().kyc_validity_days
     n = db.exec("""UPDATE identity_verifications SET status = :s, reviewed_at = now(), review_note = :n, updated_at = now(),
                      expires_at = CASE WHEN :s = 'verified' THEN now() + make_interval(days => :d) END

@@ -134,6 +134,8 @@ def transaction() -> Iterator[Db]:
 
 def get_db() -> Iterator[Db]:
     """FastAPI dependency: one transaction per request, committed on success, as the limited role under row-level security.
+    Always used as Depends(get_db, scope="function"): the commit then happens BEFORE the reply is sent. With the default scope FastAPI (0.118 and later)
+    commits after the reply, so a client that reads straight after a save (the next screen does) could miss what it just saved.
     Until the request is authenticated the database sees nobody, so tenancy/payment/unit rows are invisible."""
     with _run(app_engine()) as db:
         yield db

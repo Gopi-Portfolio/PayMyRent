@@ -39,7 +39,7 @@ class NoteIn(BaseModel):
 
 
 @router.post("/tenancies/{tenancy_id}/notes")
-def add_note(tenancy_id: UUID, body: NoteIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+def add_note(tenancy_id: UUID, body: NoteIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function"), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
     def work() -> dict:
         t, role, _ = tenancy_party(db, user, tenancy_id)
         if body.visibility == "owner_private" and role != "owner":
@@ -57,7 +57,7 @@ def add_note(tenancy_id: UUID, body: NoteIn, user: CurrentUser = Depends(complet
 
 @router.get("/tenancies/{tenancy_id}/notes")
 def list_notes(tenancy_id: UUID, target_type: Target | None = None, target_id: UUID | None = None,
-               user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+               user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     _, role, _ = tenancy_party(db, user, tenancy_id)
     rows = db.all("""SELECT n.id, n.target_type, n.target_id, n.author_role, n.body, n.input_method, n.visibility, n.created_at, n.edited_at,
                             (n.author_user_id = :u) AS mine
@@ -72,7 +72,7 @@ class NoteEdit(BaseModel):
 
 
 @router.patch("/notes/{note_id}")
-def edit_note(note_id: UUID, body: NoteEdit, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def edit_note(note_id: UUID, body: NoteEdit, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     n = db.must("SELECT * FROM notes WHERE id = :n AND author_user_id = :u FOR UPDATE", "note", n=note_id, u=user.id)
     db.exec("INSERT INTO note_revisions(note_id, body) VALUES (:n, :b)", n=note_id, b=n["body"])
     db.exec("UPDATE notes SET body = :b, edited_at = now() WHERE id = :n", b=validate_note(body.body), n=note_id)
@@ -87,7 +87,7 @@ class DisputeIn(BaseModel):
 
 
 @router.post("/tenancies/{tenancy_id}/disputes")
-def raise_dispute(tenancy_id: UUID, body: DisputeIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def raise_dispute(tenancy_id: UUID, body: DisputeIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     t, role, _ = tenancy_party(db, user, tenancy_id)
     if role != "tenant":
         raise AppError("FORBIDDEN", "disputes are raised by the tenant")
@@ -100,7 +100,7 @@ def raise_dispute(tenancy_id: UUID, body: DisputeIn, user: CurrentUser = Depends
 
 
 @router.get("/tenancies/{tenancy_id}/disputes")
-def list_disputes(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def list_disputes(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     tenancy_party(db, user, tenancy_id)
     return {"items": [dict(r) for r in db.all("SELECT * FROM disputes WHERE tenancy_id = :t ORDER BY created_at DESC", t=tenancy_id)]}
 
@@ -111,7 +111,7 @@ class ResolveIn(BaseModel):
 
 
 @router.post("/owner/disputes/{dispute_id}/resolve")
-def resolve_dispute(dispute_id: UUID, body: ResolveIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def resolve_dispute(dispute_id: UUID, body: ResolveIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Resolving records the outcome only. Any money correction is a separate, audited reversal or adjustment."""
     d = db.must("SELECT * FROM disputes WHERE id = :d AND owner_account_id = :o AND status = 'open' FOR UPDATE", "dispute",
                 d=dispute_id, o=scope.owner_account_id)
@@ -126,7 +126,7 @@ def resolve_dispute(dispute_id: UUID, body: ResolveIn, scope: OwnerScope = Depen
 
 # ───────────────────────── attachments (bill photos, proofs) ─────────────────────────
 @router.post("/attachments")
-async def upload_attachment(file: UploadFile = File(...), user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+async def upload_attachment(file: UploadFile = File(...), user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     data = await file.read(storage.MAX_BYTES + 1)
     key, sha = storage.put(get_settings(), str(user.id), file.content_type or "", data)
     aid = db.scalar("""INSERT INTO file_attachments(uploaded_by, storage_key, content_type, size_bytes, sha256)
@@ -135,7 +135,7 @@ async def upload_attachment(file: UploadFile = File(...), user: CurrentUser = De
 
 
 @router.get("/owner/disputes")
-def owner_disputes(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def owner_disputes(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     return {"items": [dict(r) for r in db.all("""SELECT d.*, u.identifier FROM disputes d JOIN tenancies t ON t.id = d.tenancy_id
                                                  JOIN units u ON u.id = t.unit_id WHERE d.owner_account_id = :o AND d.status = 'open'
                                                  ORDER BY d.created_at""", o=scope.owner_account_id)]}

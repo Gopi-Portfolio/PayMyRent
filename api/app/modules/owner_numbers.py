@@ -111,12 +111,12 @@ class OwnerNumbersIn(BaseModel):
 
 
 @router.get("/owner/owner-numbers")
-def get_owner_numbers(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def get_owner_numbers(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     return owner_numbers_view(db, scope)
 
 
 @router.put("/owner/owner-numbers")
-def put_owner_numbers(body: OwnerNumbersIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def put_owner_numbers(body: OwnerNumbersIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     from .action_otp import require_action_otp
     if scope.membership_role == "owner":
         require_action_otp(db, scope.user.id, "co_owner", body.otp_code)       # set_owner_numbers refuses non-owners itself

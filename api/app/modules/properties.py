@@ -96,7 +96,7 @@ def mask_ref(ref: str | None) -> str | None:
 
 
 @router.post("/owner/properties/check")
-def check_property(body: PropertyIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def check_property(body: PropertyIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Validate a property BEFORE paying for it: format, and whether it is already registered. Stores nothing.
     Limited per person, so it cannot be used to probe which addresses exist."""
     limiter.check(f"propcheck:{scope.user.id}", 10, 3600)
@@ -110,7 +110,7 @@ def check_property(body: PropertyIn, scope: OwnerScope = Depends(owner_scope), d
 
 
 @router.post("/owner/properties")
-def create_property(body: PropertyIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def create_property(body: PropertyIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Register THE property of this account (needs a paid plan). Goes to review; renters can be added once it is verified."""
     limiter.check(f"propadd:{scope.user.id}", 10, 3600)
     _require_owner_details(db, scope.owner_account_id)
@@ -140,7 +140,7 @@ def _property_view(db: Db, pid: UUID) -> dict:
 
 
 @router.get("/owner/properties")
-def list_properties(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def list_properties(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     rows = db.all("""SELECT p.id FROM properties p WHERE p.owner_account_id = :o AND p.archived_at IS NULL ORDER BY p.created_at""", o=scope.owner_account_id)
     items = []
     for r in rows:
@@ -154,7 +154,7 @@ def list_properties(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(g
 
 
 @router.post("/owner/properties/{property_id}/remove")
-def remove_property(property_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def remove_property(property_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Take a property off the list. Only when nobody lives in it (and no invitation is waiting): the renters have to be removed first, so a
     rental, its rent history and its deposit are never cut off by accident. Its units are archived; nothing is erased, and the address can be added again."""
     if scope.membership_role != "owner":
@@ -174,7 +174,7 @@ def remove_property(property_id: UUID, scope: OwnerScope = Depends(owner_scope),
 
 
 @router.post("/owner/workspaces")
-def add_property_account(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def add_property_account(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Start ANOTHER property: a new owner account for the same person (same phone) that needs its own plan and payment.
     The reviewed owner details are copied, so they are not asked again. The next steps are: choose a plan, pay, add the property."""
     user: CurrentUser = scope.user
@@ -204,7 +204,7 @@ def add_property_account(scope: OwnerScope = Depends(owner_scope), db: Db = Depe
 
 
 @router.get("/owner/workspaces")
-def my_properties(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def my_properties(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """Every property (account) this person owns or co-owns, with plan, units and vacancy: the 'My properties' list."""
     rows = db.all("""SELECT m.owner_account_id AS id, m.role, rg_owner_write_state(m.owner_account_id) AS state
                      FROM owner_memberships m WHERE m.user_id = :u AND m.status = 'active' ORDER BY m.created_at""", u=user.id)

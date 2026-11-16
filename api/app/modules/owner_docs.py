@@ -62,7 +62,7 @@ def owner_checked_here(db: Db, owner_account_id) -> bool:
 
 
 @router.get("/owner/documents")
-def list_documents(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def list_documents(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     _enabled()
     rows = db.all("SELECT kind, created_at FROM owner_documents WHERE owner_account_id = :o", o=scope.owner_account_id)
     have = {r["kind"]: r["created_at"] for r in rows}
@@ -93,7 +93,7 @@ def scan_renter_details(file: UploadFile = File(...), scope: OwnerScope = Depend
 
 
 @router.put("/owner/documents/{kind}")
-def upload_document(kind: str, file: UploadFile = File(...), scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def upload_document(kind: str, file: UploadFile = File(...), scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     _enabled()
     if kind not in KINDS:
         raise AppError("NOT_FOUND")
@@ -158,7 +158,7 @@ def _check(checks: list[dict], code: str, ok: bool, message: str) -> bool:
 
 
 @router.post("/owner/documents/verify")
-def verify_documents(body: VerifyIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def verify_documents(body: VerifyIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     _enabled()
     s = get_settings()
     if not body.declare:

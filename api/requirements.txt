@@ -1,5 +1,5 @@
 # Pin exact versions with `pip-compile` / `uv pip compile` before production; ranges here are the tested floor.
-fastapi>=0.118,<1
+fastapi>=0.121,<1
 uvicorn[standard]>=0.30
 sqlalchemy>=2.0.30,<2.1
 psycopg[binary]>=3.2,<4

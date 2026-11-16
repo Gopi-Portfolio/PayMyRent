@@ -27,7 +27,7 @@ class RenterMessageIn(BaseModel):
 
 
 @router.post("/tenancies/{tenancy_id}/messages")
-def send_to_owner(tenancy_id: UUID, body: RenterMessageIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+def send_to_owner(tenancy_id: UUID, body: RenterMessageIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function"), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
     def work() -> dict:
         t = tenant_tenancy(db, user, tenancy_id)
         if t["status"] != "active":
@@ -53,7 +53,7 @@ def send_to_owner(tenancy_id: UUID, body: RenterMessageIn, user: CurrentUser = D
 
 
 @router.get("/tenancies/{tenancy_id}/messages")
-def my_sent_messages(tenancy_id: UUID, limit: int = Query(default=10, ge=1, le=50), user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def my_sent_messages(tenancy_id: UUID, limit: int = Query(default=10, ge=1, le=50), user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     tenant_tenancy(db, user, tenancy_id)
     rows = db.all("SELECT id, text, lang, input_method, created_at FROM renter_messages WHERE tenancy_id = :t AND sent_by = :u ORDER BY created_at DESC LIMIT :n",
                   t=tenancy_id, u=user.id, n=limit)

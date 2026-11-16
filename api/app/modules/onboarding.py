@@ -49,7 +49,7 @@ from ..core.crypto import encrypt as _enc_pan, lookup_hash as _pan_hash, mask_pa
 
 
 @router.get("/owner/verification")
-def get_owner_details(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def get_owner_details(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     r = db.one("SELECT * FROM owner_verifications WHERE owner_account_id = :o", o=scope.owner_account_id)
     if r is None:
         return {"status": "none"}
@@ -58,7 +58,7 @@ def get_owner_details(scope: OwnerScope = Depends(owner_scope), db: Db = Depends
 
 
 @router.put("/owner/verification")
-def submit_owner_details(body: OwnerDetailsIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def submit_owner_details(body: OwnerDetailsIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     import re
     from .action_otp import require_action_otp
     if not body.declare:
@@ -198,7 +198,7 @@ def tenancy_search(q: str | None) -> tuple[str, dict]:
 
 @router.get("/owner/units")
 def list_units(q: str | None = Query(default=None, max_length=50), status: Literal["active", "archived", "all"] = "active",
-               vacant: bool | None = None, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+               vacant: bool | None = None, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Units with their state. `vacant` = active, with no renter or open invitation (e.g. after the renter's period ended and they left):
     these are the units an owner can fill by tapping 'Add renter'."""
     rows = db.all("""SELECT u.id, u.identifier, u.kind, u.floor, u.status, p.id AS property_id, p.name AS property_name, p.address,
@@ -219,7 +219,7 @@ def list_units(q: str | None = Query(default=None, max_length=50), status: Liter
 
 
 @router.post("/owner/units")
-def create_unit(body: UnitIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+def create_unit(body: UnitIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function"), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
     def work() -> dict:
         db.must("SELECT 1 FROM properties WHERE id = :p AND owner_account_id = :o", "property", p=body.property_id, o=scope.owner_account_id)
         ident = validate_unit_identifier(body.identifier)
@@ -238,7 +238,7 @@ def create_unit(body: UnitIn, scope: OwnerScope = Depends(owner_scope), db: Db =
 
 @router.post("/owner/units/{unit_id}/{action}")
 def unit_status(unit_id: UUID, action: Literal["archive", "reactivate"], scope: OwnerScope = Depends(owner_scope),
-                db: Db = Depends(get_db)) -> dict:
+                db: Db = Depends(get_db, scope="function")) -> dict:
     # Capacity on reactivation is re-checked by the database trigger.
     n = db.exec("UPDATE units SET status = :s WHERE id = :u AND owner_account_id = :o",
                 s="archived" if action == "archive" else "active", u=unit_id, o=scope.owner_account_id)
@@ -399,7 +399,7 @@ def validate_tenancy_input(body: TenancyIn) -> dict:
 
 
 @router.post("/owner/tenancies")
-def onboard_tenancy(body: TenancyIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+def onboard_tenancy(body: TenancyIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function"), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
     def work() -> dict:
         d = validate_tenancy_input(body)
         if body.end_date is None:
@@ -411,7 +411,7 @@ def onboard_tenancy(body: TenancyIn, scope: OwnerScope = Depends(owner_scope), d
 
 
 @router.get("/owner/renter-check")
-def renter_check(mobile: str = Query(max_length=20), scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def renter_check(mobile: str = Query(max_length=20), scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Is the person with this number a renter whose photo ID is verified? Only a yes or no: nothing else about them is ever shown,
     and the number of checks is limited so the answer cannot be used to look people up."""
     phone = normalize_indian_mobile(mobile, "mobile")
@@ -425,7 +425,7 @@ def renter_check(mobile: str = Query(max_length=20), scope: OwnerScope = Depends
 @router.get("/owner/tenancies")
 def list_tenancies(q: str | None = Query(default=None, max_length=50),
                    status: Literal["live", "invited", "active", "ended", "all"] = "live",
-                   scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+                   scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     where, sp = tenancy_search(q)
     rows = db.all("""SELECT t.id, t.status, t.pay_method, COALESCE(t.pay_method, (SELECT default_pay_method FROM owner_accounts WHERE id = t.owner_account_id)) AS effective_pay_method, t.monthly_rent_paise, t.due_day, t.start_date, t.end_date, u.identifier, u.kind AS unit_kind, u.floor AS unit_floor, p.name AS property_name,
                             p.address, s.name AS tenant_name, s.phone AS tenant_phone, b.balance_paise, b.payable_now_paise, b.deposit_held_paise,
@@ -443,7 +443,7 @@ def list_tenancies(q: str | None = Query(default=None, max_length=50),
 
 
 @router.get("/owner/tenancies/{tenancy_id}")
-def tenancy_detail(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def tenancy_detail(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     t = owned_tenancy(db, scope, tenancy_id)
     contact = db.one("SELECT * FROM tenancy_contact_snapshots WHERE tenancy_id = :t ORDER BY created_at DESC LIMIT 1", t=tenancy_id)
     cfg = db.all("SELECT category, enabled, default_amount_paise, carry_forward, tenant_can_submit FROM recurring_charge_config WHERE tenancy_id = :t", t=tenancy_id)
@@ -504,7 +504,7 @@ def _tell_renter_terms_changed(db: Db, scope: OwnerScope, before, body: "TermsIn
 
 
 @router.patch("/owner/tenancies/{tenancy_id}")
-def update_terms(tenancy_id: UUID, body: TermsIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+def update_terms(tenancy_id: UUID, body: TermsIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function"), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
     def work() -> dict:
         t = owned_tenancy(db, scope, tenancy_id, lock=True)
         if t["version"] != body.version:
@@ -556,7 +556,7 @@ class ChargeConfigIn(BaseModel):
 
 
 @router.put("/owner/tenancies/{tenancy_id}/charge-config")
-def set_charge_config(tenancy_id: UUID, body: list[ChargeConfigIn], scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def set_charge_config(tenancy_id: UUID, body: list[ChargeConfigIn], scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     owned_tenancy(db, scope, tenancy_id)
     for c in body:
         amt = parse_inr(c.default_amount, field="default_amount", allow_zero=True) if c.default_amount not in (None, "") else None
@@ -576,7 +576,7 @@ class TenantContactIn(BaseModel):
 
 
 @router.put("/owner/tenancies/{tenancy_id}/contact")
-def edit_tenant_contact(tenancy_id: UUID, body: TenantContactIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def edit_tenant_contact(tenancy_id: UUID, body: TenantContactIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Owner's own record of the tenant for THIS tenancy. Does not touch the tenant's global
     profile, login number or notification preferences; past receipts keep their snapshot."""
     t = owned_tenancy(db, scope, tenancy_id)
@@ -594,7 +594,7 @@ class ProposalIn(BaseModel):
 
 
 @router.post("/owner/tenancies/{tenancy_id}/contact-proposals")
-def propose_contact_change(tenancy_id: UUID, body: ProposalIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def propose_contact_change(tenancy_id: UUID, body: ProposalIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     t = owned_tenancy(db, scope, tenancy_id)
     if t["tenant_user_id"] is None:
         raise AppError("INVALID_STATE", "tenant has not accepted yet; edit the invitation instead")
@@ -610,7 +610,7 @@ class EndIn(BaseModel):
 
 
 @router.post("/owner/tenancies/{tenancy_id}/end")
-def end_tenancy(tenancy_id: UUID, end_date: date, body: EndIn | None = None, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def end_tenancy(tenancy_id: UUID, end_date: date, body: EndIn | None = None, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Close a renter as vacated. The unit becomes free for a new renter. Notes are kept on the record and shown to both sides."""
     t = owned_tenancy(db, scope, tenancy_id)
     db.scalar("SELECT rg_end_tenancy(:t, :d, :by)", t=tenancy_id, d=end_date, by=scope.user.id)
@@ -629,7 +629,7 @@ def end_tenancy(tenancy_id: UUID, end_date: date, body: EndIn | None = None, sco
 
 
 @router.post("/owner/tenancies/{tenancy_id}/resend-invite")
-def resend_invite(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def resend_invite(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Send the invitation text/notification again while the renter has not accepted. At most once every 10 minutes."""
     t = owned_tenancy(db, scope, tenancy_id, lock=True)
     if t["status"] != "invited":
@@ -649,7 +649,7 @@ def resend_invite(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), db
 
 
 @router.post("/owner/tenancies/{tenancy_id}/cancel-invite")
-def cancel_invite(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def cancel_invite(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Remove a renter who was added by mistake (wrong number). Only while the invitation is still unaccepted; the address becomes free again."""
     t = owned_tenancy(db, scope, tenancy_id, lock=True)
     if t["status"] != "invited":
@@ -661,7 +661,7 @@ def cancel_invite(tenancy_id: UUID, scope: OwnerScope = Depends(owner_scope), db
 
 # ───────────────────────── tenant side ─────────────────────────
 @router.get("/tenant/invitations")
-def my_invitations(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def my_invitations(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """Only enough to recognise the invitation — no rent, balances or address until accepted."""
     rows = db.all("""SELECT i.id, o.display_name AS owner_name, u.identifier AS unit, i.created_at,
                             COALESCE((SELECT v.status FROM owner_verifications v WHERE v.owner_account_id = o.id), 'none') AS owner_verification,
@@ -675,7 +675,7 @@ def my_invitations(user: CurrentUser = Depends(complete_user), db: Db = Depends(
 
 @router.post("/tenant/invitations/{invitation_id}/{decision}")
 def decide_invitation(invitation_id: UUID, decision: Literal["accept", "reject"], user: CurrentUser = Depends(complete_user),
-                      db: Db = Depends(get_db)) -> dict:
+                      db: Db = Depends(get_db, scope="function")) -> dict:
     if decision == "accept":
         tid = db.scalar("SELECT rg_accept_invitation(:i, :u)", i=invitation_id, u=user.id)
         db.ctx_add_tenancy(tid)                             # row-level security: this tenancy is now theirs
@@ -688,7 +688,7 @@ def decide_invitation(invitation_id: UUID, decision: Literal["accept", "reject"]
 
 
 @router.get("/tenant/rentals")
-def my_rentals(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def my_rentals(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     rows = db.all("""SELECT t.id, t.status, t.monthly_rent_paise, t.due_day, t.start_date, t.end_date, u.identifier, u.kind, u.floor,
                             p.name AS property_name, p.address, o.display_name AS owner_name, o.id AS _owner_id,
                             COALESCE((SELECT v.status FROM owner_verifications v WHERE v.owner_account_id = o.id), 'none') AS owner_verification, o.default_upi_id AS _default_upi,
@@ -732,7 +732,7 @@ def my_rentals(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_
 
 
 @router.get("/tenant/contact-proposals")
-def my_proposals(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def my_proposals(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     return {"items": [dict(r) for r in db.all(
         """SELECT cp.id, cp.field, cp.new_value, cp.created_at, o.display_name AS owner_name FROM contact_change_proposals cp
            JOIN tenancies t ON t.id = cp.tenancy_id JOIN owner_accounts o ON o.id = t.owner_account_id
@@ -741,7 +741,7 @@ def my_proposals(user: CurrentUser = Depends(complete_user), db: Db = Depends(ge
 
 @router.post("/tenant/contact-proposals/{proposal_id}/{decision}")
 def decide_proposal(proposal_id: UUID, decision: Literal["accept", "reject"], user: CurrentUser = Depends(complete_user),
-                    db: Db = Depends(get_db)) -> dict:
+                    db: Db = Depends(get_db, scope="function")) -> dict:
     """Accepting never applies the change silently: secondary mobile/email are added UNVERIFIED and
     the tenant verifies them by OTP; a primary-number change must go through the tenant's own
     Change Primary Mobile flow."""
@@ -783,7 +783,7 @@ def _import_context(db: Db, owner: UUID) -> dict:
 
 
 @router.post("/owner/imports")
-async def upload_import(file: UploadFile = File(...), scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+async def upload_import(file: UploadFile = File(...), scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     content = await file.read(excel_import.MAX_FILE_BYTES + 1)
     try:
         preview = excel_import.parse_workbook(content, **_import_context(db, scope.owner_account_id))
@@ -804,7 +804,7 @@ async def upload_import(file: UploadFile = File(...), scope: OwnerScope = Depend
 
 
 @router.post("/owner/imports/{job_id}/commit")
-def commit_import(job_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def commit_import(job_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     job = db.must("SELECT * FROM import_jobs WHERE id = :j AND owner_account_id = :o FOR UPDATE", "import", j=job_id, o=scope.owner_account_id)
     if job["status"] != "previewed":
         raise AppError("INVALID_STATE", f"import already {job['status']}")
@@ -844,7 +844,7 @@ def commit_import(job_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db
 
 
 @router.get("/owner/imports/{job_id}")
-def get_import(job_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def get_import(job_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     job = db.must("SELECT * FROM import_jobs WHERE id = :j AND owner_account_id = :o", "import", j=job_id, o=scope.owner_account_id)
     rows = db.all("SELECT row_number, status, errors, warnings, data->>'unit_identifier' AS unit FROM import_rows WHERE job_id = :j ORDER BY row_number", j=job_id)
     return {"job": dict(job), "rows": [dict(r) for r in rows]}

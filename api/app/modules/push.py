@@ -20,7 +20,7 @@ class PushTokenIn(BaseModel):
 
 
 @router.post("/me/push-token")
-def register_push_token(body: PushTokenIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
+def register_push_token(body: PushTokenIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")) -> dict:
     limiter.check(f"pushtok:{user.id}", 30, 600)
     db.scalar("SELECT rg_register_push_token(:u, :t, :p)", u=user.id, t=body.token.strip(), p=body.platform)
     return {"registered": True}
@@ -31,7 +31,7 @@ class PushTokenOut(BaseModel):
 
 
 @router.post("/me/push-token/remove")
-def remove_push_token(body: PushTokenOut, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
+def remove_push_token(body: PushTokenOut, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """Sign-out on this phone: stop sending this person's alerts to it. Only the person's own token can be removed."""
     db.exec("DELETE FROM push_tokens WHERE token = :t AND user_id = :u", t=body.token.strip(), u=user.id)
     return {"removed": True}

@@ -27,7 +27,7 @@ class RequestIn(BaseModel):
 
 
 @router.post("/tenancies/{tenancy_id}/vacate-request")
-def request_vacate(tenancy_id: UUID, body: RequestIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def request_vacate(tenancy_id: UUID, body: RequestIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     t = tenant_tenancy(db, user, tenancy_id)
     if t["status"] != "active":
         raise AppError("INVALID_STATE", "this rental has already ended")
@@ -50,14 +50,14 @@ def request_vacate(tenancy_id: UUID, body: RequestIn, user: CurrentUser = Depend
 
 
 @router.get("/tenancies/{tenancy_id}/vacate-request")
-def latest_vacate(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def latest_vacate(tenancy_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     tenant_tenancy(db, user, tenancy_id)
     row = db.one(f"SELECT {COLUMNS} FROM vacate_requests v WHERE v.tenancy_id = :t ORDER BY (v.status = 'requested') DESC, v.created_at DESC LIMIT 1", t=tenancy_id)
     return {"request": dict(row) if row else None}
 
 
 @router.post("/vacate-requests/{vacate_id}/cancel")
-def cancel_vacate(vacate_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
+def cancel_vacate(vacate_id: UUID, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function")) -> dict:
     v = db.one("SELECT * FROM vacate_requests WHERE id = :i AND requested_by = :u", i=vacate_id, u=user.id)
     if v is None:
         raise AppError("NOT_FOUND", "request not found")
@@ -69,7 +69,7 @@ def cancel_vacate(vacate_id: UUID, user: CurrentUser = Depends(complete_user), d
 
 
 @router.get("/owner/vacate-requests")
-def pending_vacate(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def pending_vacate(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     rows = db.all(f"""SELECT {COLUMNS}, u.identifier, p.name AS property_name, t.start_date, b.balance_paise, b.deposit_held_paise,
                              (SELECT name FROM tenancy_contact_snapshots WHERE tenancy_id = v.tenancy_id ORDER BY created_at DESC LIMIT 1) AS tenant_name
                       FROM vacate_requests v JOIN tenancies t ON t.id = v.tenancy_id JOIN units u ON u.id = t.unit_id JOIN properties p ON p.id = u.property_id
@@ -87,7 +87,7 @@ class DecideIn(BaseModel):
 
 
 @router.post("/owner/vacate-requests/{vacate_id}/decide")
-def decide_vacate(vacate_id: UUID, body: DecideIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def decide_vacate(vacate_id: UUID, body: DecideIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     v = db.one("SELECT * FROM vacate_requests WHERE id = :i AND owner_account_id = :o", i=vacate_id, o=scope.owner_account_id)
     if v is None:
         raise AppError("NOT_FOUND", "request not found")

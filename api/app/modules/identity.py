@@ -62,7 +62,7 @@ class OtpVerifyIn(PhoneIn):
 
 
 @router.post("/dev/otp/request", tags=["dev"])
-def dev_otp_request(body: PhoneIn, db: Db = Depends(get_db)) -> dict:
+def dev_otp_request(body: PhoneIn, db: Db = Depends(get_db, scope="function")) -> dict:
     """LOCAL DEMO ONLY. Production login OTP is sent and verified by Firebase Phone Auth."""
     s = get_settings()
     if not s.dev_auth_enabled or s.app_env == "production":
@@ -74,7 +74,7 @@ def dev_otp_request(body: PhoneIn, db: Db = Depends(get_db)) -> dict:
 
 
 @router.post("/dev/otp/verify", tags=["dev"])
-def dev_otp_verify(body: OtpVerifyIn, db: Db = Depends(get_db), authorization: str | None = Header(default=None)) -> dict:
+def dev_otp_verify(body: OtpVerifyIn, db: Db = Depends(get_db, scope="function"), authorization: str | None = Header(default=None)) -> dict:
     s = get_settings()
     if not s.dev_auth_enabled or s.app_env == "production":
         raise AppError("NOT_FOUND")
@@ -93,7 +93,7 @@ def dev_otp_verify(body: OtpVerifyIn, db: Db = Depends(get_db), authorization: s
 
 # ───────────────────────── session / me ─────────────────────────
 @router.post("/auth/session")
-def create_session(identity: Identity = Depends(identity_dep), db: Db = Depends(get_db)) -> dict:
+def create_session(identity: Identity = Depends(identity_dep), db: Db = Depends(get_db, scope="function")) -> dict:
     """Called after OTP sign-in. Existing user → same account; new number → new account."""
     if not identity.phone:
         raise AppError("UNAUTHENTICATED", "phone-verified token required")
@@ -151,7 +151,7 @@ def me_payload(db: Db, uid: UUID) -> dict:
 
 
 @router.get("/me")
-def get_me(user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
+def get_me(user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")) -> dict:
     return me_payload(db, user.id)
 
 
@@ -160,7 +160,7 @@ class RolesIn(BaseModel):
 
 
 @router.post("/me/roles")
-def set_roles(body: RolesIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
+def set_roles(body: RolesIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """Role *intent*. Adding 'owner' creates the owner account (unpaid until a plan is
     activated). Roles are additive; nothing here grants access to anyone else's data."""
     for role in set(body.roles):
@@ -184,7 +184,7 @@ class ProfileIn(BaseModel):
 
 
 @router.put("/me/profile")
-def update_profile(body: ProfileIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+def update_profile(body: ProfileIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function"), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
     def work() -> dict:
         name = validate_full_name(body.full_name)
         address = validate_address(body.address, required=False)
@@ -209,7 +209,7 @@ class ContactIn(BaseModel):
 
 
 @router.post("/me/contacts")
-def add_contact(body: ContactIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
+def add_contact(body: ContactIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")) -> dict:
     value = normalize_indian_mobile(body.value) if body.kind == "mobile" else normalize_email(body.value)
     if db.scalar("""SELECT 1 FROM user_contacts WHERE kind = 'mobile' AND value = :v AND verified_at IS NOT NULL
                     AND removed_at IS NULL""", v=value):
@@ -238,7 +238,7 @@ class CodeIn(BaseModel):
 
 
 @router.post("/me/contacts/{contact_id}/verify")
-def verify_contact(contact_id: UUID, body: CodeIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
+def verify_contact(contact_id: UUID, body: CodeIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")) -> dict:
     c = db.must("SELECT * FROM user_contacts WHERE id = :c AND user_id = :u AND removed_at IS NULL", "contact", c=contact_id, u=user.id)
     _check_otp(db, c["value"], "verify_mobile" if c["kind"] == "mobile" else "verify_email", body.code)
     db.exec("UPDATE user_contacts SET verified_at = now() WHERE id = :c", c=contact_id)
@@ -249,7 +249,7 @@ def verify_contact(contact_id: UUID, body: CodeIn, user: CurrentUser = Depends(c
 
 
 @router.delete("/me/contacts/{contact_id}")
-def remove_contact(contact_id: UUID, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
+def remove_contact(contact_id: UUID, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")) -> dict:
     c = db.must("SELECT * FROM user_contacts WHERE id = :c AND user_id = :u AND removed_at IS NULL", "contact", c=contact_id, u=user.id)
     if c["kind"] == "mobile" and c["is_primary"]:
         raise AppError("VALIDATION", "use Change Primary Mobile to replace the login number")
@@ -282,7 +282,7 @@ class PrefsIn(BaseModel):
 
 
 @router.put("/me/notification-preferences")
-def set_preferences(body: PrefsIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
+def set_preferences(body: PrefsIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")) -> dict:
     for field, kind in (("sms_contact_id", "mobile"), ("whatsapp_contact_id", "mobile"), ("email_contact_id", "email")):
         cid = getattr(body, field)
         if cid and not db.scalar("""SELECT 1 FROM user_contacts WHERE id = :c AND user_id = :u AND kind = :k
@@ -313,7 +313,7 @@ class MobileChangeStartIn(BaseModel):
 
 
 @router.post("/me/mobile-change/start")
-def mobile_change_start(body: MobileChangeStartIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
+def mobile_change_start(body: MobileChangeStartIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db, scope="function")) -> dict:
     """Step 1 — prove possession of the CURRENT number: the token must have been minted by a fresh
     OTP sign-in on the current primary number within the last 5 minutes (step-up)."""
     new = normalize_indian_mobile(body.new_phone, "new_phone")
@@ -337,7 +337,7 @@ class MobileChangeCompleteIn(BaseModel):
 
 
 @router.post("/me/mobile-change/complete")
-def mobile_change_complete(body: MobileChangeCompleteIn, identity: Identity = Depends(identity_dep), db: Db = Depends(get_db)) -> dict:
+def mobile_change_complete(body: MobileChangeCompleteIn, identity: Identity = Depends(identity_dep), db: Db = Depends(get_db, scope="function")) -> dict:
     """Step 2 — the client has linked the new number to the SAME Firebase user
     (updatePhoneNumber with an OTP credential), so the fresh token carries the new number.
     The internal UUID — and with it every property, tenancy, payment, deposit, note and the
@@ -379,7 +379,7 @@ class RecoveryIn(BaseModel):
 
 
 @router.post("/me/mobile-change/recovery")
-def mobile_change_recovery(body: RecoveryIn, identity: Identity = Depends(identity_dep), db: Db = Depends(get_db)) -> dict:
+def mobile_change_recovery(body: RecoveryIn, identity: Identity = Depends(identity_dep), db: Db = Depends(get_db, scope="function")) -> dict:
     """Old phone lost: the person signs in with the NEW number and files a request naming the old
     number. Support reviews it manually (identity documents, owner/tenant confirmation) and
     completes it through the admin tool. Nothing is moved automatically, an owner can never

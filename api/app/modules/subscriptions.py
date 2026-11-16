@@ -41,7 +41,7 @@ def _plan_view(r) -> dict:
 
 
 @router.get("/plans")
-def list_plans(db: Db = Depends(get_db)) -> dict:
+def list_plans(db: Db = Depends(get_db, scope="function")) -> dict:
     """Public — no login. Prices are server-authoritative; the app never sends a price."""
     rows = db.all("""SELECT p.code, p.label, p.price_paise, p.regular_price_paise, p.currency, p.billing_period, p.max_units, p.max_properties, p.version,
                             e.ai_enabled, e.features AS ai_features, e.monthly_token_allowance AS ai_monthly_tokens,
@@ -101,12 +101,12 @@ def subscription_summary(db: Db, owner: UUID) -> dict:
 
 
 @router.get("/subscription")
-def get_subscription(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def get_subscription(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     return subscription_summary(db, scope.owner_account_id)
 
 
 @router.get("/subscription/messages")
-def message_allowance(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def message_allowance(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     from .notify import message_usage
     return message_usage(db, scope.owner_account_id)
 
@@ -156,7 +156,7 @@ def _order_out(o) -> dict:  # noqa: ANN001
 
 
 @router.post("/subscription/checkout")
-def checkout(body: CheckoutIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def checkout(body: CheckoutIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     if scope.membership_role not in ("owner", "co_owner"):
         raise AppError("FORBIDDEN", "only the owner can manage the subscription")
     plan = _plan(db, body.plan_code)
@@ -199,7 +199,7 @@ class RenewIn(BaseModel):
 
 
 @router.post("/subscription/renew")
-def renew(body: RenewIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def renew(body: RenewIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     last = db.one("""SELECT s.plan_id, s.scheduled_plan_id FROM owner_subscriptions s WHERE s.owner_account_id = :o
                      AND s.status IN ('active','grace','expired','completed') ORDER BY s.period_end DESC LIMIT 1""", o=scope.owner_account_id)
     if last is None:
@@ -213,7 +213,7 @@ class ChangePlanIn(CheckoutIn):
 
 
 @router.post("/subscription/change-plan")
-def change_plan(body: ChangePlanIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def change_plan(body: ChangePlanIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     plan = _plan(db, body.plan_code)
     cur = db.one("""SELECT s.*, p.max_units AS cur_max FROM owner_subscriptions s JOIN subscription_plans p ON p.id = s.plan_id
                     WHERE s.owner_account_id = :o AND s.status IN ('active','grace') FOR UPDATE""", o=scope.owner_account_id)
@@ -231,7 +231,7 @@ def change_plan(body: ChangePlanIn, scope: OwnerScope = Depends(owner_scope), db
 
 
 @router.post("/subscription/cancel")
-def cancel(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def cancel(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     n = db.exec("""UPDATE owner_subscriptions SET cancel_at_period_end = true, updated_at = now()
                    WHERE owner_account_id = :o AND status IN ('active','grace')""", o=scope.owner_account_id)
     if not n:
@@ -241,7 +241,7 @@ def cancel(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -
 
 
 @router.post("/subscription/orders/{order_id}/refresh")
-def refresh_order(order_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def refresh_order(order_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     """Pending screen 'check again': authoritative server-to-server status check."""
     o = db.must("SELECT * FROM subscription_orders WHERE id = :i AND owner_account_id = :o", "order", i=order_id, o=scope.owner_account_id)
     if o["status"] == "created" and o["provider_order_id"]:
@@ -254,7 +254,7 @@ def refresh_order(order_id: UUID, scope: OwnerScope = Depends(owner_scope), db: 
 
 
 @router.get("/subscription/payments")
-def sub_payments(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def sub_payments(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     return {"items": [dict(r) for r in db.all(
         """SELECT o.id AS order_id, o.purpose, o.amount_paise, o.status, o.created_at, o.paid_at, o.is_demo, p.code AS plan_code,
                   sp.provider_payment_id, sp.verified_via
@@ -264,7 +264,7 @@ def sub_payments(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_
 
 
 @router.get("/subscription/receipts")
-def sub_receipts(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+def sub_receipts(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> dict:
     return {"items": [dict(r) for r in db.all(
         """SELECT i.number, i.amount_paise, i.issued_at, s.plan_code, s.period_start, s.period_end, s.is_demo
            FROM subscription_invoices i JOIN owner_subscriptions s ON s.id = i.subscription_id

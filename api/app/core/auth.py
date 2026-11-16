@@ -102,7 +102,7 @@ def identity_dep(authorization: str | None = Header(default=None)) -> Identity:
 APP_LANGUAGES = frozenset({"en", "ta", "hi", "te", "kn", "ml", "mr", "bn"})
 
 
-def current_user(identity: Identity = Depends(identity_dep), db: Db = Depends(get_db),
+def current_user(identity: Identity = Depends(identity_dep), db: Db = Depends(get_db, scope="function"),
                  x_app_language: str | None = Header(default=None)) -> CurrentUser:
     row = db.one("""SELECT u.id, u.status, u.preferred_language, u.sessions_valid_after, u.profile_completed_at,
                            COALESCE(array_agg(r.role) FILTER (WHERE r.role IS NOT NULL), '{}') AS roles,
@@ -145,7 +145,7 @@ class OwnerScope:
     membership_role: str
 
 
-def owner_scope(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db),
+def owner_scope(user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db, scope="function"),
                 x_owner_account: UUID | None = Header(default=None)) -> OwnerScope:
     """Resolve the owner account the caller may act for. Never trusts a client-sent id
     without checking membership; role intent alone grants nothing."""
