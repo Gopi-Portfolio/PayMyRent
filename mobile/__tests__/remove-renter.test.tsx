@@ -11,7 +11,7 @@ import '@/i18n';
 
 jest.mock('@/lib/api', () => ({ api: jest.fn(), ApiError: class extends Error {}, newIdempotencyKey: () => 'k', API_URL: 'http://api.test' }));
 const mockSelect = jest.fn();
-jest.mock('@/lib/auth', () => ({ useAuth: () => ({ me: { owner_accounts: [{ owner_account_id: 'o1', role: 'owner', property_name: 'Tower' }, { owner_account_id: 'o2', role: 'owner', property_name: 'Villa' }] }, selectOwner: mockSelect }), ownerAccountId: () => 'o1' }));
+jest.mock('@/lib/auth', () => ({ useAuth: () => ({ me: { owner_accounts: [{ owner_account_id: 'o1', role: 'owner', property_name: 'Tower' }, { owner_account_id: 'o2', role: 'owner', property_name: 'Villa' }] }, selectOwner: mockSelect }), ownerAccountId: () => 'o1', ownerProperties: (me: any) => me.owner_accounts }));
 const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true };
 jest.mock('expo-router', () => ({ get router() { return mockRouter; }, usePathname: () => '/owner/remove-renter' }));
 jest.mock('react-native-safe-area-context', () => ({ ...jest.requireActual('react-native-safe-area-context'), useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));

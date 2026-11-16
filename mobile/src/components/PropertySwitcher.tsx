@@ -7,7 +7,7 @@ import { Pressable, View } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
-import { ownerAccountId, useAuth } from '@/lib/auth';
+import { ownerAccountId, useAuth, ownerProperties } from '@/lib/auth';
 import { closePropertyAsk, setViewAll, useAskingForProperty, useViewAll } from '@/lib/propertyView';
 import { brand, radius } from '@/theme';
 
@@ -17,7 +17,7 @@ export function PropertySwitcher() {
   const [open, setOpen] = useState(false);
   const viewAll = useViewAll();
   const asking = useAskingForProperty();
-  const mine = (me?.owner_accounts ?? []).filter((o) => o.role === 'owner' || o.role === 'co_owner');
+  const mine = ownerProperties(me);
   const current = ownerAccountId(me);
   if (mine.length === 0) return null;
   const many = mine.length > 1;

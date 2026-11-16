@@ -24,7 +24,7 @@ export default function MyProperties() {
   return (
     <Screen>
       <ErrorBanner error={err || q.error} onRetry={() => { setErr(null); q.refetch(); }} />
-      {(q.data?.items ?? []).map((w: any) => (
+      {(((q.data?.items ?? []).some((w: any) => w.property)) ? (q.data?.items ?? []).filter((w: any) => w.property) : (q.data?.items ?? [])).map((w: any) => (
         <Pressable key={w.owner_account_id} onPress={() => { selectOwner(w.owner_account_id); router.replace('/(app)/owner'); }} accessibilityRole="button"
                    style={[{ backgroundColor: '#fff', borderRadius: radius.lg, padding: 14, gap: 8, borderWidth: w.owner_account_id === current ? 2 : 1,
                              borderColor: w.owner_account_id === current ? brand.teal700 : brand.line }, shadow]}>

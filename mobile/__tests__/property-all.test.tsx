@@ -13,7 +13,7 @@ let mockOwners = [
   { owner_account_id: 'o2', role: 'owner', property_name: 'Villa', property_status: 'verified' },
   { owner_account_id: 'o3', role: 'owner', property_name: 'Shops', property_status: 'verified' },
 ];
-jest.mock('@/lib/auth', () => ({ useAuth: () => ({ me: { owner_accounts: mockOwners }, selectOwner: mockSelect }), ownerAccountId: () => 'o2' }));
+jest.mock('@/lib/auth', () => ({ useAuth: () => ({ me: { owner_accounts: mockOwners }, selectOwner: mockSelect }), ownerAccountId: () => 'o2', ownerProperties: (me: any) => me.owner_accounts }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('@/components/ui', () => ({ ...jest.requireActual('@/components/ui') }));
 const wrap = () => render(<PaperProvider><PropertySwitcher /></PaperProvider>);
@@ -76,4 +76,12 @@ test('the totals of all properties are added up, money keeps its display', () =>
   expect(sum.collected_paise.display).toContain('1,500');
   expect(sum.units).toBe(5);
   expect(sum.vacate_pending).toBe(1);
+});
+
+test('an empty account left after a property was removed is not listed while another account has a property', () => {
+  const real = jest.requireActual('@/lib/auth') as typeof import('@/lib/auth');
+  const empty = { owner_account_id: 'x', role: 'owner', property_name: null, property_address: null, property_status: null };
+  const full = { owner_account_id: 'o1', role: 'owner', property_name: 'Tower', property_address: '1 Road', property_status: 'verified' };
+  expect(real.ownerProperties({ owner_accounts: [full, empty] } as any).map((o) => o.owner_account_id)).toEqual(['o1']);
+  expect(real.ownerProperties({ owner_accounts: [empty] } as any).map((o) => o.owner_account_id)).toEqual(['x']);          // a new owner still sees the starting account
 });

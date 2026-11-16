@@ -13,7 +13,7 @@ import { KIND_GROUPS, floorLabel, kindIcon } from '@/lib/units';
 import { DemoBanner, ErrorBanner, SlideIn, IdentityRow, Metric } from '@/components/ui';
 import { brand, radius, shadow } from '@/theme';
 import { api } from '@/lib/api';
-import { ownerAccountId, useAuth } from '@/lib/auth';
+import { ownerAccountId, useAuth, ownerProperties } from '@/lib/auth';
 import { askForProperty, useViewAll } from '@/lib/propertyView';
 import { fmtDate } from '@/lib/dates';
 import { formatINR } from '@/lib/format';
@@ -51,7 +51,7 @@ export default function OwnerHome() {
   const owner = ownerAccountId(me);
   // every property together by default; one property when the owner picked it. Work that belongs to a single property asks which one first.
   const viewAll = useViewAll();
-  const mine = (me?.owner_accounts ?? []).filter((o) => o.role === 'owner' || o.role === 'co_owner');
+  const mine = ownerProperties(me);
   const all = viewAll && mine.length > 1;
   const guard = (go: () => void) => () => { if (all) askForProperty(); else go(); };
   const dashAll = useQueries({ queries: mine.map((o) => ({ queryKey: ['dash', o.owner_account_id], enabled: all, queryFn: () => api<any>('/api/v1/owner/dashboard', { ownerAccount: o.owner_account_id }) })) });

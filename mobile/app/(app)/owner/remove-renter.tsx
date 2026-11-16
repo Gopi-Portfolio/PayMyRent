@@ -12,7 +12,7 @@ import { AppButton, Button } from '@/components/Buttons';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { Avatar, ErrorBanner, Field, Panel, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { useAuth, ownerProperties } from '@/lib/auth';
 import { confirmRemove } from '@/lib/confirm';
 import { dmyToIso, todayDMY } from '@/lib/dates';
 import { brand, radius } from '@/theme';
@@ -21,7 +21,7 @@ export default function RemoveRenter() {
   const { t } = useTranslation();
   const { me, selectOwner } = useAuth();
   const qc = useQueryClient();
-  const mine = (me?.owner_accounts ?? []).filter((o) => o.role === 'owner' || o.role === 'co_owner');
+  const mine = ownerProperties(me);
   const [q, setQ] = React.useState('');
   const [property, setProperty] = React.useState<string>('all');
   const [picked, setPicked] = React.useState<Set<string>>(new Set());

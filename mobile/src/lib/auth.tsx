@@ -197,3 +197,11 @@ export function ownerAccountId(me: Me | null): string | null {
   if (chosenOwner && mine.some((o) => o.owner_account_id === chosenOwner)) return chosenOwner;       // the property the owner picked
   return mine.find((o) => o.role === 'owner')?.owner_account_id ?? mine[0]?.owner_account_id ?? null;
 }
+
+/** The owner's properties for the dropdown and the totals. An account with no property in it (the empty one left after a property is removed) is not listed
+ *  while another account has a property; a brand-new owner with none still sees the one starting account. */
+export function ownerProperties(me: Me | null) {
+  const mine = (me?.owner_accounts ?? []).filter((o) => o.role === 'owner' || o.role === 'co_owner');
+  const has = (o: (typeof mine)[number]) => !!(o.property_name || o.property_address || o.property_status);
+  return mine.some(has) ? mine.filter(has) : mine;
+}
