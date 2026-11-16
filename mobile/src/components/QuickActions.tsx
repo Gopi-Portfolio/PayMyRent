@@ -5,7 +5,7 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
 
-import { radius, shadow } from '@/theme';
+import { brand, radius, shadow } from '@/theme';
 
 /** A big action card: gradient, large icon on a soft disc, the action's name and one line saying what it is for. */
 export function HeroAction({ icon, label, sub, note, colors, onPress, testID }: {
@@ -43,7 +43,7 @@ export function MiniAction({ icon, label, fg, bg, count, clearText, active, onPr
       <View style={[styles.miniIcon, { backgroundColor: active ? '#fff' : bg }]}>
         <Icon source={icon} size={20} color={fg} />
         {count ? <View style={[styles.count, { backgroundColor: fg }]} testID="mini-count"><Text style={styles.countText}>{count > 99 ? '99+' : count}</Text></View>
-          : clearText ? <View style={[styles.count, { backgroundColor: '#16A34A', minWidth: 18, paddingHorizontal: 0 }]} testID="mini-clear"><Icon source="check" size={11} color="#fff" /></View> : null}
+          : clearText ? <View style={[styles.count, { backgroundColor: brand.green600, minWidth: 18, paddingHorizontal: 0 }]} testID="mini-clear"><Icon source="check" size={11} color="#fff" /></View> : null}
       </View>
       <Text numberOfLines={1} style={[styles.miniLabel, active && { color: fg }]}>{label}</Text>
     </Pressable>
@@ -81,7 +81,7 @@ export function WideAction({ icon, label, sub, fg, bg, count, clearText, onPress
       {count ? (
         <View style={[wide.pill, { backgroundColor: fg }]} testID="approvals-count"><Text style={wide.pillText}>{count > 99 ? '99+' : count}</Text></View>
       ) : (
-        <View style={[wide.pill, { backgroundColor: '#DCFCE7' }]} testID="approvals-clear"><Icon source="check" size={13} color="#16A34A" /><Text style={[wide.pillText, { color: '#16A34A' }]}>{clearText}</Text></View>
+        <View style={[wide.pill, { backgroundColor: brand.green100 }]} testID="approvals-clear"><Icon source="check" size={13} color={brand.green600} /><Text style={[wide.pillText, { color: brand.green600 }]}>{clearText}</Text></View>
       )}
       <Icon source="chevron-right" size={20} color="#8A9A96" />
     </Pressable>

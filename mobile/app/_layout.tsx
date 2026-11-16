@@ -1,6 +1,7 @@
 import 'expo-crypto';
 import '@/i18n';
 
+import { Montserrat_900Black_Italic, useFonts } from '@expo-google-fonts/montserrat';
 import { QueryClientProvider } from '@tanstack/react-query';
 
 import { queryClient } from '@/lib/queryClient';
@@ -14,18 +15,21 @@ import { LANGUAGES } from '@/i18n';
 import i18n from '@/i18n';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { loadLanguage } from '@/lib/language';
+import { usePendingRole } from '@/lib/landing';
 import { setBrandRole, themeFor } from '@/theme';
 
 
 /** Owner screens are teal, renter screens are blue: the role in use picks the colour set (before anything is drawn) and the Paper theme. */
 function RoleThemed({ children }: { children: React.ReactNode }) {
   const { me, activeRole } = useAuth();
-  const role = me ? (activeRole ?? me.roles[0] ?? 'owner') : 'owner';
+  const door = usePendingRole();   // before sign-in, the door chosen on the landing page: renter = blue, owner = green
+  const role = me ? (activeRole ?? me.roles[0] ?? 'owner') : (door ?? 'owner');
   setBrandRole(role);
   return <PaperProvider theme={themeFor(role)} settings={{ icon: (props) => <MaterialCommunityIcons {...(props as any)} /> }}>{children}</PaperProvider>;
 }
 
 export default function RootLayout() {
+  useFonts({ Montserrat_900Black_Italic });   // the landing page headline font; the screen draws at once and the font fills in when it is ready
   React.useEffect(() => {   // the language chosen last time on this phone, applied as the app opens
     loadLanguage().then((c) => { if (c && LANGUAGES.some((l) => l.code === c) && c !== i18n.language) i18n.changeLanguage(c); });
   }, []);

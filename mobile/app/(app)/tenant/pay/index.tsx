@@ -91,7 +91,7 @@ export default function PayManyRentals() {
             <Pressable key={item.id} onPress={() => setOff((o) => (on ? [...o, item.id] : o.filter((x) => x !== item.id)))} testID={`pay-${item.id}`}
                        accessibilityRole="checkbox" accessibilityState={{ checked: on }}
                        style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 6, borderRadius: radius.md }, pressed && { backgroundColor: brand.teal50 }]}>
-              <Icon source={on ? 'checkbox-marked' : 'checkbox-blank-outline'} size={26} color={on ? '#2563EB' : brand.muted} />
+              <Icon source={on ? 'checkbox-marked' : 'checkbox-blank-outline'} size={26} color={on ? '#003472' : brand.muted} />
               <View style={{ flex: 1 }}>
                 <Text variant="titleSmall" style={{ fontWeight: '700' }} numberOfLines={1}>{item.property_name ?? item.address} · {item.identifier}</Text>
                 <Text variant="bodySmall" style={{ color: item.color.fg, fontWeight: '700' }} numberOfLines={1}>{item.owner_name}</Text>
@@ -99,7 +99,7 @@ export default function PayManyRentals() {
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={{ fontWeight: '800', fontSize: 16, color: '#B45309' }}>{formatINR(payNow(item))}</Text>
                 <Pressable onPress={() => router.replace(`/(app)/tenant/pay/${item.id}`)} hitSlop={8} accessibilityLabel={t('pay.partOnly')}>
-                  <Text variant="labelSmall" style={{ color: '#2563EB', fontWeight: '700' }}>{t('pay.partOnly')}</Text>
+                  <Text variant="labelSmall" style={{ color: '#003472', fontWeight: '700' }}>{t('pay.partOnly')}</Text>
                 </Pressable>
               </View>
             </Pressable>

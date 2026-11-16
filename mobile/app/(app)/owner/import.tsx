@@ -56,7 +56,7 @@ export default function ImportScreen() {
           {preview.rows.map((r: any) => (
             <List.Item key={r.row} title={`Row ${r.row}: ${r.unit ?? ''} ${r.tenant ?? ''}`}
               description={r.errors.map((e: any) => `${e.field}: ${t(`error.${e.code}`, { defaultValue: e.code })}`).join(' · ') || 'OK'}
-              left={(p) => <List.Icon {...p} icon={r.valid ? 'check' : 'alert-circle'} color={r.valid ? 'green' : 'crimson'} />} />
+              left={(p) => <List.Icon {...p} icon={r.valid ? 'check' : 'alert-circle'} color={r.valid ? brand.green600 : 'crimson'} />} />
           ))}
           <Button mode="contained" disabled={!preview.can_commit || !!result || busy} onPress={commit}>{t('common.confirm')}</Button>
         </>

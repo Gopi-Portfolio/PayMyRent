@@ -17,7 +17,7 @@ import { MAX_ENTRY_PAISE, capToDue, formatINR } from '@/lib/format';
 import { brand, radius, shadow } from '@/theme';
 import { markLandingSeen } from '@/lib/landing';
 import { type KindGroup, kindGroup } from '@/lib/units';
-import { Logo, RentMeezyBarLogo, playLogoIntro } from './Logo';
+import { Logo, LogoWhite, RentMeezyBarLogo, playLogoIntro } from './Logo';
 import { RoleIcon } from './RoleIcon';
 import { BellButton } from './Bell';
 import { LanguagePill } from './LanguagePill';
@@ -257,7 +257,7 @@ function usePageTitle(): string | null {
     [/^\/owner\/tenancy\//, () => t('titles.renterDetails')], [/^\/owner\/?$/, () => t('titles.ownerDashboard')], [/^\/tenant\/?$/, () => t('titles.renterDashboard')],
     [/^\/tenant\/pay\//, () => t('pay.title')], [/^\/tenant\/rental\//, () => t('titles.rentalDetails')], [/^\/payment-status/, () => t('titles.paymentStatus')],
     [/^\/profile/, () => t('profile.title')], [/^\/help/, () => t('help.title')], [/^\/privacy/, () => t('privacy.title')], [/^\/identity/, () => t('identity.title')],
-    [/^\/owner-details/, () => t('ownerDetails.title')], [/^\/plan/, () => t('pricing.change')],
+    [/^\/owner-details/, () => t('ownerDetails.title')], [/^\/plan/, () => t('pricing.selectPlan')],
   ];
   for (const [re, f] of rules) if (re.test(path)) return f();
   return null;
@@ -273,7 +273,7 @@ export function DemoBanner() {
   const both = !!me && me.roles.includes('owner') && me.roles.includes('tenant');
   const [leftW, setLeftW] = React.useState(0);     // widths of the two ends of the header, so the page name never runs into the logo
   const [rightW, setRightW] = React.useState(0);
-  const colors: [string, string] = current === 'tenant' ? ['#1E3A8A', brand.blue600] : [brand.teal900, brand.teal700];
+  const colors: [string, string] = current === 'tenant' ? ['#001F4D', brand.blue600] : [brand.teal900, brand.teal700];
   const roleName = (r: 'owner' | 'tenant') => t(r === 'owner' ? 'role.switchOwner' : 'role.switchTenant');
   return (
     <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
@@ -284,7 +284,7 @@ export function DemoBanner() {
           <BackButton />
           <Pressable onPress={() => { markLandingSeen(); router.replace('/'); }} accessibilityRole="button" accessibilityLabel="RentMeezy home" hitSlop={8} testID="logo"
                      style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
-            <RentMeezyBarLogo height={44} light />
+            <View style={{ marginLeft: -8 }}><RentMeezyBarLogo height={34} light /></View>
           </Pressable>
         </View>
         {/* centre: the page name, equal room on both sides */}
@@ -333,16 +333,16 @@ export function splitTitle(title: string): [string, string] {
 }
 
 /** Auth screens: gradient hero with the logo, then a white sheet holding the form. */
-export function AuthShell({ title, subtitle, icon, children }: { title: string; subtitle?: string; icon?: string; children: React.ReactNode }) {
+export function AuthShell({ title, subtitle, icon, note, children }: { title: string; subtitle?: string; icon?: string; note?: string; children: React.ReactNode }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: brand.teal900 }}>
       <LanguagePill top={insets.top + 10} />
       <LinearGradient colors={[brand.teal900, brand.teal700, brand.teal600]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                      style={[styles.hero, { paddingTop: insets.top + 28 }]}>
+                      style={[styles.hero, { paddingTop: insets.top + 64, paddingBottom: 80 }]}>
         <View style={{ position: 'absolute', left: 16, top: insets.top + 10 }}><BackButton /></View>
-        <Logo size={56} light stacked />
+        <LogoWhite width={260} />
         <Text style={styles.heroTag}>{title}</Text>
         {subtitle ? <Text style={styles.heroSub}>{subtitle}</Text> : null}
         {icon ? <View style={styles.badgeCircle}><Icon source={icon} size={30} color="#3B2300" /></View> : null}
@@ -350,6 +350,7 @@ export function AuthShell({ title, subtitle, icon, children }: { title: string; 
       <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} automaticallyAdjustKeyboardInsets style={[styles.sheet, { backgroundColor: theme.colors.background }]}
                   contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 40 }}>
         {children}
+        {note ? <Text style={styles.authNote} testID="auth-note">{note}</Text> : null}
       </ScrollView>
     </View>
   );
@@ -568,7 +569,7 @@ export function RoleSwitch() {
 
 export type Plan = { code: string; label: string; price_paise: number; price_display: string; max_units: number; max_properties?: number;
   regular_price_display?: string | null; saving_percent?: number | null;      // the launch price is price_display; the saving is worked out by the server
-  ai_enabled: boolean; ai_monthly_tokens: number };
+  ai_enabled: boolean; ai_monthly_tokens: number; paid_message_units?: number; email_messages?: number };
 
 function PlanRow({ icon, text, on = true }: { icon: string; text: string; on?: boolean }) {
   return (
@@ -579,132 +580,90 @@ function PlanRow({ icon, text, on = true }: { icon: string; text: string; on?: b
   );
 }
 
-/** One plan at a time in a horizontal pager. Swipe or use the arrows to see the other plans;
- *  the chevron expands/collapses a plan's details. Tapping a plan selects it. */
-export function PricingCards({ onSelect, selected, cta, cardCta, currentPlan }: { onSelect?: (code: string) => void; selected?: string | null; cta?: string; cardCta?: string; currentPlan?: string | null }) {
+/** Every benefit of a plan in one list, so nobody has to open anything to compare plans. */
+export function PlanBenefits({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
   const { t } = useTranslation();
-  const theme = useTheme();
+  const n = (v: number) => Number(v).toLocaleString('en-IN');
+  const many = (plan.max_properties ?? 1) > 1;
+  return (
+    <View testID={`benefits-${plan.code}`}>
+      <PlanRow icon="home-city-outline" text={many ? t('pricing.placesMany', { count: n(plan.max_units), props: n(plan.max_properties ?? 1) }) : t('pricing.placesOne', { count: n(plan.max_units) })} />
+      {compact ? null : <PlanRow icon="receipt-text-outline" text={many ? t('pricing.billedAll', { props: n(plan.max_properties ?? 1) }) : t('pricing.billedPer')} />}
+      <PlanRow icon="file-document-outline" text={t('pricing.b_bills')} />
+      {compact ? null : <PlanRow icon="cash-multiple" text={t('pricing.b_payments')} />}
+      {compact || plan.paid_message_units == null ? null : <PlanRow icon="message-text-outline" text={t('pricing.b_sms', { count: n(plan.paid_message_units) })} />}
+      {compact || plan.email_messages == null ? null : <PlanRow icon="email-outline" text={t('pricing.b_email', { count: n(plan.email_messages) })} />}
+      {compact ? null : <PlanRow icon="file-download-outline" text={t('pricing.b_reports')} />}
+      <PlanRow icon={plan.ai_enabled ? 'robot-happy-outline' : 'robot-off-outline'} on={plan.ai_enabled}
+               text={plan.ai_enabled ? t('pricing.ai', { tokens: n(plan.ai_monthly_tokens) }) : t('pricing.noAi')} />
+      <PlanRow icon="account-heart-outline" text={t('pricing.b_renters')} />
+    </View>
+  );
+}
+
+function Tick({ text }: { text: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+      <Icon source="check-bold" size={18} color={brand.green600} />
+      <Text style={{ flex: 1, color: '#111', fontSize: 14, lineHeight: 20 }}>{text}</Text>
+    </View>
+  );
+}
+
+/** The plans as a list of cards, all on one screen: an icon, the name and price, a short tick list, and a Choose button. The most popular plan is marked,
+ *  and the chosen plan is outlined in green. Tapping a card or its button selects it. */
+export function PricingCards({ onSelect, selected, cardCta, currentPlan, freeMonth = false }: { onSelect?: (code: string) => void; selected?: string | null; cta?: string; cardCta?: string; currentPlan?: string | null; freeMonth?: boolean }) {
+  const { t } = useTranslation();
   const q = useQuery({ queryKey: ['plans'], queryFn: () => api<{ plans: Plan[] }>('/api/v1/plans', { auth: false }) });
   const plans = q.data?.plans ?? [];
-  const [width, setWidth] = React.useState(0);
-  const [index, setIndex] = React.useState(0);
-  const [open, setOpen] = React.useState<Record<string, boolean>>({});
-  const listRef = React.useRef<FlatList<Plan>>(null);
-  const startedAt = React.useRef(false);
-
-  const go = (i: number) => {
-    const n = Math.max(0, Math.min(plans.length - 1, i));
-    setIndex(n);
-    listRef.current?.scrollToOffset({ offset: n * width, animated: true });
-  };
-
-  React.useEffect(() => {  // open on the selected (or recommended) plan once data + width are known
-    if (startedAt.current || !plans.length || !width) return;
-    startedAt.current = true;
-    const start = Math.max(0, plans.findIndex((p) => p.code === (currentPlan ?? selected ?? 'growth')));
-    setIndex(start);
-    setTimeout(() => listRef.current?.scrollToOffset({ offset: start * width, animated: false }), 0);
-  }, [plans.length, width, selected, plans]);
-
+  const n = (v: number) => Number(v).toLocaleString('en-IN');
   return (
-    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-      <Text variant="titleMedium" style={styles.section}>{t('pricing.title')}</Text>
-      <Text variant="bodySmall" style={{ marginBottom: 12, color: brand.muted }}>{t('pricing.paidByOwner')}</Text>
+    <View style={{ gap: 14 }}>
       <ErrorBanner error={q.error} onRetry={() => q.refetch()} />
-      {width > 0 && plans.length ? (
-        <>
-          <FlatList
-            ref={listRef}
-            data={plans}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(p) => p.code}
-            getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-            onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
-            renderItem={({ item: p }) => {
-              const active = selected === p.code || (selected === undefined && currentPlan === p.code);
-              const featured = p.code === 'growth';
-              const expanded = open[p.code] ?? false;
-              return (
-                <View style={{ width, paddingVertical: 8, paddingHorizontal: 2 }}>
-                  <Pressable onPress={onSelect ? () => onSelect(p.code) : undefined} accessibilityRole="radio" accessibilityState={{ selected: active }} testID={`plan-${p.code}`}
-                             style={({ pressed }) => [styles.planCard, shadow, { borderColor: active ? theme.colors.primary : featured ? brand.amber500 : brand.line },
-                               active && { backgroundColor: brand.teal50 }, pressed && { backgroundColor: brand.teal100 }]}>
-                    {currentPlan === p.code ? (
-                      <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: brand.green100, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 8 }} testID="current-plan-badge">
-                        <Icon source="check-decagram" size={16} color={brand.green600} />
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: brand.green600 }}>{t('pricing.current')}</Text>
-                      </View>
-                    ) : featured ? <View style={styles.star}><Icon source="star" size={14} color="#fff" /></View> : null}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <View style={[styles.planIcon, { backgroundColor: active ? brand.teal700 : brand.teal100 }]}>
-                        <Icon source={p.code === 'starter' ? 'seed' : p.code === 'growth' ? 'rocket-launch' : p.code === 'max' ? 'crown-outline' : 'domain'} size={24} color={active ? '#fff' : brand.teal700} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text variant="labelLarge" style={{ color: theme.colors.primary }}>{p.label}</Text>
-                        <Text style={styles.price}>{p.price_display}<Text variant="bodySmall" style={{ color: brand.muted }}> {t('pricing.perMonth')}</Text></Text>
-                        {p.regular_price_display && p.saving_percent ? (
-                          <View style={{ gap: 4, marginTop: 4 }} testID={`launch-${p.code}`}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                              <View style={{ backgroundColor: brand.amber100, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
-                                <Text style={{ fontSize: 12, fontWeight: '800', color: '#B45309' }}>{t('pricing.launchBadge')}</Text>
-                              </View>
-                              <Text style={{ color: brand.green600, fontWeight: '900' }}>{t('pricing.savePercent', { percent: p.saving_percent })}</Text>
-                            </View>
-                            <Text style={{ fontSize: 14, color: brand.muted }}>
-                              {`${t('pricing.regularLabel')} `}
-                              <Text style={{ textDecorationLine: 'line-through', fontWeight: '700' }}>{p.regular_price_display}</Text>
-                              {` ${t('pricing.perMonth')}`}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-                      {active ? <Icon source="check-circle" size={26} color={brand.teal600} /> : null}
-                    </View>
-                    {(() => {
-                      const n = (v: number) => Number(v).toLocaleString('en-IN');
-                      const many = (p.max_properties ?? 1) > 1;
-                      return (
-                        <>
-                          <PlanRow icon="home-city-outline" text={many ? t('pricing.placesMany', { count: n(p.max_units), props: n(p.max_properties ?? 1) }) : t('pricing.placesOne', { count: n(p.max_units) })} />
-                          <PlanRow icon="receipt-text-outline" text={many ? t('pricing.billedAll', { props: n(p.max_properties ?? 1) }) : t('pricing.billedPer')} />
-                          <PlanRow icon={p.ai_enabled ? 'robot-happy-outline' : 'robot-off-outline'} on={p.ai_enabled}
-                                   text={p.ai_enabled ? t('pricing.ai', { tokens: n(p.ai_monthly_tokens) }) : t('pricing.noAi')} />
-                          {expanded ? <PlanRow icon="information-outline" on={false} text={p.ai_enabled ? t('pricing.aiDetail') : t('pricing.noAiDetail')} /> : null}
-                        </>
-                      );
-                    })()}
-                    {cardCta && onSelect ? <View style={{ marginTop: 10 }}><AppButton label={cardCta} icon="arrow-right-circle" onPress={() => onSelect(p.code)} testID={`choose-${p.code}`} /></View> : null}
-                    <Pressable onPress={() => setOpen({ ...open, [p.code]: !expanded })} accessibilityRole="button" accessibilityState={{ expanded }}
-                               style={({ pressed }) => [styles.expandBtn, pressed && { backgroundColor: brand.teal100 }]} hitSlop={8}>
-                      <Icon source={expanded ? 'chevron-up' : 'chevron-down'} size={22} color={brand.teal700} />
-                    </Pressable>
-                  </Pressable>
-                </View>
-              );
-            }}
-          />
-          <View style={styles.pager}>
-            <Pressable onPress={() => go(index - 1)} disabled={index === 0} hitSlop={10} accessibilityLabel="Previous plan"
-                       style={({ pressed }) => [styles.arrow, pressed && { backgroundColor: brand.teal100 }, index === 0 && { opacity: 0.3 }]}>
-              <Icon source="chevron-left" size={22} color={brand.teal700} />
-            </Pressable>
-            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-              {plans.map((p, i) => (
-                <Pressable key={p.code} onPress={() => go(i)} hitSlop={8} accessibilityLabel={p.label}
-                           style={{ width: i === index ? 22 : 8, height: 8, borderRadius: 4, backgroundColor: i === index ? brand.teal700 : brand.line }} />
-              ))}
+      {plans.map((p) => {
+        const active = selected === p.code || (selected === undefined && currentPlan === p.code);
+        const popular = p.code === 'growth';
+        const name = t(`pricing.name_${p.code}`, { defaultValue: p.label });
+        const props = p.max_properties ?? 1;
+        return (
+          <Pressable key={p.code} onPress={onSelect ? () => onSelect(p.code) : undefined} accessibilityRole="radio" accessibilityState={{ selected: active }} testID={`plan-${p.code}`}
+                     style={({ pressed }) => [styles.planCard, shadow, { borderColor: active ? brand.green600 : popular ? '#8CC779' : '#E1E8E1', borderWidth: active ? 2.5 : 1.5 },
+                       (active || popular) && { backgroundColor: brand.teal50 }, pressed && { backgroundColor: brand.teal100 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={[styles.planIcon, { backgroundColor: brand.teal100 }]}>
+                <Icon source={p.code === 'starter' ? 'sprout' : p.code === 'growth' ? 'crown' : p.code === 'max' ? 'crown-outline' : 'domain'} size={28} color={brand.green600} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#111', fontSize: 20, fontWeight: '800' }}>{name}</Text>
+                <Text style={{ color: '#111', fontSize: 28, fontWeight: '800' }}>{p.price_display}<Text style={{ color: brand.muted, fontSize: 14, fontWeight: '500' }}> {t('pricing.perMonth')}</Text></Text>
+              </View>
+              {currentPlan === p.code ? (
+                <View style={styles.planBadge}><Text style={styles.planBadgeText}>{t('pricing.current')}</Text></View>
+              ) : popular ? (
+                <View style={styles.planBadge}><Text style={styles.planBadgeText}>{t('pricing.mostPopular')}</Text></View>
+              ) : null}
             </View>
-            <Pressable onPress={() => go(index + 1)} disabled={index === plans.length - 1} hitSlop={10} accessibilityLabel="Next plan"
-                       style={({ pressed }) => [styles.arrow, pressed && { backgroundColor: brand.teal100 }, index === plans.length - 1 && { opacity: 0.3 }]}>
-              <Icon source="chevron-right" size={22} color={brand.teal700} />
-            </Pressable>
-          </View>
-        </>
-      ) : null}
-      {plans.some((p) => p.regular_price_display) ? <Text variant="bodySmall" style={{ color: brand.muted, marginTop: 4, lineHeight: 18 }} testID="launch-note">{t('pricing.launchNote')}</Text> : null}
-      {cta && onSelect && selected ? <Button mode="contained" onPress={() => onSelect(selected)}>{cta}</Button> : null}
+            {freeMonth ? (
+              <View style={{ alignSelf: 'flex-start', backgroundColor: brand.green100, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, marginTop: 8 }} testID={`free-${p.code}`}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: brand.green600 }}>{t('pricing.firstMonthFree')}</Text>
+              </View>
+            ) : null}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 12 }}>
+              <View style={{ flex: 1, gap: 7 }}>
+                <Tick text={t('pricing.units', { count: p.max_units })} />
+                <Tick text={t('pricing.props', { count: props })} />
+                <Tick text={t('pricing.b_bills')} />
+                {p.ai_enabled ? <Tick text={t('pricing.ai_short')} /> : null}
+              </View>
+              <Pressable onPress={onSelect ? () => onSelect(p.code) : undefined} accessibilityRole="button" testID={`choose-${p.code}`}
+                         style={({ pressed }) => [styles.planBtn, active && { backgroundColor: brand.green600 }, pressed && { opacity: 0.85 }]}>
+                {active ? <Icon source="check" size={18} color="#fff" /> : null}
+                <Text style={[styles.planBtnText, active && { color: '#fff' }]} numberOfLines={1}>{active ? t('pricing.selected') : (cardCta ?? t('pricing.chooseNamed', { name }))}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -789,7 +748,7 @@ export function StatusPill({ status }: { status: string }) {
 
 /** Big gradient figure card (amount due, receipt total…). */
 export function AmountHero({ label, paise, caption, icon = 'wallet', tone = 'teal', compact = false }: { label: string; paise: number; caption?: string; icon?: string; tone?: 'teal' | 'amber' | 'green'; compact?: boolean }) {
-  const colors = tone === 'amber' ? ['#B45309', '#F59E0B'] as const : tone === 'green' ? ['#15803D', '#22C55E'] as const : [brand.teal900, brand.teal600] as const;
+  const colors = tone === 'amber' ? ['#B45309', '#F59E0B'] as const : tone === 'green' ? [brand.green600, brand.green600] as const : [brand.teal900, brand.teal600] as const;
   if (compact) {                    // one slim row: label on the left, the amount on the right
     return (
       <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
@@ -940,8 +899,13 @@ const styles = StyleSheet.create({
   pad: { padding: 16, gap: 12 },
   back: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
+  planBadge: { backgroundColor: brand.green600, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start' },
+  planBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  planBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', minWidth: 120, maxWidth: 170, height: 46, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1.5, borderColor: brand.green600, backgroundColor: '#fff' },
+  planBtnText: { color: brand.green600, fontSize: 15, fontWeight: '800' },
   hero: { alignItems: 'center', paddingBottom: 44, paddingHorizontal: 24, gap: 6 },
   heroTag: { color: '#fff', fontSize: 20, fontWeight: '700', marginTop: 18, textAlign: 'center' },
+  authNote: { textAlign: 'center', color: '#000', fontSize: 15, lineHeight: 22, marginTop: 8 },
   heroSub: { color: 'rgba(255,255,255,0.8)', fontSize: 14, textAlign: 'center' },
   badgeCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: brand.amber500, alignItems: 'center', justifyContent: 'center', marginTop: 14, borderWidth: 4, borderColor: 'rgba(255,255,255,0.35)' },
   sheet: { flex: 1, marginTop: -26, borderTopLeftRadius: 28, borderTopRightRadius: 28 },

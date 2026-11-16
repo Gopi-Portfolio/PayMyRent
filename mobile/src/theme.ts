@@ -1,11 +1,11 @@
-// RentMeezy design tokens: deep teal brand, warm amber accent, soft neutral canvas, generous radii.
+// RentMeezy design tokens: the logo's green (`teal*` is the historical name) brand, warm amber accent, soft neutral canvas, generous radii.
 import { MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
 
 // The brand colours come in two sets. The owner's is deep teal; the renter's is the blue of the renter's top bar. `brand.teal*` and
 // `brand.canvas` read whichever set is current, so signing in as a renter turns the whole window blue without touching each screen.
 const PALETTES = {
-  owner: { teal900: '#064E45', teal700: '#0B6E5F', teal600: '#0F8A77', teal100: '#D7F2EB', teal50: '#EDF9F6', canvas: '#F4F7F6', soft: '#B6E6DA', surfaceVariant: '#EAF1EF' },
-  tenant: { teal900: '#1E3A8A', teal700: '#1D4ED8', teal600: '#2563EB', teal100: '#DBEAFE', teal50: '#EFF6FF', canvas: '#EEF3FD', soft: '#BFD3FA', surfaceVariant: '#E4ECFB' },
+  owner: { teal900: '#0F4D00', teal700: '#1F8A02', teal600: '#1F8A02', teal100: '#E4F3DF', teal50: '#F1F9EE', canvas: '#F4F7F4', soft: '#BFE3B4', surfaceVariant: '#EAF1E8' },
+  tenant: { teal900: '#001F4D', teal700: '#003472', teal600: '#003472', teal100: '#DCE8F7', teal50: '#EEF4FB', canvas: '#EEF3FA', soft: '#B3C8E6', surfaceVariant: '#E4EBF6' },
 } as const;
 export type RoleName = keyof typeof PALETTES;
 let current: (typeof PALETTES)[RoleName] = PALETTES.owner;
@@ -24,10 +24,10 @@ export const brand = {
   amber100: '#FEF3C7',
   red600: '#DC2626',
   red100: '#FEE2E2',
-  green600: '#16A34A',
-  green100: '#DCFCE7',
-  blue600: '#2563EB',
-  blue100: '#DBEAFE',
+  green600: '#1F8A02',        // the logo's green: use this (or brand.green100 for its tint) for every green in the app
+  green100: '#E4F3DF',
+  blue600: '#003472',        // the logo's blue (the "Rent" wordmark): use this for every blue in the app
+  blue100: '#DCE8F7',
   ink: '#0F1F1C',
   muted: '#5B6B67',
   line: '#E3EAE8',
@@ -97,6 +97,6 @@ export const darkTheme = {
 
 /** One accent per landlord, so a tenant with several owners can tell them apart at a glance. */
 export const OWNER_COLORS = [
-  { fg: '#0B6E5F', bg: '#D7F2EB' }, { fg: '#2563EB', bg: '#DBEAFE' }, { fg: '#B45309', bg: '#FEF3C7' },
+  { fg: '#0B6E5F', bg: '#D7F2EB' }, { fg: '#003472', bg: '#DCE8F7' }, { fg: '#B45309', bg: '#FEF3C7' },
   { fg: '#7C3AED', bg: '#EDE9FE' }, { fg: '#BE185D', bg: '#FCE7F3' }, { fg: '#0E7490', bg: '#CFFAFE' },
 ];

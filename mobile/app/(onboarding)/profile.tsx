@@ -12,12 +12,13 @@ import { LANGUAGES } from '@/i18n';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { graphemeCount } from '@/lib/format';
+import { getPendingName } from '@/lib/landing';
 import { nameSchema } from '@/lib/validation';
 
 export default function Profile() {
   const { t, i18n } = useTranslation();
   const { me, refresh } = useAuth();
-  const [name, setName] = useState(me?.full_name ?? '');
+  const [name, setName] = useState(me?.full_name ?? getPendingName());
   const [address, setAddress] = useState(me?.address ?? '');
   const [lang, setLang] = useState(i18n.language);
   const [more, setMore] = useState(false);

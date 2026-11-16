@@ -45,8 +45,10 @@ def list_plans(db: Db = Depends(get_db)) -> dict:
     """Public — no login. Prices are server-authoritative; the app never sends a price."""
     rows = db.all("""SELECT p.code, p.label, p.price_paise, p.regular_price_paise, p.currency, p.billing_period, p.max_units, p.max_properties, p.version,
                             e.ai_enabled, e.features AS ai_features, e.monthly_token_allowance AS ai_monthly_tokens,
-                            e.voice_seconds_allowance AS ai_voice_seconds
+                            e.voice_seconds_allowance AS ai_voice_seconds,
+                            l.paid_units AS paid_message_units, l.email_messages AS email_messages
                      FROM subscription_plans p JOIN plan_ai_entitlements e ON e.plan_id = p.id
+                     JOIN plan_message_limits l ON l.plan_id = p.id
                      WHERE p.status = 'active' ORDER BY p.sort_order""")
     return {"paid_by": "owner", "tenant_access": "free",
             "plans": [_plan_view(r) for r in rows]}
@@ -82,6 +84,7 @@ def subscription_summary(db: Db, owner: UUID) -> dict:
         "state": state,                  # active | grace | read_only | none
         "current": dict(cur) if cur else None,
         "scheduled_renewal": dict(sched) if sched else None,
+        "first_month_free_available": not db.scalar("SELECT EXISTS (SELECT 1 FROM owner_subscriptions WHERE owner_account_id = :o)", o=owner),
         "units_used": used,
         "units_capacity": cur["max_units"] if cur else 0,
         "properties_capacity": db.scalar("SELECT rg_property_allowance(:o)", o=owner),
@@ -172,6 +175,12 @@ def checkout(body: CheckoutIn, scope: OwnerScope = Depends(owner_scope), db: Db 
         if used > plan["max_units"]:
             raise AppError("UNIT_CAPACITY_EXCEEDED", f"you have {used} active units; choose a larger plan or archive units")
         _properties_fit(db, scope.owner_account_id, plan)
+        # the first month of any plan is free, once per owner account: no payment, the plan starts now
+        started = db.scalar("SELECT rg_start_free_month(:o, :p, :g, :d)", o=scope.owner_account_id, p=plan["id"], g=get_settings().grace_days,
+                            d=get_settings().is_demo)
+        if started == "started":
+            db.audit(scope.user.id, scope.owner_account_id, "subscription.free_month_started", "owner_account", scope.owner_account_id, after={"plan": plan["code"]})
+            return {"free_month": True, "status": "paid", "order_id": None, "plan": plan["code"], "state_before": state}
     elif plan["max_units"] > cur["cur_max"]:
         purpose = "upgrade"
     elif plan["id"] == cur["plan_id"] or plan["id"] == cur["scheduled_plan_id"]:

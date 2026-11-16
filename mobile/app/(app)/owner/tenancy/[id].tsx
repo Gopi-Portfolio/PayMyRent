@@ -142,7 +142,7 @@ export default function OwnerTenancy() {
           <Text variant="bodySmall" style={{ color: '#5B6B67', marginTop: -6 }}>{t('agreement.yearlyIncreaseHelp')}</Text>
           <Field label={t('tenancy.itemsProvided')} value={terms.items} onChangeText={(v) => setTerms({ ...terms, items: v })} multiline lines={4} maxLength={2000} testID="terms-items" />
           <Text variant="bodySmall" style={{ color: '#5B6B67', marginTop: -6 }}>{t('tenancy.itemsHelp')}</Text>
-          {saved ? <Text style={{ color: '#16A34A', fontWeight: '700' }}>{t('terms.saved')}</Text> : null}
+          {saved ? <Text style={{ color: brand.green600, fontWeight: '700' }}>{t('terms.saved')}</Text> : null}
           <Button mode="contained" icon="content-save-outline" disabled={parseRupeesToPaise(terms.rent) === null || !dmyToIso(terms.from) || !terms.due || +terms.due < 1 || +terms.due > 31 || +terms.grace > 60}
                   onPress={() => run(async () => {
             await api(`/api/v1/owner/tenancies/${id}`, { method: 'PATCH', ownerAccount: owner, body: {
