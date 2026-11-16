@@ -9,7 +9,7 @@
 | DB concurrency races (4) | `api/tests/sql/test_concurrency.sh` | Postgres | Two sessions racing for the 100th unit and two for the 101st (cap holds); 8 parallel duplicate webhooks (one ledger entry); 6 parallel activations of one order (one subscription); 10 parallel 9,000-token AI reservations against 50,000 (exactly 5 succeed) |
 | SQL contract check | 285 SQL statements in the Python modules `PREPARE`d against the real schema | Postgres | Every query the API sends parses, references real columns and has inferable parameter types (this catches the psycopg "could not determine data type" class of bug) |
 | API end-to-end (13) | `api/tests/integration/test_api_flows.py` | Postgres + FastAPI (`make test-api`, CI) | The HTTP layer: auth, scoping, webhooks, idempotency, flows below |
-| Mobile | `mobile/scripts/format.test.ts`, `check-i18n.mjs`, `__tests__/*.test.tsx`, `e2e/*.yaml` (Maestro) | Node / jest-expo / device | Grapheme counter (with and without `Intl.Segmenter`, as on Hermes), INR formatting, all 8 locales complete, searchable select, owner cash flow and tenant invitation on a device |
+| Mobile | `mobile/scripts/format.test.ts`, `check-i18n.mjs`, `__tests__/*.test.tsx` | Node / jest-expo | Grapheme counter (with and without `Intl.Segmenter`, as on Hermes), INR formatting, all 8 locales complete, searchable select, the Add Renter, Import, tab bar and home screens |
 
 ## Required scenarios → coverage
 
