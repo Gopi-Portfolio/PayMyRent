@@ -49,7 +49,7 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
   } catch (e) {
     const aborted = (e as { name?: string })?.name === 'AbortError';
     // what the person sees is plain and translated; the technical hint for a developer goes to the console only
-    if (__DEV__) console.warn(`[api] ${aborted ? 'no reply from' : 'cannot reach'} ${API_URL}${path}: check that the API is running and that EXPO_PUBLIC_API_URL in mobile/.env is this computer's current IP`);
+    if (__DEV__) console.warn(`[api] ${aborted ? 'no reply from' : 'cannot reach'} ${API_URL}${path} (${(e as Error)?.name}: ${(e as Error)?.message}): check that the API is running and that EXPO_PUBLIC_API_URL in mobile/.env is this computer's current IP`);
     throw new ApiError(0, aborted ? 'TIMEOUT' : 'OFFLINE', i18n.t(aborted ? 'error.timeout' : 'error.offline'));
   } finally { clearTimeout(timer); }
   const text = await res.text();
