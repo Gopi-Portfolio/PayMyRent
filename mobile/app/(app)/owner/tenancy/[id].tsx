@@ -91,6 +91,9 @@ export default function OwnerTenancy() {
             <Icon source="lock" size={16} color={brand.teal700} />
             <Text variant="bodySmall" style={{ flex: 1, color: brand.teal700, fontWeight: '700' }}>{`${d.contact?.phone ?? d.tenancy.invited_phone} · ${t('tenant.lockedPhone')}`}</Text>
           </View>
+          {d.tenancy.status === 'active' && !endOpen ? (
+            <Button textColor="crimson" icon="account-remove-outline" onPress={() => setEndOpen(true)} testID="remove-renter">{t('tenancy.removeRenter')}</Button>
+          ) : null}
           {d.tenancy.status === 'active' ? (
             <Button mode="contained" icon="hand-coin" onPress={() => router.push({ pathname: '/(app)/owner/record-payment', params: { tenancyId: String(id) } })} testID="record-payment">
               {t('renter.recordPayment')}
@@ -108,6 +111,27 @@ export default function OwnerTenancy() {
           ) : null}
         </Panel>
       ) : null}
+      {endOpen ? (() => {
+            const iso = dmyToIso(vac.date);
+            const okDate = !!iso && iso <= new Date().toISOString().slice(0, 10) && iso > String(d?.tenancy.start_date ?? '');
+            return (
+              <Panel>
+                <Text variant="titleMedium" style={{ fontWeight: '800', color: 'crimson' }}>{t('tenancy.vacateTitle')}</Text>
+                <Text variant="bodySmall" style={{ color: '#5B6B67', marginBottom: 8 }}>{t('tenancy.vacateHelp')}</Text>
+                <Text style={{ fontWeight: '700', marginBottom: 8 }}>{t('tenancy.vacateInfo', { held: formatINR(d?.deposit_held_paise ?? 0), due: formatINR(Math.max(d?.balance_paise ?? 0, 0)) })}</Text>
+                <Field label={t('tenancy.vacatedOn')} value={vac.date} onChangeText={(v) => setVac({ ...vac, date: v })} kind="date" error={okDate ? undefined : 'date_invalid'} />
+                <Field label={t('tenancy.depositNote')} value={vac.deposit} onChangeText={(v) => setVac({ ...vac, deposit: v })} kind="reason" />
+                <Field label={t('tenancy.handoverNote')} value={vac.handover} onChangeText={(v) => setVac({ ...vac, handover: v })} kind="reason" />
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
+                  <Button style={{ flex: 1 }} onPress={() => setEndOpen(false)}>{t('common.cancel')}</Button>
+                  <Button style={{ flex: 2 }} mode="contained" disabled={!okDate} testID="vacate-confirm" onPress={() => run(async () => {
+                    await api(`/api/v1/owner/tenancies/${id}/end?end_date=${iso}`, { ownerAccount: owner, body: { deposit_note: vac.deposit.trim() || null, handover_note: vac.handover.trim() || null } });
+                    setEndOpen(false); goBack();
+                  })}>{t('tenancy.vacateConfirm')}</Button>
+                </View>
+              </Panel>
+            );
+          })() : null}
       {d ? <OwnerPayHow tenancyId={String(id)} method={d.tenancy.pay_method} upi={d.tenancy.pay_upi_id} effective={d.effective_pay_method} active={d.tenancy.status === 'active' || d.tenancy.status === 'invited'} /> : null}
       <TabPills value={tab} onChange={setTab} tabs={[
         { value: 'bill', label: t('bill.totalDue'), icon: 'receipt-text-outline' }, { value: 'charges', label: t('bill.misc'), icon: 'plus-circle-outline' },
@@ -183,27 +207,7 @@ export default function OwnerTenancy() {
             idem.current = newIdempotencyKey();
             setDep({ ...dep, amount: '', reason: '' });
           })}>{t('common.confirm')}</Button>
-          {!endOpen ? <Button textColor="crimson" icon="door-open" onPress={() => setEndOpen(true)} testID="vacate-open">{t('tenancy.end')}</Button> : (() => {
-            const iso = dmyToIso(vac.date);
-            const okDate = !!iso && iso <= new Date().toISOString().slice(0, 10) && iso > String(d?.tenancy.start_date ?? '');
-            return (
-              <Panel>
-                <Text variant="titleMedium" style={{ fontWeight: '800', color: 'crimson' }}>{t('tenancy.vacateTitle')}</Text>
-                <Text variant="bodySmall" style={{ color: '#5B6B67', marginBottom: 8 }}>{t('tenancy.vacateHelp')}</Text>
-                <Text style={{ fontWeight: '700', marginBottom: 8 }}>{t('tenancy.vacateInfo', { held: formatINR(d?.deposit_held_paise ?? 0), due: formatINR(Math.max(d?.balance_paise ?? 0, 0)) })}</Text>
-                <Field label={t('tenancy.vacatedOn')} value={vac.date} onChangeText={(v) => setVac({ ...vac, date: v })} kind="date" error={okDate ? undefined : 'date_invalid'} />
-                <Field label={t('tenancy.depositNote')} value={vac.deposit} onChangeText={(v) => setVac({ ...vac, deposit: v })} kind="reason" />
-                <Field label={t('tenancy.handoverNote')} value={vac.handover} onChangeText={(v) => setVac({ ...vac, handover: v })} kind="reason" />
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
-                  <Button style={{ flex: 1 }} onPress={() => setEndOpen(false)}>{t('common.cancel')}</Button>
-                  <Button style={{ flex: 2 }} mode="contained" disabled={!okDate} testID="vacate-confirm" onPress={() => run(async () => {
-                    await api(`/api/v1/owner/tenancies/${id}/end?end_date=${iso}`, { ownerAccount: owner, body: { deposit_note: vac.deposit.trim() || null, handover_note: vac.handover.trim() || null } });
-                    setEndOpen(false); goBack();
-                  })}>{t('tenancy.vacateConfirm')}</Button>
-                </View>
-              </Panel>
-            );
-          })()}
+          {!endOpen ? <Button textColor="crimson" icon="door-open" onPress={() => setEndOpen(true)} testID="vacate-open">{t('tenancy.end')}</Button> : null}
         </>
       ) : null}
       {tab === 'notes' ? (

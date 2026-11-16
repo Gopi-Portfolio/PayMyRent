@@ -177,3 +177,48 @@ def test_a_retried_allotment_with_the_same_key_does_not_message_twice(actor, eng
     n = len(sent)
     b = owner.c.post(f"/api/v1/owner/renters/{rid}/allot", headers=h, json=t)
     assert a.status_code == b.status_code == 200 and a.json() == b.json() and len(sent) == n
+
+
+def test_a_renter_not_yet_allotted_can_be_removed_and_the_id_photo_goes_with_them(actor, engine, sql):
+    owner, other = ready_owner(actor), ready_owner(actor)
+    rid = add(owner).json()["id"]
+    assert other.delete(f"/api/v1/owner/renters/{rid}").status_code == 404               # not someone else's renter
+    assert owner.delete(f"/api/v1/owner/renters/{rid}").status_code == 200
+    assert owner.get("/api/v1/owner/renters").json()["items"] == []
+    assert owner.get(f"/api/v1/owner/renters/{rid}/id-photo").status_code == 404
+    assert sql(f"SELECT count(*) FROM renters WHERE id = '{rid}'")[0][0] == 0                  # the row, and so the encrypted photo, is gone
+
+
+def test_an_allotted_renter_is_removed_from_the_unit_not_deleted(actor, engine, sent):
+    owner = ready_owner(actor)
+    rid = add(owner).json()["id"]
+    assert owner.post(f"/api/v1/owner/renters/{rid}/allot", json=terms(a_unit(owner))).status_code == 200
+    r = owner.delete(f"/api/v1/owner/renters/{rid}")
+    assert r.status_code == 409 and "remove them from the unit" in r.text
+
+
+def test_a_property_with_nobody_in_it_can_be_removed_and_its_address_added_again(actor, engine):
+    owner = ready_owner(actor)
+    pid = ensure_property(owner)
+    unit = a_unit(owner)
+    r = owner.post(f"/api/v1/owner/properties/{pid}/remove")
+    assert r.status_code == 200, r.text
+    assert owner.get("/api/v1/owner/properties").json()["items"] == []
+    assert all(u["id"] != unit for u in owner.get("/api/v1/owner/units").json()["items"])      # its units are archived with it
+
+
+def test_a_property_with_a_renter_in_it_cannot_be_removed_until_the_renter_is_removed(actor, engine, sent):
+    owner = ready_owner(actor)
+    pid = ensure_property(owner)
+    unit = a_unit(owner)
+    rid = add(owner).json()["id"]
+    assert owner.post(f"/api/v1/owner/renters/{rid}/allot", json=terms(unit)).status_code == 200
+    r = owner.post(f"/api/v1/owner/properties/{pid}/remove")
+    assert r.status_code == 409 and "renters still live here" in r.text
+    assert len(owner.get("/api/v1/owner/properties").json()["items"]) == 1                      # nothing was changed
+
+
+def test_only_the_owner_of_that_property_can_remove_it(actor, engine):
+    owner, other = ready_owner(actor), ready_owner(actor)
+    pid = ensure_property(owner)
+    assert other.post(f"/api/v1/owner/properties/{pid}/remove").status_code == 404

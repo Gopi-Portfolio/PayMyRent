@@ -153,6 +153,26 @@ def list_properties(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(g
     return {"items": items}
 
 
+@router.post("/owner/properties/{property_id}/remove")
+def remove_property(property_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+    """Take a property off the list. Only when nobody lives in it (and no invitation is waiting): the renters have to be removed first, so a
+    rental, its rent history and its deposit are never cut off by accident. Its units are archived; nothing is erased, and the address can be added again."""
+    if scope.membership_role != "owner":
+        raise AppError("FORBIDDEN", "only the main owner can remove a property")
+    owner = scope.owner_account_id
+    prop = db.must("SELECT id, name, address FROM properties WHERE id = :p AND owner_account_id = :o AND archived_at IS NULL", "property", p=property_id, o=owner)
+    live = db.all("""SELECT u.identifier FROM units u JOIN tenancies t ON t.unit_id = u.id AND t.status IN ('invited', 'active')
+                     WHERE u.property_id = :p ORDER BY u.identifier""", p=property_id)
+    if live:
+        names = ", ".join(r["identifier"] for r in live[:5]) + (" and more" if len(live) > 5 else "")
+        raise AppError("CONFLICT", f"renters still live here ({names}). Remove them first, then remove the property.", status=409,
+                       units=[r["identifier"] for r in live])
+    db.exec("UPDATE units SET status = 'archived' WHERE property_id = :p AND status = 'active'", p=property_id)
+    db.exec("UPDATE properties SET archived_at = now() WHERE id = :p", p=property_id)
+    db.audit(scope.user.id, owner, "property.removed", "property", property_id, after={"address": prop["address"]})
+    return {"removed": True}
+
+
 @router.post("/owner/workspaces")
 def add_property_account(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
     """Start ANOTHER property: a new owner account for the same person (same phone) that needs its own plan and payment.

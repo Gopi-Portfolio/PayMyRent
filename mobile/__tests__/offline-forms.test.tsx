@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
+import { Alert } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 
 import AllotRenter from '../app/(app)/owner/allot';
@@ -87,6 +88,20 @@ describe('Allot Renter', () => {
     expect(ui.queryByTestId('add-unit-link')).toBeNull();
     fireEvent.press(ui.getByTestId('allot-done-button'));
     expect(mockRouter.back).toHaveBeenCalled();
+  });
+
+  test('Remove renter asks once, then deletes the renter from the waiting list; Cancel does nothing', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    const ui = wrap(<AllotRenter />);
+    await waitFor(() => ui.getByTestId('remove-renter-r2'));
+    fireEvent.press(ui.getByTestId('remove-renter-r2'));
+    expect(alert).toHaveBeenCalledWith('Remove Selvi?', expect.stringContaining('ID photo will be erased'), expect.any(Array));
+    expect(mockApi.mock.calls.some((c) => c[1]?.method === 'DELETE')).toBe(false);          // nothing happens until it is confirmed
+    const buttons = alert.mock.calls[0][2] as any[];
+    expect(buttons.map((b) => b.text)).toEqual(['Cancel', 'Remove renter']);
+    await act(async () => { await buttons[1].onPress(); });
+    expect(mockApi.mock.calls.filter((c) => c[0] === '/api/v1/owner/renters/r2' && c[1]?.method === 'DELETE')).toHaveLength(1);
+    alert.mockRestore();
   });
 
   test('the panel is three plain steps; the dates are already filled in and hidden until asked for, and a summary says what will happen', async () => {

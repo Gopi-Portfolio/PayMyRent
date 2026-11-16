@@ -98,6 +98,18 @@ def renter_id_photo(renter_id: UUID, scope: OwnerScope = Depends(owner_scope), d
     return Response(decrypt_bytes(bytes(r["id_enc"])), media_type=r["id_mime"], headers={"Cache-Control": "no-store"})
 
 
+@router.delete("/owner/renters/{renter_id}")
+def remove_renter(renter_id: UUID, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+    """Remove a renter who has not been given a place yet. Their details and ID photo are erased. A renter who has a rental is removed from
+    the unit instead (End Tenancy), which keeps the rent history."""
+    r = db.must("SELECT id, tenancy_id FROM renters WHERE id = :i AND owner_account_id = :o", "renter", i=renter_id, o=scope.owner_account_id)
+    if r["tenancy_id"] is not None:
+        raise AppError("CONFLICT", "this renter has a rental: remove them from the unit instead", status=409)
+    db.exec("DELETE FROM renters WHERE id = :i", i=renter_id)
+    db.audit(scope.user.id, scope.owner_account_id, "renter.removed", "renter", renter_id)
+    return {"removed": True}
+
+
 class AllotIn(BaseModel):
     unit_id: UUID
     monthly_rent: str | int

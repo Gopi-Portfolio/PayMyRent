@@ -1,8 +1,10 @@
 // My properties: each one has its own plan, units and vacancy. Tap one to work on it.
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, View } from 'react-native';
+import { Button } from '@/components/Buttons';
+import { confirmRemove } from '@/lib/confirm';
 import { Icon, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
@@ -16,10 +18,12 @@ export default function MyProperties() {
   const { t } = useTranslation();
   const { me, selectOwner } = useAuth();
   const current = ownerAccountId(me);
+  const qc = useQueryClient();
+  const [err, setErr] = React.useState<unknown>(null);
   const q = useQuery({ queryKey: ['workspaces', me?.id], queryFn: () => api<any>('/api/v1/owner/workspaces') });
   return (
     <Screen>
-      <ErrorBanner error={q.error} onRetry={() => q.refetch()} />
+      <ErrorBanner error={err || q.error} onRetry={() => { setErr(null); q.refetch(); }} />
       {(q.data?.items ?? []).map((w: any) => (
         <Pressable key={w.owner_account_id} onPress={() => { selectOwner(w.owner_account_id); router.replace('/(app)/owner'); }} accessibilityRole="button"
                    style={[{ backgroundColor: '#fff', borderRadius: radius.lg, padding: 14, gap: 8, borderWidth: w.owner_account_id === current ? 2 : 1,
@@ -36,6 +40,13 @@ export default function MyProperties() {
             <Text style={{ fontWeight: '700' }}>{t('property.unitsOf', { used: w.active_units, cap: w.units_capacity })}</Text>
             <Text style={{ fontWeight: '700', color: w.vacant_units ? '#B45309' : brand.muted }}>{`${t('property.vacant')}: ${w.vacant_units}`}</Text>
           </View>
+          {w.property && w.role === 'owner' ? (
+            <Button textColor="crimson" icon="home-remove-outline" testID={`remove-property-${w.property.id}`} onPress={() => confirmRemove(
+              t('property.removeTitle', { name: w.property.name || w.property.address }), t('property.removeBody'), t('property.remove'),
+              async () => { try { setErr(null); await api(`/api/v1/owner/properties/${w.property.id}/remove`, { method: 'POST', ownerAccount: w.owner_account_id }); qc.invalidateQueries(); } catch (x) { setErr(x); } })}>
+              {t('property.remove')}
+            </Button>
+          ) : null}
         </Pressable>
       ))}
       <AppButton label={t('property.addAnother')} icon="plus" onPress={() => router.push('/(app)/owner/add-property')} />

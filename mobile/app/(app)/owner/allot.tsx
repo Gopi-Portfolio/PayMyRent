@@ -15,6 +15,7 @@ import { Avatar, ErrorBanner, Field, Panel, Screen, goBack } from '@/components/
 import { addMonthsDMY, dmyToIso, todayDMY } from '@/lib/dates';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
+import { confirmRemove } from '@/lib/confirm';
 import { submitOrQueue } from '@/lib/offline';
 import { markUnitRented } from '@/lib/optimistic';
 import { queryClient } from '@/lib/queryClient';
@@ -130,6 +131,7 @@ export default function AllotRenter() {
   const q = useQuery({ queryKey: ['renters', owner, 'new'], queryFn: () => api<{ items: Renter[] }>('/api/v1/owner/renters?allotted=false', { ownerAccount: owner }) });
   const [open, setOpen] = useState<string | null>(params.open ? String(params.open) : null);
   const [done, setDone] = useState<string | null>(null);
+  const [removeErr, setRemoveErr] = useState<unknown>(null);
 
   if (me && (!ver || ver === 'rejected')) return <Redirect href="/(onboarding)/owner-details" />;
   const items = q.data?.items ?? [];
@@ -139,6 +141,7 @@ export default function AllotRenter() {
         <Text variant="titleLarge" style={{ fontWeight: '800', color: brand.ink }} accessibilityRole="header">{t('renter.allotTitle')}</Text>
         <Text style={{ color: brand.muted, lineHeight: 21 }}>{t('renter.allotIntro')}</Text>
       </View>
+      <ErrorBanner error={removeErr} />
       {done ? (
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: brand.green100, borderRadius: radius.md, padding: 12 }} testID="allot-done">
           <Icon source="check-circle" size={22} color={brand.green600} />
@@ -158,6 +161,13 @@ export default function AllotRenter() {
           <View style={{ marginTop: 12 }}>
             <AppButton icon={open === r.id ? 'chevron-up' : 'home-plus'} label={open === r.id ? t('common.close') : t('renter.addPlace')} variant={open === r.id ? 'outline' : 'primary'}
                        onPress={() => setOpen(open === r.id ? null : r.id)} testID={`allot-open-${r.id}`} />
+          </View>
+          <View style={{ marginTop: 8 }}>
+            <Button textColor="crimson" icon="account-remove-outline" testID={`remove-renter-${r.id}`} onPress={() => confirmRemove(
+              t('renter.removeTitle', { name: r.name }), t('renter.removeBody'), t('renter.remove'),
+              async () => { try { await api(`/api/v1/owner/renters/${r.id}`, { method: 'DELETE', ownerAccount: owner }); if (open === r.id) setOpen(null); qc.invalidateQueries({ queryKey: ['renters'] }); } catch (x) { setRemoveErr(x); } })}>
+              {t('renter.remove')}
+            </Button>
           </View>
           {open === r.id ? <AllotPanel renter={r} owner={owner} onDone={(m) => { setDone(m); const next = items.find((x) => x.id !== r.id); setOpen(next ? next.id : null); qc.invalidateQueries({ queryKey: ['renters'] }); }} /> : null}
         </Panel>

@@ -216,7 +216,8 @@
     "addRenterTo": "Add Renter to {{unit}}",
     "unitCounts": "{{vacant}} vacant · {{occupied}} occupied",
     "rentedTo": "Rented to {{name}}",
-    "occupiedNoName": "Occupied"
+    "occupiedNoName": "Occupied",
+    "removeRenter": "Remove renter"
   },
   "bill": {
     "title": "Bill for {{month}}",
@@ -587,7 +588,10 @@
     "planFull_other": "Your plan covers {{count}} properties, and all are added. You can still add units to them here. To add another property, upgrade your plan.",
     "planFullTitle": "Property limit reached",
     "planRoom": "Your plan covers {{cap}} properties. {{used}} added, {{left}} left.",
-    "upgradeForMore": "Upgrade to Add More Properties"
+    "upgradeForMore": "Upgrade to Add More Properties",
+    "remove": "Remove property",
+    "removeTitle": "Remove {{name}}?",
+    "removeBody": "Only possible when no renter lives in it. Its units are taken off your list; past rent records are kept."
   },
   "otp": {
     "title": "Confirm with a Code",
@@ -1017,6 +1021,9 @@
     "step2": "2. Set the rent",
     "step3": "3. Confirm",
     "moreTerms": "Due day and dates (already filled in)",
-    "summary": "{{name}} will get {{unit}} at ₹{{rent}} a month."
+    "summary": "{{name}} will get {{unit}} at ₹{{rent}} a month.",
+    "remove": "Remove renter",
+    "removeTitle": "Remove {{name}}?",
+    "removeBody": "Their details and ID photo will be erased. You can add them again later."
   }
 }
