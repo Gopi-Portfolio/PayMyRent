@@ -98,12 +98,20 @@ test('a complete form uploads the details with the shrunk photo, then goes to Al
   expect(parts.file.uri).toBe('file:///id.jpg?shrunk');
 });
 
-test('offline: the photo cannot be uploaded, so saving is switched off with a clear reason', async () => {
-  setOnline(false);
+test('the phone\'s own "offline" guess never blocks the form: the upload is tried, and if the server really cannot be reached the person is told', async () => {
+  setOnline(false);                                                   // the phone claims offline (it can be wrong on Wi-Fi)
+  mockApi.mockRejectedValue(Object.assign(new Error('No internet connection. Please connect and try again.'), { status: 0, code: 'OFFLINE' }));
   const ui = wrap();
-  expect(ui.getByTestId('needs-internet')).toBeTruthy();
+  expect(ui.queryByTestId('needs-internet')).toBeNull();
+  await fill(ui);
+  fireEvent.press(ui.getByTestId('id-type-pan'));
+  await act(async () => { fireEvent.press(ui.getByTestId('id-upload')); });
+  await waitFor(() => ui.getByTestId('id-preview'));
+  fireEvent.press(ui.getByTestId('keep-copy'));
   await act(async () => { fireEvent.press(ui.getByTestId('save-renter')); });
-  expect(posts()).toHaveLength(0);
+  expect(posts()).toHaveLength(1);                                    // it was tried
+  await waitFor(() => expect(ui.getByText('No internet connection. Please connect and try again.')).toBeTruthy());
+  expect(mockRouter.replace).not.toHaveBeenCalled();
   setOnline(true);
 });
 

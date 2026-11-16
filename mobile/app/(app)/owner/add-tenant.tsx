@@ -1,6 +1,7 @@
 // Add Renter: only who the renter is. Name, mobile and a photo ID are required; email and current address are optional.
 // The ID photo is sent to the server, which keeps it encrypted (an Aadhaar has its first 8 digits hidden automatically). Rent and the place come later, on Allot Renter.
-// Needs the internet (the photo is uploaded), so it is never saved for later.
+// Needs the internet (the photo is uploaded), so it is never saved for later. The phone's own "offline" guess is not used to block the buttons
+// (it can be wrong on Wi-Fi): the request is simply tried, and if it really cannot reach the server the person is told.
 import { useQueryClient } from '@tanstack/react-query';
 import { Redirect, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -10,12 +11,10 @@ import { Icon, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { AppButton, Button } from '@/components/Buttons';
-import { NeedsInternet } from '@/components/NeedsInternet';
 import { RenterScan } from '@/components/RenterScan';
 import { ErrorBanner, Field, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
-import { useOnline } from '@/lib/network';
 import { cameraAllowed } from '@/lib/cameraAccess';
 import { shrink } from '@/lib/photo';
 import { mobileSchema, nameSchema } from '@/lib/validation';
@@ -30,7 +29,6 @@ export default function AddRenter() {
   const owner = ownerAccountId(me);
   const ver = me?.owner_accounts.find((o) => o.owner_account_id === owner)?.verification;
   const qc = useQueryClient();
-  const online = useOnline();
   const [f, setF] = useState({ name: '', mobile: '', email: '', address: '' });
   const [idType, setIdType] = useState<(typeof ID_TYPES)[number] | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -73,7 +71,6 @@ export default function AddRenter() {
   if (me && (!ver || ver === 'rejected')) return <Redirect href="/(onboarding)/owner-details" />;
   return (
     <Screen>
-      <NeedsInternet />
       <View style={{ gap: 2 }}>
         <Text variant="titleLarge" style={{ fontWeight: '800', color: brand.ink }} accessibilityRole="header">{t('renter.title')}</Text>
         <Text style={{ color: brand.muted, lineHeight: 21 }}>{t('renter.intro')}</Text>
@@ -104,8 +101,8 @@ export default function AddRenter() {
         <Text style={{ fontWeight: '800', color: brand.ink }}>{t('renter.idPhoto')}</Text>
         {photo ? <Image source={{ uri: photo }} style={{ width: '100%', height: 180, borderRadius: radius.md, backgroundColor: brand.teal50 }} resizeMode="contain" accessibilityLabel={t('renter.photoAdded')} testID="id-preview" /> : null}
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1 }}><AppButton variant="outline" compact icon="camera-outline" label={t('scan.camera')} disabled={!online || busy} onPress={() => pick('camera')} testID="id-camera" /></View>
-          <View style={{ flex: 1 }}><AppButton variant="outline" compact icon="upload" label={t('renter.upload')} disabled={!online || busy} onPress={() => pick('gallery')} testID="id-upload" /></View>
+          <View style={{ flex: 1 }}><AppButton variant="outline" compact icon="camera-outline" label={t('scan.camera')} disabled={busy} onPress={() => pick('camera')} testID="id-camera" /></View>
+          <View style={{ flex: 1 }}><AppButton variant="outline" compact icon="upload" label={t('renter.upload')} disabled={busy} onPress={() => pick('gallery')} testID="id-upload" /></View>
         </View>
         {touched && e.photo ? <Text style={{ color: brand.red600 }}>{t('renter.photoRequired')}</Text> : null}
         <Text style={{ color: brand.muted, lineHeight: 20 }}>{t('renter.privateNote')}</Text>
@@ -120,7 +117,7 @@ export default function AddRenter() {
       {touched && e.ok ? <Text style={{ color: brand.red600 }}>{t('renter.consentRequired')}</Text> : null}
 
       <ErrorBanner error={err} />
-      <Button mode="contained" onPress={save} loading={busy} disabled={busy || !online} contentStyle={{ height: 52 }} testID="save-renter">{t('renter.save')}</Button>
+      <Button mode="contained" onPress={save} loading={busy} disabled={busy} contentStyle={{ height: 52 }} testID="save-renter">{t('renter.save')}</Button>
     </Screen>
   );
 }
