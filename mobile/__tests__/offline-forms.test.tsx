@@ -79,6 +79,23 @@ describe('Allot Renter', () => {
     expect(outbox.getSnapshot()).toEqual([]);
   });
 
+  test('there is one way to add a property/unit (the button by the renter), not a second one below; a Done button closes the screen', async () => {
+    const ui = wrap(<AllotRenter />);
+    await waitFor(() => ui.getByTestId('allot-panel-r1'));
+    await waitFor(() => ui.getByTestId('places-dropdown'));
+    expect(ui.getAllByText('Add property/unit')).toHaveLength(2);        // one beside each waiting renter, none inside the open panel
+    expect(ui.queryByTestId('add-unit-link')).toBeNull();
+    fireEvent.press(ui.getByTestId('allot-done-button'));
+    expect(mockRouter.back).toHaveBeenCalled();
+  });
+
+  test('after one renter is assigned the next waiting renter opens by itself, so the list can be finished one after another', async () => {
+    const ui = wrap(<AllotRenter />);
+    await allot(ui);
+    await waitFor(() => ui.getByTestId('allot-done'));
+    await waitFor(() => ui.getByTestId('allot-panel-r2'));
+  });
+
   test('OFFLINE: nothing is sent; one entry is saved, the unit shows as rented (waiting), the renter leaves the waiting list, and the person is told', async () => {
     setOnline(false);
     const ui = wrap(<AllotRenter />);
