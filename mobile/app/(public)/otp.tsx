@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { otpSession } from '@/lib/otpSession';
 
 export default function Otp() {
+  const [typing, setTyping] = React.useState(false);        // the code box is open for typing: show the tick that closes the keyboard
   const { t } = useTranslation();
   const { verifyOtp, requestOtp } = useAuth();
   const [note, setNote] = useState<string | null>(null);
@@ -56,7 +57,9 @@ export default function Otp() {
       ) : null}
       <TextInput mode="outlined" outlineStyle={{ borderRadius: radius.md }} style={{ backgroundColor: '#fff', fontSize: 26, letterSpacing: 10, textAlign: 'center', height: 64 }} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="sms-otp" maxLength={6}
                  value={code} onChangeText={(v) => { const c = sanitize('otp', v); setCode(c); if (c.length === 6) Keyboard.dismiss(); }}   // the six digits are in: the keyboard closes by itself
-                 inputAccessoryViewID={DONE_ID} accessibilityLabel="OTP" testID="otp-input" />
+                 inputAccessoryViewID={DONE_ID} accessibilityLabel="OTP" testID="otp-input"
+                 onFocus={() => setTyping(true)} onBlur={() => setTyping(false)}
+                 right={typing ? <TextInput.Icon icon="check-circle" onPress={() => Keyboard.dismiss()} accessibilityLabel={t('common.done')} testID="otp-input-done" /> : undefined} />
       <DoneBar />
       <ErrorBanner error={err} />
       {note ? <Text style={{ color: brand.green600, fontWeight: '700', textAlign: 'center' }}>{note}</Text> : null}

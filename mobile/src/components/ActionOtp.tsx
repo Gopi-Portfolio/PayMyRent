@@ -1,7 +1,7 @@
 // The one-time code that approves a verification step. It is always sent to the mobile number attached to this account
 // (the app never lets the user type a destination), and it is good for this one step only.
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Keyboard, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
@@ -36,7 +36,7 @@ export function ActionOtp({ action, code, onChange, ownerAccount }: { action: Ot
       <Text style={{ color: brand.muted, lineHeight: 21 }}>{sentTo ? t('otp.sentTo', { phone: sentTo }) : t('otp.explain')}</Text>
       {sentTo ? (
         <View style={{ gap: 6 }}>
-          <Field label={t('otp.code')} value={code} onChangeText={(v) => onChange(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} testID={`otp-${action}`} />
+          <Field label={t('otp.code')} value={code} onChangeText={(v) => { const c = v.replace(/\D/g, '').slice(0, 6); onChange(c); if (c.length === 6) Keyboard.dismiss(); }} keyboardType="number-pad" maxLength={6} testID={`otp-${action}`} />
           {demo ? <Text variant="bodySmall" style={{ color: '#B45309' }}>{t('otp.demo', { code: demo })}</Text> : null}
         </View>
       ) : null}

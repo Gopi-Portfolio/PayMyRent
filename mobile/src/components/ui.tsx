@@ -406,6 +406,9 @@ export function Field({ label, value, onChangeText, error, keyboardType, secure,
   // number / phone pads have no Return key on iOS (and Return in a multi-line box is a new line), so they get a Done bar that closes the keyboard
   const numeric = Platform.OS === 'ios' && (!!multiline || kbType === 'number-pad' || kbType === 'decimal-pad' || kbType === 'phone-pad');   // also multi-line boxes: Return there starts a new line
   const accId = `done-${React.useId()}`;
+  // A number pad has no Return key, and the iOS bar above the keyboard is not reliable, so while the box is being typed in a tick button inside it closes the keyboard (any phone).
+  const pad = kbType === 'number-pad' || kbType === 'decimal-pad' || kbType === 'phone-pad';
+  const [focused, setFocused] = React.useState(false);
   return (
     <View>
       {numeric ? (
@@ -420,6 +423,8 @@ export function Field({ label, value, onChangeText, error, keyboardType, secure,
       <TextInput mode="outlined" label={label} value={shown} onChangeText={change}
                  returnKeyType={multiline ? undefined : 'done'} blurOnSubmit={multiline ? false : true} onSubmitEditing={multiline ? undefined : () => Keyboard.dismiss()}
                  inputAccessoryViewID={numeric ? accId : undefined}
+                 onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+                 right={pad && focused ? <TextInput.Icon icon="check-circle" onPress={() => Keyboard.dismiss()} accessibilityLabel={t('common.done')} testID={testID ? `${testID}-done` : undefined} /> : undefined}
                  keyboardType={kbType} secureTextEntry={secure}
                  maxLength={maxLength ?? (kind ? maxLengthFor(kind) : undefined)} autoCorrect={kind === 'email' || kind === 'pan' ? false : undefined}
                  autoCapitalize={!caps ? 'none' : 'characters'} error={!!error} testID={testID} accessibilityLabel={label} multiline={multiline} numberOfLines={multiline ? lines : undefined}

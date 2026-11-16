@@ -22,3 +22,21 @@ test('send a code, type it, and the code is ready to submit', async () => {
   expect(seen).toBe('123456');
   expect(otpReady(seen)).toBe(true);
 });
+
+test('the confirmation code box has a tick to close the keyboard, and the keyboard closes by itself when all six digits are in', async () => {
+  const { Keyboard } = require('react-native');
+  const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => undefined);
+  const ui = render(<Host onCode={() => {}} />);
+  fireEvent.press(ui.getByTestId('otp-send-property'));
+  await waitFor(() => ui.getByTestId('otp-property'));
+  fireEvent(ui.getByTestId('otp-property'), 'focus');
+  expect(ui.getByTestId('otp-property-done')).toBeTruthy();                      // a way to close the number pad that has no Return key
+  fireEvent.press(ui.getByTestId('otp-property-done'));
+  expect(dismiss).toHaveBeenCalledTimes(1);
+  dismiss.mockClear();
+  await act(async () => { fireEvent.changeText(ui.getByTestId('otp-property'), '12345'); });
+  expect(dismiss).not.toHaveBeenCalled();                                         // five digits: still typing
+  await act(async () => { fireEvent.changeText(ui.getByTestId('otp-property'), '123456'); });
+  expect(dismiss).toHaveBeenCalledTimes(1);                                       // the sixth: the keyboard closes
+  dismiss.mockRestore();
+});
