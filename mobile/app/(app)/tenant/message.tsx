@@ -11,7 +11,7 @@ import { AppButton } from '@/components/Buttons';
 import { LanguageSelect, languageName } from '@/components/LanguageSelect';
 import { MicButton } from '@/components/NoteInput';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import { DONE_ID, DoneBar, ErrorBanner, Panel, ResultView, Screen, goBack } from '@/components/ui';
+import { DONE_ID, DoneBar, ErrorBanner, Panel, ResultView, Screen, goBack, useDoneTick } from '@/components/ui';
 import { api } from '@/lib/api';
 import { speechAvailable } from '@/lib/speech';
 import { brand } from '@/theme';
@@ -26,6 +26,7 @@ export default function MessageOwner() {
   const rental = live.find((r) => r.id === picked) ?? (live.length === 1 ? live[0] : undefined);
   const [lang, setLang] = useState<string>(i18n.language);
   const [text, setText] = useState('');
+  const textDone = useDoneTick();
   const [viaVoice, setViaVoice] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
@@ -62,7 +63,7 @@ export default function MessageOwner() {
           <LanguageSelect label={t('message.iSpeak')} value={lang} onChange={setLang} testID="lang-from" />
           <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
             <DoneBar />
-            <TextInput mode="outlined" multiline numberOfLines={4} style={{ flex: 1, minHeight: 120, textAlignVertical: 'top' }} value={text} maxLength={500} inputAccessoryViewID={DONE_ID} testID="message-text"
+            <TextInput mode="outlined" multiline {...textDone} numberOfLines={4} style={{ flex: 1, minHeight: 120, textAlignVertical: 'top' }} value={text} maxLength={500} inputAccessoryViewID={DONE_ID} testID="message-text"
                        placeholder={t('message.placeholder', { lang: languageName(lang) })}
                        onChangeText={(v) => { setText(v); setViaVoice(false); }} />
             <MicButton lang={lang} onText={(s) => { setText((p) => (p ? `${p} ${s}` : s)); setViaVoice(true); }} />

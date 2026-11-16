@@ -60,3 +60,13 @@ test('amount, mobile and code boxes all get the tick (they all use a number pad)
     expect(ui.getByTestId(`${id}-done`)).toBeTruthy();
   }
 });
+
+test('a multi-line box (address, notes, items provided) also gets the tick, since Return there only starts a new line', () => {
+  const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => undefined);
+  const ui = render(wrap(<Field label="Address" value="" onChangeText={() => {}} testID="addr" kind="address" multiline />));
+  expect(ui.queryByTestId('addr-done')).toBeNull();
+  fireEvent(ui.getByTestId('addr'), 'focus');
+  fireEvent.press(ui.getByTestId('addr-done'));
+  expect(dismiss).toHaveBeenCalled();
+  dismiss.mockRestore();
+});

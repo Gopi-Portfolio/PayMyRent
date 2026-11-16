@@ -368,6 +368,19 @@ export function DoneBar() {
   );
 }
 
+/** A tick inside a text box that closes the keyboard, shown while the box is being typed in. Spread it on a text box that has no Return-to-close key (a number pad,
+ *  or a multi-line box where Return starts a new line): <TextInput {...done} />, with `const done = useDoneTick()`. The bar above the iOS keyboard is not reliable and
+ *  Android has none, so this is the way to close the keyboard on every phone. */
+export function useDoneTick(testID?: string) {
+  const { t } = useTranslation();
+  const [open, setOpen] = React.useState(false);
+  return {
+    onFocus: () => setOpen(true),
+    onBlur: () => setOpen(false),
+    right: open ? <TextInput.Icon icon="check-circle" onPress={() => Keyboard.dismiss()} accessibilityLabel={t('common.done')} testID={testID ? `${testID}-done` : undefined} /> : undefined,
+  };
+}
+
 // Every typed value is stored and shown in CAPITAL LETTERS (names, addresses, document numbers, notes ...). Only things where case matters
 // stay as typed: e-mail addresses and secret fields. Digits and scripts without capitals (Tamil, Hindi ...) are unaffected.
 const KEEP_CASE: (InputKind | undefined)[] = ['email'];
@@ -406,9 +419,9 @@ export function Field({ label, value, onChangeText, error, keyboardType, secure,
   // number / phone pads have no Return key on iOS (and Return in a multi-line box is a new line), so they get a Done bar that closes the keyboard
   const numeric = Platform.OS === 'ios' && (!!multiline || kbType === 'number-pad' || kbType === 'decimal-pad' || kbType === 'phone-pad');   // also multi-line boxes: Return there starts a new line
   const accId = `done-${React.useId()}`;
-  // A number pad has no Return key, and the iOS bar above the keyboard is not reliable, so while the box is being typed in a tick button inside it closes the keyboard (any phone).
+  // a number pad has no Return key and Return in a multi-line box is a new line, so those get the tick that closes the keyboard (any phone)
   const pad = kbType === 'number-pad' || kbType === 'decimal-pad' || kbType === 'phone-pad';
-  const [focused, setFocused] = React.useState(false);
+  const done = useDoneTick(testID);
   return (
     <View>
       {numeric ? (
@@ -423,8 +436,7 @@ export function Field({ label, value, onChangeText, error, keyboardType, secure,
       <TextInput mode="outlined" label={label} value={shown} onChangeText={change}
                  returnKeyType={multiline ? undefined : 'done'} blurOnSubmit={multiline ? false : true} onSubmitEditing={multiline ? undefined : () => Keyboard.dismiss()}
                  inputAccessoryViewID={numeric ? accId : undefined}
-                 onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-                 right={pad && focused ? <TextInput.Icon icon="check-circle" onPress={() => Keyboard.dismiss()} accessibilityLabel={t('common.done')} testID={testID ? `${testID}-done` : undefined} /> : undefined}
+                 {...(pad || multiline ? { onFocus: done.onFocus, onBlur: done.onBlur, right: done.right } : {})}
                  keyboardType={kbType} secureTextEntry={secure}
                  maxLength={maxLength ?? (kind ? maxLengthFor(kind) : undefined)} autoCorrect={kind === 'email' || kind === 'pan' ? false : undefined}
                  autoCapitalize={!caps ? 'none' : 'characters'} error={!!error} testID={testID} accessibilityLabel={label} multiline={multiline} numberOfLines={multiline ? lines : undefined}

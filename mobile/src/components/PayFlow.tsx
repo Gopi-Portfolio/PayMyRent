@@ -11,7 +11,7 @@ import { sanitize } from '@/lib/inputs';
 import { AppButton } from '@/components/Buttons';
 import { UpiPay } from '@/components/UpiPay';
 import { BillView } from '@/components/BillView';
-import { BalancePreview, Chip2, DONE_ID, DoneBar, ErrorBanner, Panel, ResultView } from '@/components/ui';
+import { BalancePreview, Chip2, DONE_ID, DoneBar, ErrorBanner, Panel, ResultView, useDoneTick } from '@/components/ui';
 import { goBack } from '@/components/ui';
 import { ApiError, api, newIdempotencyKey, reachable } from '@/lib/api';
 import { capToDue, formatINR, parseRupeesToPaise } from '@/lib/format';
@@ -21,6 +21,7 @@ export function PayFlow({ id, onClose }: { id: string; onClose?: () => void }) {
   const { t } = useTranslation();
   const close = onClose ?? goBack;
   const [details, setDetails] = useState(false);
+  const amountDone = useDoneTick('pay-amount');
   const [feeNote, setFeeNote] = useState(false);       // the 'Direct banking costs 2% + GST' note, shown before the checkout opens       // the bill breakdown is one tap away, not in the way
   const qc = useQueryClient();
   const bill = useQuery({ queryKey: ['bill', id, 'now'], queryFn: () => api<any>(`/api/v1/tenancies/${id}/bill`) });
@@ -97,7 +98,7 @@ export function PayFlow({ id, onClose }: { id: string; onClose?: () => void }) {
       {details ? <BillView bill={bill.data} /> : null}
       <DoneBar />
       <Panel title={t('pay.amount')} icon="cash-edit" tone="green">
-        <TextInput mode="outlined" value={amount} onChangeText={(v) => { edited.current = true; const c = capToDue(sanitize('amount', v), due); setAmount(c.text); setCapped(c.capped); }} keyboardType="decimal-pad" inputAccessoryViewID={DONE_ID} maxLength={12} placeholder="0" left={<TextInput.Affix text="₹" />}
+        <TextInput mode="outlined" {...amountDone} value={amount} onChangeText={(v) => { edited.current = true; const c = capToDue(sanitize('amount', v), due); setAmount(c.text); setCapped(c.capped); }} keyboardType="decimal-pad" inputAccessoryViewID={DONE_ID} maxLength={12} placeholder="0" left={<TextInput.Affix text="₹" />}
                    outlineStyle={{ borderRadius: radius.md }} style={{ backgroundColor: '#fff', fontSize: 28, fontWeight: '800', height: 68 }} error={!!amount && !paise}
                    accessibilityLabel={t('pay.amount')} testID="pay-amount" />
         {capped ? <Text style={{ color: '#B45309', fontWeight: '700' }} accessibilityLiveRegion="polite">{t('pay.maxIsDue', { amount: formatINR(due) })}</Text> : null}

@@ -9,7 +9,7 @@ import { fmtDate } from '@/lib/dates';
 import { MessageLink } from '@/components/MessageLink';
 import { MicButton } from '@/components/NoteInput';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import { DONE_ID, DoneBar, ErrorBanner, Panel, Screen, UsageBar } from '@/components/ui';
+import { DONE_ID, DoneBar, ErrorBanner, Panel, Screen, UsageBar, useDoneTick } from '@/components/ui';
 import { ApiError, api, newIdempotencyKey } from '@/lib/api';
 import { Button } from '@/components/Buttons';
 import { ownerAccountId, useAuth } from '@/lib/auth';
@@ -26,6 +26,7 @@ export default function Ai() {
   const [answer, setAnswer] = useState<any>(null);
   const [tenancy, setTenancy] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const draftDone = useDoneTick();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const u = usage.data;
@@ -83,7 +84,7 @@ export default function Ai() {
       {draft ? (
         <>
           <Text variant="labelMedium">{t('ai.draftReview')}</Text>
-          <TextInput mode="outlined" multiline value={draft} onChangeText={setDraft} maxLength={500} inputAccessoryViewID={DONE_ID} />
+          <TextInput mode="outlined" multiline {...draftDone} value={draft} onChangeText={setDraft} maxLength={500} inputAccessoryViewID={DONE_ID} />
           <Button mode="contained" icon="send" onPress={send} loading={busy}>{t('ai.send')}</Button>
         </>
       ) : null}

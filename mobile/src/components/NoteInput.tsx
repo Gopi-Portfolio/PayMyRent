@@ -2,7 +2,7 @@
 // Live counter uses grapheme counting so Indian-script conjuncts count as one character.
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import { DONE_ID, DoneBar } from '@/components/ui';
+import { DONE_ID, DoneBar, useDoneTick } from '@/components/ui';
 import { HelperText, IconButton, TextInput } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
@@ -16,6 +16,7 @@ type Props = { onSubmit: (text: string, method: 'typed' | 'voice') => Promise<vo
 
 export function NoteInput({ onSubmit, busy }: Props) {
   const { t, i18n } = useTranslation();
+  const done = useDoneTick();      // while the note is being typed, a tick closes the keyboard (it takes the microphone's place until then)
   const [text, setText] = useState('');
   const [method, setMethod] = useState<'typed' | 'voice'>('typed');
   const [listening, setListening] = useState(false);
@@ -49,10 +50,10 @@ export function NoteInput({ onSubmit, busy }: Props) {
   return (
     <View>
       <DoneBar />
-      <TextInput mode="outlined" multiline inputAccessoryViewID={DONE_ID} maxLength={1000} value={text.toLocaleUpperCase()} onChangeText={(v) => { setText(v.toLocaleUpperCase()); }} autoCapitalize="characters" placeholder={t('notes.placeholder')}
+      <TextInput mode="outlined" multiline {...done} inputAccessoryViewID={DONE_ID} maxLength={1000} value={text.toLocaleUpperCase()} onChangeText={(v) => { setText(v.toLocaleUpperCase()); }} autoCapitalize="characters" placeholder={t('notes.placeholder')}
                  accessibilityLabel={t('notes.placeholder')} error={over}
-                 right={!speechAvailable ? undefined : <TextInput.Icon icon={listening ? 'microphone-off' : 'microphone'} accessibilityLabel={t('common.voiceInput')}
-                                        onPress={() => (listening ? ExpoSpeechRecognitionModule.stop() : startVoice())} />} />
+                 right={done.right ?? (!speechAvailable ? undefined : <TextInput.Icon icon={listening ? 'microphone-off' : 'microphone'} accessibilityLabel={t('common.voiceInput')}
+                                        onPress={() => (listening ? ExpoSpeechRecognitionModule.stop() : startVoice())} />)} />
       <HelperText type={over ? 'error' : 'info'} accessibilityLiveRegion="polite">
         {method === 'voice' && text ? `${t('notes.reviewVoice')} · ` : ''}{count}/{NOTE_MAX}
       </HelperText>

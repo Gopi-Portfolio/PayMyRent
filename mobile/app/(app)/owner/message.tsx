@@ -11,7 +11,7 @@ import { AppButton } from '@/components/Buttons';
 import { LanguageSelect, languageName } from '@/components/LanguageSelect';
 import { MicButton } from '@/components/NoteInput';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import { DONE_ID, DoneBar, ErrorBanner, Panel, Screen } from '@/components/ui';
+import { DONE_ID, DoneBar, ErrorBanner, Panel, Screen, useDoneTick } from '@/components/ui';
 import { ApiError, api, newIdempotencyKey } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { fmtDate } from '@/lib/dates';
@@ -36,6 +36,8 @@ export default function MessageRenter() {
   const [fromLang, setFromLang] = useState<string>(i18n.language);          // the language I speak or type in
   const [toLang, setToLang] = useState<string | null>(null);                 // the language the renter should get; starts as the renter's own
   const [text, setText] = useState('');
+  const textDone = useDoneTick();
+  const resultDone = useDoneTick();
   const [viaVoice, setViaVoice] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [sms, setSms] = useState(false);
@@ -111,7 +113,7 @@ export default function MessageRenter() {
 
           <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
             <DoneBar />
-            <TextInput mode="outlined" multiline numberOfLines={4} style={{ flex: 1, minHeight: 120, textAlignVertical: 'top' }} value={text} maxLength={500} inputAccessoryViewID={DONE_ID} testID="message-text"
+            <TextInput mode="outlined" multiline {...textDone} numberOfLines={4} style={{ flex: 1, minHeight: 120, textAlignVertical: 'top' }} value={text} maxLength={500} inputAccessoryViewID={DONE_ID} testID="message-text"
                        placeholder={t('message.placeholder', { lang: languageName(fromLang) })}
                        onChangeText={(v) => { setText(v); setViaVoice(false); setResult(null); setSentTo(null); }} />
             <MicButton lang={fromLang} onText={(s) => { setText((p) => (p ? `${p} ${s}` : s)); setViaVoice(true); setResult(null); setSentTo(null); }} />
@@ -133,7 +135,7 @@ export default function MessageRenter() {
           {result ? (
             <>
               <Panel icon={result.translated ? 'translate' : 'message-text-outline'} title={t('message.reviewTitle', { name: renter ?? '', lang: languageName(result.lang) })} tone="blue">
-                <TextInput mode="outlined" multiline numberOfLines={4} style={{ minHeight: 110, textAlignVertical: 'top' }} value={result.text} maxLength={500} inputAccessoryViewID={DONE_ID} testID="final-text"
+                <TextInput mode="outlined" multiline {...resultDone} numberOfLines={4} style={{ minHeight: 110, textAlignVertical: 'top' }} value={result.text} maxLength={500} inputAccessoryViewID={DONE_ID} testID="final-text"
                            onChangeText={(v) => setResult({ ...result, text: v, back: result.back })} />
                 {result.back ? (
                   <View style={{ marginTop: 10, backgroundColor: brand.teal50, borderRadius: radius.md, padding: 10, gap: 2 }} testID="check-back">

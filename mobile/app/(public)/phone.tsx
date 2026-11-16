@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { sanitize } from '@/lib/inputs';
 import { AppButton } from '@/components/Buttons';
 import { Keyboard } from 'react-native';
-import { AuthShell, DONE_ID, DoneBar, ErrorBanner, Field, goBack, type Plan } from '@/components/ui';
+import { AuthShell, DONE_ID, DoneBar, ErrorBanner, Field, goBack, useDoneTick, type Plan } from '@/components/ui';
 import { api } from '@/lib/api';
 import { brand, radius } from '@/theme';
 import { useAuth } from '@/lib/auth';
@@ -55,6 +55,7 @@ export default function Phone() {
   const { requestOtp } = useAuth();
   const [name, setName] = useState(getPendingName());
   const [raw, setRaw] = useState('');
+  const phoneDone = useDoneTick('phone-input');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const e164 = normalizeMobile(raw);
@@ -76,7 +77,7 @@ export default function Phone() {
       <Choice door={door} />
       <Field label={t('profile.fullName')} value={name} onChangeText={setName} kind="name"
              error={name && !nameCheck.success ? nameCheck.error.issues[0].message : undefined} testID="name-input" />
-      <TextInput mode="outlined" label={t('auth.mobileNumber')} outlineStyle={{ borderRadius: radius.md }} style={{ backgroundColor: '#fff', fontSize: 18, height: 60 }} left={<TextInput.Affix text="+91" />} keyboardType="phone-pad" textContentType="telephoneNumber"
+      <TextInput mode="outlined" {...phoneDone} label={t('auth.mobileNumber')} outlineStyle={{ borderRadius: radius.md }} style={{ backgroundColor: '#fff', fontSize: 18, height: 60 }} left={<TextInput.Affix text="+91" />} keyboardType="phone-pad" textContentType="telephoneNumber"
                  autoComplete="tel" value={raw} onChangeText={(v) => { const m = sanitize('mobile', v); setRaw(m); if (m.length === 10) Keyboard.dismiss(); }} inputAccessoryViewID={DONE_ID} maxLength={14}
                  error={raw.length === 10 && !e164} accessibilityLabel={t('auth.enterMobile')} testID="phone-input" />
       <DoneBar />
