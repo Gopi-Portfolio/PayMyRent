@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from ..core.auth import CurrentUser, OwnerScope, complete_user, owned_tenancy, owner_scope
 from ..core.db import Db, get_db
 from ..core.errors import AppError
+from ..core.http import limiter
 from ..domain import excel_import
 from ..domain.money import format_inr, parse_inr
 from ..domain.places import floor_name, normalize_kind
@@ -402,6 +403,18 @@ def onboard_tenancy(body: TenancyIn, scope: OwnerScope = Depends(owner_scope), d
     if d["deposit_paise"] <= 0:
         raise ValidationError("security_deposit", "must_be_positive")    # the advance received must be entered, and cannot be zero
     return create_tenancy(db, scope, d)
+
+
+@router.get("/owner/renter-check")
+def renter_check(mobile: str = Query(max_length=20), scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
+    """Is the person with this number a renter whose photo ID is verified? Only a yes or no: nothing else about them is ever shown,
+    and the number of checks is limited so the answer cannot be used to look people up."""
+    phone = normalize_indian_mobile(mobile, "mobile")
+    limiter.check(f"renter-check:{scope.owner_account_id}", 30, 600)
+    verified = db.scalar("""SELECT EXISTS (SELECT 1 FROM user_contacts c
+                                           JOIN identity_verifications v ON v.user_id = c.user_id AND v.status = 'verified'
+                                           WHERE c.kind = 'mobile' AND c.value = :p AND c.verified_at IS NOT NULL AND c.removed_at IS NULL)""", p=phone)
+    return {"id_verified": bool(verified)}
 
 
 @router.get("/owner/tenancies")

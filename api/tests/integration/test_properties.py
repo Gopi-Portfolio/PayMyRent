@@ -27,6 +27,8 @@ def pay_for_account(owner, owner_account_id, plan="growth"):
     h = {"X-Owner-Account": owner_account_id}
     r = owner.post("/api/v1/subscription/checkout", json={"plan_code": plan, "idempotency_key": uuid.uuid4().hex}, headers=h)
     assert r.status_code == 200, r.text
+    if r.json().get("free_month"):
+        return                          # the first month of a plan is free: the account is already active, nothing to pay
     oid = r.json()["checkout"]["pay_url"].split("/")[-1].split("?")[0]
     r = owner.c.post(f"/api/v1/sandbox/pay/subscription/{oid}", content=b"outcome=success", headers={"content-type": "application/x-www-form-urlencoded"})
     assert "activated" in r.text, r.text
@@ -155,7 +157,7 @@ def test_a_plan_covers_one_property_more_properties_need_their_own_subscription(
     # the two properties are separate: own plan, own capacity, own renters
     mine = {w["owner_account_id"]: w for w in o.get("/api/v1/owner/workspaces").json()["items"]}
     assert len(mine) == 2 and {m["plan"] for m in mine.values()} == {"business", "starter"}
-    assert sorted(m["units_capacity"] for m in mine.values()) == [10, 250]
+    assert sorted(m["units_capacity"] for m in mine.values()) == [10, 300]
     # the starter property is capped at 10 places, whatever the other plan allows
     pid2 = [m["property"]["id"] for m in mine.values() if m["plan"] == "starter"][0]
     o.c.post(f"/api/v1/admin/review/property/{pid2}", json={"decision": "approve"}, headers=ADMIN)

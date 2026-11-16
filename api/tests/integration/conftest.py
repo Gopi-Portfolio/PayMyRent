@@ -142,11 +142,20 @@ def pay_subscription(owner: Actor, plan: str = "growth") -> dict:
     r = owner.post("/api/v1/subscription/checkout", json={"plan_code": plan, "idempotency_key": uuid.uuid4().hex})
     assert r.status_code == 200, r.text
     out = r.json()
+    if out.get("free_month"):
+        return out                      # the first month is free: the plan is already active, so there is nothing to pay
     oid = out["checkout"]["pay_url"].split("/")[-1].split("?")[0]
     r = owner.c.post(f"/api/v1/sandbox/pay/subscription/{oid}", content=b"outcome=success",
                      headers={"content-type": "application/x-www-form-urlencoded"})
     assert "activated" in r.text, r.text
     return out
+
+
+def used_free_month(sql, owner: Actor) -> None:
+    """Give the owner's account an earlier, finished plan, so its next checkout is a paid order (the first month of a plan is free, once)."""
+    sql("""INSERT INTO owner_subscriptions(owner_account_id, plan_id, plan_code, price_paise, max_units, status, period_start, period_end, grace_until)
+           SELECT a.id, p.id, p.code, p.price_paise, p.max_units, 'completed', now() - interval '90 days', now() - interval '60 days', now() - interval '53 days'
+           FROM owner_accounts a, subscription_plans p WHERE a.primary_user_id = %s AND p.code = 'starter' AND p.status = 'active'""", owner.id)
 
 
 @pytest.fixture

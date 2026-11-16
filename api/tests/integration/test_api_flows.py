@@ -12,7 +12,7 @@ from openpyxl import load_workbook
 from app.domain.excel_import import build_template
 from app.domain.signatures import hmac_sha256_hex
 
-from .conftest import ADMIN, ensure_property, new_phone, pay_subscription, property_body
+from .conftest import ADMIN, ensure_property, new_phone, pay_subscription, property_body, used_free_month
 
 TODAY = date.today()
 M0 = TODAY.replace(day=1)
@@ -38,13 +38,12 @@ def accept_all(tenant):
 def test_public_plans_are_exact(client):
     plans = client.get("/api/v1/plans").json()
     assert [(p["code"], p["price_paise"], p["max_units"], p["ai_monthly_tokens"]) for p in plans["plans"]] == [
-        ("starter", 1000, 10, 0), ("growth", 5000, 100, 100000), ("business", 10000, 250, 500000), ("max", 100000, 1000, 1000000)]
+        ("starter", 5000, 10, 0), ("growth", 10000, 50, 100000), ("business", 50000, 300, 500000)]       # Max is retired
     by = {p["code"]: p for p in plans["plans"]}
-    assert [by[c]["max_properties"] for c in ("starter", "growth", "business", "max")] == [1, 5, 10, 100]
-    # launch price (charged) and regular price (shown crossed out); the saving is worked out by the server from the two
-    assert by["starter"]["regular_price_paise"] is None and by["starter"]["saving_percent"] is None
-    assert [(by[c]["regular_price_display"], by[c]["saving_percent"]) for c in ("growth", "business", "max")] == [("₹65", 23), ("₹150", 33), ("₹2,000", 50)]
-    assert by["growth"]["saving_paise"] == 1500 and by["max"]["saving_paise"] == 100000
+    assert "max" not in by
+    assert [by[c]["max_properties"] for c in ("starter", "growth", "business")] == [1, 5, 25]
+    # the price shown is the plain monthly price: there is no crossed-out regular price or saving any more
+    assert all(by[c]["regular_price_paise"] is None and by[c]["saving_percent"] is None for c in by)
     assert plans["paid_by"] == "owner" and plans["tenant_access"] == "free"
 
 
@@ -53,19 +52,20 @@ def test_owner_activation_only_via_verified_webhook(actor, sql):
     assert owner.get("/api/v1/subscription").json()["state"] == "none"
     r = owner.post("/api/v1/owner/properties", json=property_body())
     assert r.status_code == 402                                        # unpaid owner blocked
+    used_free_month(sql, owner)                                        # the first month of a plan is free, so a paid order needs an earlier plan on the account
     out = owner.post("/api/v1/subscription/checkout", json={"plan_code": "growth", "idempotency_key": "k-" + uuid.uuid4().hex}).json()
     oid = out["checkout"]["pay_url"].split("/")[-1].split("?")[0]
     # forged / unsigned webhook is rejected and does not activate
     body = json.dumps({"id": "evt1", "event": "payment.captured", "payload": {"payment": {"entity": {
-        "id": "pay_x", "order_id": oid, "amount": 5000}}}}).encode()
+        "id": "pay_x", "order_id": oid, "amount": 10000}}}}).encode()
     assert owner.c.post("/api/v1/webhooks/payments/subscription", content=body, headers={"x-razorpay-signature": "bad"}).status_code == 403
-    assert owner.get("/api/v1/subscription").json()["state"] == "none"
+    assert owner.get("/api/v1/subscription").json()["state"] != "active"
     # correctly signed → activates; replay → duplicate, still one subscription
     sig = hmac_sha256_hex("sandbox-sub-webhook-secret", body)
     assert owner.c.post("/api/v1/webhooks/payments/subscription", content=body, headers={"x-razorpay-signature": sig}).json()["result"] == "activated"
     assert owner.c.post("/api/v1/webhooks/payments/subscription", content=body, headers={"x-razorpay-signature": sig}).json()["result"] == "duplicate_event"
     assert owner.get("/api/v1/subscription").json()["state"] == "active"
-    assert sql("SELECT count(*) FROM owner_subscriptions s JOIN owner_accounts a ON a.id = s.owner_account_id JOIN users u ON u.id = a.primary_user_id WHERE u.id = %s", owner.id)[0][0] == 1
+    assert sql("SELECT count(*) FROM owner_subscriptions s JOIN owner_accounts a ON a.id = s.owner_account_id JOIN users u ON u.id = a.primary_user_id WHERE u.id = %s AND s.status = 'active'", owner.id)[0][0] == 1
 
 
 def test_both_role_tenant_view_free_before_owner_payment(actor):
@@ -845,9 +845,9 @@ def test_every_active_plan_is_complete(sql):
     rows = sql("""SELECT p.code, p.version, p.max_units, e.plan_id IS NOT NULL, l.paid_units FROM subscription_plans p
                   LEFT JOIN plan_ai_entitlements e ON e.plan_id = p.id LEFT JOIN plan_message_limits l ON l.plan_id = p.id
                   WHERE p.status = 'active' ORDER BY p.sort_order""")
-    assert [(r[0], r[2]) for r in rows] == [("starter", 10), ("growth", 100), ("business", 250), ("max", 1000)]
+    assert [(r[0], r[2]) for r in rows] == [("starter", 10), ("growth", 50), ("business", 300)]
     assert all(r[3] for r in rows), rows
-    assert [r[4] for r in rows] == [20, 150, 400, 1000], rows
+    assert [r[4] for r in rows] == [20, 150, 400], rows
 
 
 # a plan covers ONE property; the Max plan covers many (up to its limit) under one subscription
@@ -859,10 +859,10 @@ def test_properties_per_plan(actor, sql):
     again = growth.post("/api/v1/owner/properties", json=property_body())
     assert again.status_code in (400, 409), again.text                         # a second property needs its own subscription
     assert growth.get("/api/v1/me").json()["owner_accounts"][0]["property_capacity"] == 1
-    pay_subscription(big, "max")
+    pay_subscription(big, "business")
     me = big.get("/api/v1/me").json()["owner_accounts"][0]
-    assert me["property_capacity"] == 100 and me["property_count"] == 0
-    sql("UPDATE subscription_plans SET max_properties = 3 WHERE code = 'max'")           # a small limit, so the edge can be tested quickly
+    assert me["property_capacity"] == 25 and me["property_count"] == 0
+    sql("UPDATE subscription_plans SET max_properties = 3 WHERE code = 'business' AND status = 'active'")           # a small limit, so the edge can be tested quickly
     try:
         for _ in range(3):
             r = big.post("/api/v1/owner/properties", json=property_body())
@@ -873,7 +873,7 @@ def test_properties_per_plan(actor, sql):
         assert (me["property_count"], me["property_capacity"]) == (3, 3)
         assert big.get("/api/v1/subscription").json()["properties_capacity"] == 3
     finally:
-        sql("UPDATE subscription_plans SET max_properties = 100 WHERE code = 'max'")
+        sql("UPDATE subscription_plans SET max_properties = 25 WHERE code = 'business' AND status = 'active'")
 
 
 # the regular price can never be at or below the price charged, and the saving is exact
@@ -896,8 +896,8 @@ def test_regular_price_must_be_higher_than_the_launch_price(sql):
 # a plan covers a number of properties: an account holding more than a smaller plan covers cannot move onto it
 def test_cannot_move_to_a_plan_with_fewer_properties(actor, sql):
     owner = actor(roles=("owner",))
-    pay_subscription(owner, "max")
-    sql("UPDATE subscription_plans SET max_properties = 3 WHERE code = 'max'")
+    pay_subscription(owner, "business")
+    sql("UPDATE subscription_plans SET max_properties = 3 WHERE code = 'business' AND status = 'active'")
     try:
         for _ in range(3):
             assert owner.post("/api/v1/owner/properties", json=property_body()).status_code == 200
@@ -907,7 +907,7 @@ def test_cannot_move_to_a_plan_with_fewer_properties(actor, sql):
         ok = owner.post("/api/v1/subscription/change-plan", json={"plan_code": "growth", "idempotency_key": uuid.uuid4().hex})
         assert ok.status_code == 200, ok.text                                      # Growth covers 5 properties, so 3 fit
     finally:
-        sql("UPDATE subscription_plans SET max_properties = 100 WHERE code = 'max'")
+        sql("UPDATE subscription_plans SET max_properties = 25 WHERE code = 'business' AND status = 'active'")
 
 
 # [11] notes
