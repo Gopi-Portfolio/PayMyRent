@@ -1,5 +1,5 @@
 // Owner home: 4 metrics and the shortcuts. One screen, minimal scrolling. (The search bar, filters and the renter list live in the Search tab.)
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { FlatList, Platform, View } from 'react-native';
@@ -14,6 +14,7 @@ import { DemoBanner, ErrorBanner, SlideIn, IdentityRow, Metric } from '@/compone
 import { brand, radius, shadow } from '@/theme';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
+import { askForProperty, useViewAll } from '@/lib/propertyView';
 import { fmtDate } from '@/lib/dates';
 import { formatINR } from '@/lib/format';
 
@@ -29,22 +30,43 @@ function split(m: any, k: 'collected' | 'pending' | 'overdue', t: (key: string) 
   return have.map((g) => `${t(g.label)} ${m[`${k}_${g.total}_paise`].display}`).join('\n');
 }
 
+/** The totals of every property: money and counts are added up; the money keeps its display text. */
+export function combineMetrics(list: any[]): any {
+  const out: any = {};
+  for (const m of list) {
+    if (!m) continue;
+    for (const [k, v] of Object.entries<any>(m)) {
+      if (v && typeof v === 'object' && 'value' in v) out[k] = { value: (out[k]?.value ?? 0) + v.value, display: '' };
+      else if (typeof v === 'number') out[k] = (out[k] ?? 0) + v;
+    }
+  }
+  for (const v of Object.values<any>(out)) if (v && typeof v === 'object' && 'value' in v) v.display = formatINR(v.value);
+  return out;
+}
+
 export default function OwnerHome() {
   const { t, i18n } = useTranslation();
-  const { me } = useAuth();
+  const { me, selectOwner } = useAuth();
   const owner = ownerAccountId(me);
+  // every property together by default; one property when the owner picked it. Work that belongs to a single property asks which one first.
+  const viewAll = useViewAll();
+  const mine = (me?.owner_accounts ?? []).filter((o) => o.role === 'owner' || o.role === 'co_owner');
+  const all = viewAll && mine.length > 1;
+  const guard = (go: () => void) => () => { if (all) askForProperty(); else go(); };
+  const dashAll = useQueries({ queries: mine.map((o) => ({ queryKey: ['dash', o.owner_account_id], enabled: all, queryFn: () => api<any>('/api/v1/owner/dashboard', { ownerAccount: o.owner_account_id }) })) });
+  const vacantAll = useQueries({ queries: mine.map((o) => ({ queryKey: ['vacant', o.owner_account_id], enabled: all, queryFn: () => api<any>('/api/v1/owner/units?vacant=true', { ownerAccount: o.owner_account_id }) })) });
   const dash = useQuery({ queryKey: ['dash', owner], queryFn: () => api<any>('/api/v1/owner/dashboard', { ownerAccount: owner }) });
   // units with no renter (e.g. after the renter's period ended and they moved out): one tap to add a new renter
   const [showVacant, setShowVacant] = useState(false);
   const vacant = useQuery({ queryKey: ['vacant', owner], queryFn: () => api<any>('/api/v1/owner/units?vacant=true', { ownerAccount: owner }) });
-  const vacantUnits: any[] = vacant.data?.items ?? [];
+  const vacantUnits: any[] = all ? vacantAll.flatMap((q, i) => (q.data?.items ?? []).map((u: any) => ({ ...u, _owner: mine[i].owner_account_id }))) : vacant.data?.items ?? [];
   const list = useQuery({ queryKey: ['tenancies', owner, ''], placeholderData: (prev) => prev, queryFn: () =>   // the same list the Search tab shows (shared cache)
     api<any>('/api/v1/owner/tenancies?status=live', { ownerAccount: owner }) });
   const transfers = useQuery({ queryKey: ['transfers', owner], refetchInterval: 20000, queryFn: () => api<any>('/api/v1/owner/payments/pending-transfers', { ownerAccount: owner }) });
   const transferCount: number = transfers.data?.items?.length ?? 0;      // UPI payments tenants reported, waiting for the owner to check and confirm
   // tenants with no chosen way of receiving rent yet (older tenants): the owner is asked to choose
   const unsetPay: any[] = (list.data?.items ?? []).filter((x: any) => !x.effective_pay_method);
-  const m = dash.data?.metrics;
+  const m = all ? combineMetrics(dashAll.map((q) => q.data?.metrics)) : dash.data?.metrics;
   const state = dash.data?.subscription.state;
   const acct = me?.owner_accounts.find((o) => o.owner_account_id === owner);
   const propStatus = acct?.property_status ?? null;
@@ -94,30 +116,30 @@ export default function OwnerHome() {
           <View style={{ gap: 16, marginBottom: 6 }}>
             <PropertySwitcher />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              <Metric label={t('owner.collected')} paise={m?.collected_paise.value ?? 0} detail={split(m, 'collected', t)} icon="check-circle-outline" tone="green" onPress={() => router.push('/(app)/owner/report/collected')} />
-              <Metric label={t('owner.pending')} paise={m?.pending_paise.value ?? 0} detail={split(m, 'pending', t)} icon="clock-outline" tone="amber" onPress={() => router.push('/(app)/owner/report/pending')} />
-              <Metric label={t('owner.overdue')} paise={m?.overdue_paise.value ?? 0} detail={split(m, 'overdue', t)} icon="alert-circle-outline" tone="red" onPress={() => router.push('/(app)/owner/report/overdue')} />
+              <Metric label={t('owner.collected')} paise={m?.collected_paise.value ?? 0} detail={split(m, 'collected', t)} icon="check-circle-outline" tone="green" onPress={guard(() => router.push('/(app)/owner/report/collected'))} />
+              <Metric label={t('owner.pending')} paise={m?.pending_paise.value ?? 0} detail={split(m, 'pending', t)} icon="clock-outline" tone="amber" onPress={guard(() => router.push('/(app)/owner/report/pending'))} />
+              <Metric label={t('owner.overdue')} paise={m?.overdue_paise.value ?? 0} detail={split(m, 'overdue', t)} icon="alert-circle-outline" tone="red" onPress={guard(() => router.push('/(app)/owner/report/overdue'))} />
               {/* every place the owner lets out, with how many of each kind: residential and commercial */}
               <Metric label={t('owner.allUnits')} count={m?.units ?? 0} icon="home-city-outline" tone="blue"
                       detail={KIND_GROUPS.map((g) => `${m?.[g.total] ?? 0} ${t(g.label)}`).join('\n')}
-                      onPress={() => router.push('/(app)/owner/report/units')} />
+                      onPress={guard(() => router.push('/(app)/owner/report/units'))} />
             </View>
             {/* the three things done most are wide cards you swipe left and right, each with a sentence saying what it does; then one row of Reminders, Ask AI and Approvals */}
             <ActionCarousel cards={[
               { key: 'property', icon: 'home-plus', title: t('owner.addProperty'), message: t('owner.addPropertyMsg'), footnote: vacant.data ? `${vacantUnits.length} ${t('property.vacant')}` : undefined,
                 colors: ['#176F01', '#1F8A02'], onPress: () => router.push('/(app)/owner/add-property'), testID: 'add-property' },
               { key: 'renter', icon: 'account-plus', title: t('owner.addTenant'), message: t('owner.addRenterMsg'), colors: ['#00346F', '#0B58A8'],
-                onPress: () => router.push('/(app)/owner/add-tenant'), testID: 'add-tenant' },
+                onPress: guard(() => router.push('/(app)/owner/add-tenant')), testID: 'add-tenant' },
               { key: 'allot', icon: 'home-account', title: t('owner.allotRenter'), message: t('owner.allotRenterMsg'),
-                colors: ['#E0620C', '#F97A1B'], onPress: () => router.push('/(app)/owner/allot'), testID: 'allot-renter' },
+                colors: ['#E0620C', '#F97A1B'], onPress: guard(() => router.push('/(app)/owner/allot')), testID: 'allot-renter' },
             ]} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <MiniAction icon="bell-ring" label={t('owner.reminders')} fg="#B45309" bg={brand.amber100} onPress={() => router.push('/(app)/owner/ai')} />
-              <MiniAction icon="creation" label={t('owner.askAi')} fg={brand.blue600} bg={brand.blue100} onPress={() => router.push('/(app)/owner/ai')} />
+              <MiniAction icon="bell-ring" label={t('owner.reminders')} fg="#B45309" bg={brand.amber100} onPress={guard(() => router.push('/(app)/owner/ai'))} />
+              <MiniAction icon="creation" label={t('owner.askAi')} fg={brand.blue600} bg={brand.blue100} onPress={guard(() => router.push('/(app)/owner/ai'))} />
               <MiniAction icon="thumb-up-outline" label={t('owner.approvals')} fg={brand.red600} bg={brand.red100} count={m?.approvals_pending ?? 0} clearText={t('owner.allClear')} testID="approvals"
-                          onPress={() => router.push('/(app)/owner/approvals')} />
+                          onPress={guard(() => router.push('/(app)/owner/approvals'))} />
               <MiniAction icon="account-remove-outline" label={t('renter.remove')} fg={brand.red600} bg={brand.red100} testID="remove-renter-home"
-                          onPress={() => router.push('/(app)/owner/remove-renter')} />
+                          onPress={guard(() => router.push('/(app)/owner/remove-renter'))} />
               {SHOW_VACANT_BUTTON ? (
                 <MiniAction icon="door-open" label={t('property.vacant')} fg="#7C3AED" bg="#EDE9FE" count={vacantUnits.length} active={showVacant} testID="metric-compact"
                             onPress={() => setShowVacant(!showVacant)} />
@@ -138,7 +160,7 @@ export default function OwnerHome() {
               <Text variant="bodySmall" style={{ color: '#B45309', fontWeight: '700' }}>{item.vacant_since ? t('property.vacantSince', { date: fmtDate(item.vacant_since) }) : t('property.neverLet')}</Text>
               {item.last_rent_paise ? <Text variant="bodySmall" style={{ color: brand.muted }}>{`${t('tenancy.rent')}: ${formatINR(item.last_rent_paise)}`}</Text> : null}
             </View>
-            <Pressable onPress={() => router.push('/(app)/owner/allot')}
+            <Pressable onPress={() => { if (item._owner) selectOwner(item._owner); router.push('/(app)/owner/allot'); }}
                        accessibilityRole="button" testID="allot-to-vacant"
                        style={{ backgroundColor: brand.teal700, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', gap: 6, alignItems: 'center' }}>
               <Icon source="account-plus" size={18} color="#fff" />
