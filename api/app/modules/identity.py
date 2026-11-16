@@ -15,6 +15,7 @@ from ..core.auth import CurrentUser, Identity, current_user, identity_dep, issue
 from ..core.config import get_settings
 from ..core.db import Db, get_db
 from ..core.errors import AppError
+from ..core.idempotency import fingerprint, idempotent
 from ..core.http import limiter
 from ..domain.signatures import hash_otp, mask_phone
 from ..domain.validation import (
@@ -183,20 +184,22 @@ class ProfileIn(BaseModel):
 
 
 @router.put("/me/profile")
-def update_profile(body: ProfileIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db)) -> dict:
-    name = validate_full_name(body.full_name)
-    address = validate_address(body.address, required=False)
-    lang = validate_language(body.preferred_language)
-    before = db.one("SELECT full_name, address, preferred_language FROM users WHERE id = :u", u=user.id)
-    n = db.exec("""UPDATE users SET full_name = :n, address = :a, preferred_language = :l, version = version + 1,
-                   profile_completed_at = COALESCE(profile_completed_at, now())
-                   WHERE id = :u AND version = :v""", n=name, a=address, l=lang, u=user.id, v=body.version)
-    if n == 0:
-        raise AppError("STALE_VERSION", "profile changed elsewhere; reload and try again")
-    db.exec("UPDATE owner_accounts SET display_name = :n WHERE primary_user_id = :u", n=name, u=user.id)
-    db.audit(user.id, None, "user.profile_updated", "user", user.id, before=dict(before),
-             after={"full_name": name, "address": address, "preferred_language": lang})
-    return me_payload(db, user.id)
+def update_profile(body: ProfileIn, user: CurrentUser = Depends(current_user), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+    def work() -> dict:
+        name = validate_full_name(body.full_name)
+        address = validate_address(body.address, required=False)
+        lang = validate_language(body.preferred_language)
+        before = db.one("SELECT full_name, address, preferred_language FROM users WHERE id = :u", u=user.id)
+        n = db.exec("""UPDATE users SET full_name = :n, address = :a, preferred_language = :l, version = version + 1,
+                       profile_completed_at = COALESCE(profile_completed_at, now())
+                       WHERE id = :u AND version = :v""", n=name, a=address, l=lang, u=user.id, v=body.version)
+        if n == 0:
+            raise AppError("STALE_VERSION", "profile changed elsewhere; reload and try again")
+        db.exec("UPDATE owner_accounts SET display_name = :n WHERE primary_user_id = :u", n=name, u=user.id)
+        db.audit(user.id, None, "user.profile_updated", "user", user.id, before=dict(before),
+                 after={"full_name": name, "address": address, "preferred_language": lang})
+        return me_payload(db, user.id)
+    return idempotent(db, user.id, idempotency_key, fingerprint("PUT", "/me/profile", body.model_dump(mode="json")), work)
 
 
 class ContactIn(BaseModel):

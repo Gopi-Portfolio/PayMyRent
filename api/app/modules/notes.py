@@ -4,13 +4,14 @@ from __future__ import annotations
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile, Header
 from pydantic import BaseModel, Field
 
 from ..core.auth import CurrentUser, OwnerScope, complete_user, owner_scope, tenancy_party
 from ..core.config import get_settings
 from ..core.db import Db, get_db
 from ..core.errors import AppError
+from ..core.idempotency import fingerprint, idempotent
 from ..domain.validation import validate_note
 from ..providers import storage
 from . import notify
@@ -38,18 +39,20 @@ class NoteIn(BaseModel):
 
 
 @router.post("/tenancies/{tenancy_id}/notes")
-def add_note(tenancy_id: UUID, body: NoteIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db)) -> dict:
-    t, role, _ = tenancy_party(db, user, tenancy_id)
-    if body.visibility == "owner_private" and role != "owner":
-        raise AppError("FORBIDDEN", "only owners can keep private notes")
-    if not db.scalar(_TARGET_SQL[body.target_type], id=body.target_id, t=tenancy_id):
-        raise AppError("NOT_FOUND", "note target not found")
-    text = validate_note(body.body)
-    nid = db.scalar("""INSERT INTO notes(owner_account_id, tenancy_id, target_type, target_id, author_user_id, author_role, body,
-                                         input_method, visibility)
-                       VALUES (:o, :t, :tt, :ti, :u, :r, :b, :m, :v) RETURNING id""", o=t["owner_account_id"], t=tenancy_id,
-                    tt=body.target_type, ti=body.target_id, u=user.id, r=role, b=text, m=body.input_method, v=body.visibility)
-    return dict(db.one("SELECT * FROM notes WHERE id = :n", n=nid))
+def add_note(tenancy_id: UUID, body: NoteIn, user: CurrentUser = Depends(complete_user), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+    def work() -> dict:
+        t, role, _ = tenancy_party(db, user, tenancy_id)
+        if body.visibility == "owner_private" and role != "owner":
+            raise AppError("FORBIDDEN", "only owners can keep private notes")
+        if not db.scalar(_TARGET_SQL[body.target_type], id=body.target_id, t=tenancy_id):
+            raise AppError("NOT_FOUND", "note target not found")
+        text = validate_note(body.body)
+        nid = db.scalar("""INSERT INTO notes(owner_account_id, tenancy_id, target_type, target_id, author_user_id, author_role, body,
+                                             input_method, visibility)
+                           VALUES (:o, :t, :tt, :ti, :u, :r, :b, :m, :v) RETURNING id""", o=t["owner_account_id"], t=tenancy_id,
+                        tt=body.target_type, ti=body.target_id, u=user.id, r=role, b=text, m=body.input_method, v=body.visibility)
+        return dict(db.one("SELECT * FROM notes WHERE id = :n", n=nid))
+    return idempotent(db, user.id, idempotency_key, fingerprint("POST", f"/tenancies/{tenancy_id}/notes", body.model_dump(mode="json")), work)
 
 
 @router.get("/tenancies/{tenancy_id}/notes")

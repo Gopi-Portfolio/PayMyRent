@@ -8,13 +8,14 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Query, UploadFile, Header
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from ..core.auth import CurrentUser, OwnerScope, complete_user, owned_tenancy, owner_scope
 from ..core.db import Db, get_db
 from ..core.errors import AppError
+from ..core.idempotency import fingerprint, idempotent
 from ..core.http import limiter
 from ..domain import excel_import
 from ..domain.money import format_inr, parse_inr
@@ -218,19 +219,21 @@ def list_units(q: str | None = Query(default=None, max_length=50), status: Liter
 
 
 @router.post("/owner/units")
-def create_unit(body: UnitIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
-    db.must("SELECT 1 FROM properties WHERE id = :p AND owner_account_id = :o", "property", p=body.property_id, o=scope.owner_account_id)
-    ident = validate_unit_identifier(body.identifier)
-    body_kind = normalize_kind(body.kind)
-    same = db.scalar(f"""SELECT identifier FROM units WHERE property_id = :p AND {_UNIT_KEY} = regexp_replace(lower(:i), '[^a-z0-9]', '', 'g')
-                         AND COALESCE(floor, -1) = COALESCE(:f, -1)""", p=body.property_id, i=ident, f=body.floor)
-    if same:
-        where = f" on the {floor_name(body.floor).lower()}" if body.floor is not None else ""
-        raise AppError("CONFLICT", f"{same}{where} already exists in this building. The same number can be used on another floor, but not twice on one floor.", status=409)
-    uid = db.scalar("""INSERT INTO units(owner_account_id, property_id, identifier, kind, floor) VALUES (:o, :p, :i, :k, :f) RETURNING id""",
-                    o=scope.owner_account_id, p=body.property_id, i=ident, k=body_kind, f=body.floor)
-    db.audit(scope.user.id, scope.owner_account_id, "unit.created", "unit", uid)
-    return dict(db.one("SELECT * FROM units WHERE id = :u", u=uid))
+def create_unit(body: UnitIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+    def work() -> dict:
+        db.must("SELECT 1 FROM properties WHERE id = :p AND owner_account_id = :o", "property", p=body.property_id, o=scope.owner_account_id)
+        ident = validate_unit_identifier(body.identifier)
+        body_kind = normalize_kind(body.kind)
+        same = db.scalar(f"""SELECT identifier FROM units WHERE property_id = :p AND {_UNIT_KEY} = regexp_replace(lower(:i), '[^a-z0-9]', '', 'g')
+                             AND COALESCE(floor, -1) = COALESCE(:f, -1)""", p=body.property_id, i=ident, f=body.floor)
+        if same:
+            where = f" on the {floor_name(body.floor).lower()}" if body.floor is not None else ""
+            raise AppError("CONFLICT", f"{same}{where} already exists in this building. The same number can be used on another floor, but not twice on one floor.", status=409)
+        uid = db.scalar("""INSERT INTO units(owner_account_id, property_id, identifier, kind, floor) VALUES (:o, :p, :i, :k, :f) RETURNING id""",
+                        o=scope.owner_account_id, p=body.property_id, i=ident, k=body_kind, f=body.floor)
+        db.audit(scope.user.id, scope.owner_account_id, "unit.created", "unit", uid)
+        return dict(db.one("SELECT * FROM units WHERE id = :u", u=uid))
+    return idempotent(db, scope.user.id, idempotency_key, fingerprint("POST", "/owner/units", body.model_dump(mode="json")), work)
 
 
 @router.post("/owner/units/{unit_id}/{action}")
@@ -396,13 +399,15 @@ def validate_tenancy_input(body: TenancyIn) -> dict:
 
 
 @router.post("/owner/tenancies")
-def onboard_tenancy(body: TenancyIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
-    d = validate_tenancy_input(body)
-    if body.end_date is None:
-        raise ValidationError("end_date", "required")                    # a new rental needs both its start and its end date
-    if d["deposit_paise"] <= 0:
-        raise ValidationError("security_deposit", "must_be_positive")    # the advance received must be entered, and cannot be zero
-    return create_tenancy(db, scope, d)
+def onboard_tenancy(body: TenancyIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+    def work() -> dict:
+        d = validate_tenancy_input(body)
+        if body.end_date is None:
+            raise ValidationError("end_date", "required")                    # a new rental needs both its start and its end date
+        if d["deposit_paise"] <= 0:
+            raise ValidationError("security_deposit", "must_be_positive")    # the advance received must be entered, and cannot be zero
+        return create_tenancy(db, scope, d)
+    return idempotent(db, scope.user.id, idempotency_key, fingerprint("POST", "/owner/tenancies", body.model_dump(mode="json")), work)
 
 
 @router.get("/owner/renter-check")
@@ -499,45 +504,47 @@ def _tell_renter_terms_changed(db: Db, scope: OwnerScope, before, body: "TermsIn
 
 
 @router.patch("/owner/tenancies/{tenancy_id}")
-def update_terms(tenancy_id: UUID, body: TermsIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
-    t = owned_tenancy(db, scope, tenancy_id, lock=True)
-    if t["version"] != body.version:
-        raise AppError("STALE_VERSION", "tenancy changed elsewhere; reload")
-    db.scalar("SELECT rg_require_owner_writable(:o)", o=scope.owner_account_id)
-    old_rent = db.scalar("""SELECT COALESCE((SELECT monthly_rent_paise FROM rent_revisions WHERE tenancy_id = :t
-                            AND effective_month <= date_trunc('month', CURRENT_DATE)::date ORDER BY effective_month DESC LIMIT 1), :base)""",
-                         t=tenancy_id, base=t["monthly_rent_paise"])
-    if body.monthly_rent is not None:
-        amount = parse_inr(body.monthly_rent, field="monthly_rent", allow_zero=True)
-        month = (body.rent_effective_month or date.today()).replace(day=1)
-        if month < t["start_date"].replace(day=1):
-            raise AppError("VALIDATION", "a rent change cannot start before the rental itself started", fields=[{"field": "rent_effective_month", "code": "before_start"}])
-        db.exec("""INSERT INTO rent_revisions(tenancy_id, effective_month, monthly_rent_paise, created_by) VALUES (:t, :m, :a, :by)
-                   ON CONFLICT (tenancy_id, effective_month) DO UPDATE SET monthly_rent_paise = EXCLUDED.monthly_rent_paise""",
-                t=tenancy_id, m=month, a=amount, by=scope.user.id)
-    if body.security_deposit is not None:
-        dep = parse_inr(body.security_deposit, field="security_deposit", allow_zero=True)
-        db.exec("UPDATE tenancies SET deposit_agreed_paise = :a WHERE id = :t", a=dep, t=tenancy_id)
-        db.exec("UPDATE deposits SET agreed_paise = :a WHERE tenancy_id = :t", a=dep, t=tenancy_id)
-    new_items = validate_items(body.items_provided) if body.items_provided is not None else None
-    if body.items_provided is not None:
-        db.exec("UPDATE tenancies SET items_provided = :i WHERE id = :t", i=new_items, t=tenancy_id)
-    if body.increment_percent is not None:
-        db.exec("UPDATE tenancies SET increment_percent = :p WHERE id = :t", p=body.increment_percent or None, t=tenancy_id)
-    if body.end_date is not None:
-        validate_date_range(t["start_date"], body.end_date)
-    db.exec("""UPDATE tenancies SET due_day = COALESCE(:d, due_day), grace_days = COALESCE(:g, grace_days),
-               end_date = COALESCE(:e, end_date), version = version + 1 WHERE id = :t""",
-            d=validate_due_day(body.due_day) if body.due_day is not None else None, g=body.grace_days, e=body.end_date, t=tenancy_id)
-    if body.end_date is not None and body.end_date != t["end_date"] and t["status"] == "active":
-        # bring the bills in line with the new end date: credit rent past it, pro-rate the last month, and bill an extended stay now
-        from .billing import backfill_invoices
-        db.scalar("SELECT rg_resync_rent(:t, :by)", t=tenancy_id, by=scope.user.id)
-        backfill_invoices(db, tenancy_id)
-    db.audit(scope.user.id, scope.owner_account_id, "tenancy.terms_updated", "tenancy", tenancy_id,
-             before={k: t[k] for k in ("monthly_rent_paise", "due_day", "grace_days", "end_date")}, after=body.model_dump())
-    _tell_renter_terms_changed(db, scope, t, body, old_rent)
-    return tenancy_detail(tenancy_id, scope, db)
+def update_terms(tenancy_id: UUID, body: TermsIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+    def work() -> dict:
+        t = owned_tenancy(db, scope, tenancy_id, lock=True)
+        if t["version"] != body.version:
+            raise AppError("STALE_VERSION", "tenancy changed elsewhere; reload")
+        db.scalar("SELECT rg_require_owner_writable(:o)", o=scope.owner_account_id)
+        old_rent = db.scalar("""SELECT COALESCE((SELECT monthly_rent_paise FROM rent_revisions WHERE tenancy_id = :t
+                                AND effective_month <= date_trunc('month', CURRENT_DATE)::date ORDER BY effective_month DESC LIMIT 1), :base)""",
+                             t=tenancy_id, base=t["monthly_rent_paise"])
+        if body.monthly_rent is not None:
+            amount = parse_inr(body.monthly_rent, field="monthly_rent", allow_zero=True)
+            month = (body.rent_effective_month or date.today()).replace(day=1)
+            if month < t["start_date"].replace(day=1):
+                raise AppError("VALIDATION", "a rent change cannot start before the rental itself started", fields=[{"field": "rent_effective_month", "code": "before_start"}])
+            db.exec("""INSERT INTO rent_revisions(tenancy_id, effective_month, monthly_rent_paise, created_by) VALUES (:t, :m, :a, :by)
+                       ON CONFLICT (tenancy_id, effective_month) DO UPDATE SET monthly_rent_paise = EXCLUDED.monthly_rent_paise""",
+                    t=tenancy_id, m=month, a=amount, by=scope.user.id)
+        if body.security_deposit is not None:
+            dep = parse_inr(body.security_deposit, field="security_deposit", allow_zero=True)
+            db.exec("UPDATE tenancies SET deposit_agreed_paise = :a WHERE id = :t", a=dep, t=tenancy_id)
+            db.exec("UPDATE deposits SET agreed_paise = :a WHERE tenancy_id = :t", a=dep, t=tenancy_id)
+        new_items = validate_items(body.items_provided) if body.items_provided is not None else None
+        if body.items_provided is not None:
+            db.exec("UPDATE tenancies SET items_provided = :i WHERE id = :t", i=new_items, t=tenancy_id)
+        if body.increment_percent is not None:
+            db.exec("UPDATE tenancies SET increment_percent = :p WHERE id = :t", p=body.increment_percent or None, t=tenancy_id)
+        if body.end_date is not None:
+            validate_date_range(t["start_date"], body.end_date)
+        db.exec("""UPDATE tenancies SET due_day = COALESCE(:d, due_day), grace_days = COALESCE(:g, grace_days),
+                   end_date = COALESCE(:e, end_date), version = version + 1 WHERE id = :t""",
+                d=validate_due_day(body.due_day) if body.due_day is not None else None, g=body.grace_days, e=body.end_date, t=tenancy_id)
+        if body.end_date is not None and body.end_date != t["end_date"] and t["status"] == "active":
+            # bring the bills in line with the new end date: credit rent past it, pro-rate the last month, and bill an extended stay now
+            from .billing import backfill_invoices
+            db.scalar("SELECT rg_resync_rent(:t, :by)", t=tenancy_id, by=scope.user.id)
+            backfill_invoices(db, tenancy_id)
+        db.audit(scope.user.id, scope.owner_account_id, "tenancy.terms_updated", "tenancy", tenancy_id,
+                 before={k: t[k] for k in ("monthly_rent_paise", "due_day", "grace_days", "end_date")}, after=body.model_dump())
+        _tell_renter_terms_changed(db, scope, t, body, old_rent)
+        return tenancy_detail(tenancy_id, scope, db)
+    return idempotent(db, scope.user.id, idempotency_key, fingerprint("PATCH", f"/owner/tenancies/{tenancy_id}", body.model_dump(mode="json")), work)
 
 
 class ChargeConfigIn(BaseModel):

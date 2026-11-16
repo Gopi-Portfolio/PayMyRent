@@ -10,13 +10,14 @@ from datetime import date, timedelta
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Header
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 
 from ..core.auth import CurrentUser, OwnerScope, complete_user, owned_tenancy, owner_scope, tenancy_party
 from ..core.db import Db, get_db
 from ..core.errors import AppError
+from ..core.idempotency import fingerprint, idempotent
 from ..domain.money import format_inr, parse_inr
 from . import notify
 from ..domain.places import floor_name
@@ -109,13 +110,15 @@ class ChargeIn(BaseModel):
 
 
 @router.post("/owner/tenancies/{tenancy_id}/charges")
-def add_charge(tenancy_id: UUID, body: ChargeIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db)) -> dict:
-    owned_tenancy(db, scope, tenancy_id)
-    amount = parse_inr(body.amount)
-    line = db.scalar("SELECT rg_add_charge(:t, :m, :c, :a, :d, :by)", t=tenancy_id, m=_month(body.period_month), c=body.category,
-                     a=amount, d=body.description or body.category.title(), by=scope.user.id)
-    db.audit(scope.user.id, scope.owner_account_id, "charge.added", "invoice_line", line, after={"amount_paise": amount, "category": body.category})
-    return bill_view(db, tenancy_id, _month(body.period_month), "owner")
+def add_charge(tenancy_id: UUID, body: ChargeIn, scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")) -> dict:
+    def work() -> dict:
+        owned_tenancy(db, scope, tenancy_id)
+        amount = parse_inr(body.amount)
+        line = db.scalar("SELECT rg_add_charge(:t, :m, :c, :a, :d, :by)", t=tenancy_id, m=_month(body.period_month), c=body.category,
+                         a=amount, d=body.description or body.category.title(), by=scope.user.id)
+        db.audit(scope.user.id, scope.owner_account_id, "charge.added", "invoice_line", line, after={"amount_paise": amount, "category": body.category})
+        return bill_view(db, tenancy_id, _month(body.period_month), "owner")
+    return idempotent(db, scope.user.id, idempotency_key, fingerprint("POST", f"/owner/tenancies/{tenancy_id}/charges", body.model_dump(mode="json")), work)
 
 
 @router.get("/owner/tenancies/{tenancy_id}/charge-suggestions")

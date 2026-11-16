@@ -24,7 +24,7 @@ from ..core.crypto import decrypt_bytes, encrypt_bytes, encrypt as _enc_pan, loo
 from ..core.db import Db, get_db, transaction
 from ..core.errors import AppError
 from ..core.http import limiter
-from ..domain import docmatch
+from ..domain import docmatch, renter_scan
 from ..domain.validation import validate_address, validate_full_name, validate_proof_ref
 from ..providers import docs as docs_provider
 from ..providers.docs import BadImage, get_engine      # (tests replace get_engine in THIS module)
@@ -68,6 +68,28 @@ def list_documents(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(ge
     have = {r["kind"]: r["created_at"] for r in rows}
     return {"enabled": True, "items": [{"kind": k, "uploaded": k in have, "uploaded_at": have.get(k)} for k in KINDS],
             "verified": owner_checked_here(db, scope.owner_account_id)}
+
+
+@router.post("/owner/renter-scan")
+def scan_renter_details(file: UploadFile = File(...), scope: OwnerScope = Depends(owner_scope)) -> dict:
+    """A photo of a new renter's ID card, rent agreement or visiting card -> a suggested name and mobile number for the owner to CHECK.
+    The photo is read in memory and forgotten: it is not stored, its text is not stored or logged, and no ID number is ever returned."""
+    limiter.check(f"renter-scan:{scope.owner_account_id}", 30, 3600)
+    data = file.file.read(MAX_BYTES + 1)
+    if len(data) > MAX_BYTES:
+        raise AppError("VALIDATION", "the photo is too large (6 MB at most)", fields=[{"field": "file", "code": "too_large"}])
+    try:
+        _, w, h = docs_provider.inspect_image(data)
+    except BadImage as e:
+        raise AppError("VALIDATION", f"{e}: take a JPEG or PNG photo", fields=[{"field": "file", "code": "invalid_image"}]) from e
+    if min(w, h) < 400:
+        raise AppError("VALIDATION", "the photo is too small: move closer or use the camera's normal quality", fields=[{"field": "file", "code": "too_small"}])
+    try:
+        text = get_engine().read_text(data)
+    except Exception as e:                                       # noqa: BLE001 - the reader is a local tool; a failure must not take the form down
+        raise AppError("PROVIDER_ERROR", "the photo could not be read just now: type the details instead", status=503) from e
+    found = renter_scan.extract_renter_details(text)
+    return {"name": found["name"], "mobile": found["mobile"], "found": bool(found["name"] or found["mobile"])}
 
 
 @router.put("/owner/documents/{kind}")
