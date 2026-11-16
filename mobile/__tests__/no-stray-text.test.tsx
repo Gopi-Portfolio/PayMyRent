@@ -11,3 +11,13 @@ test('no source file has a JSX element followed on the same line by spaces and t
   }
   expect(bad).toEqual([]);
 });
+
+test('no source file has an opening View/Pressable tag followed on the same line by spaces and then a { } block, e.g. a comment (that makes a stray text string)', () => {
+  const bad: string[] = [];
+  for (const file of fs.walk(['app', 'src'], /\.tsx$/)) {
+    fs.read(file).split('\n').forEach((line, i) => {
+      if (/<(View|Pressable|LinearGradient|ScrollView)\b(?:(?!<Text)[^\n])*?(\}\}|")>[ ]+\{/.test(line) && !/^\s*(\/\/|\*)/.test(line)) bad.push(`${path.rel(file)}:${i + 1}  ${line.trim().slice(0, 90)}`);
+    });
+  }
+  expect(bad).toEqual([]);
+});

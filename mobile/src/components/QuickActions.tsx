@@ -14,7 +14,8 @@ export function HeroAction({ icon, label, sub, note, colors, onPress, testID }: 
   return (
     <Pressable onPress={onPress} testID={testID} accessibilityRole="button" accessibilityLabel={[label, sub, note ? `${note.value} ${note.label}` : ''].filter(Boolean).join('. ')} style={({ pressed }) => [{ flex: 1 }, pressed && { transform: [{ scale: 0.97 }] }]}>
       <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, shadow]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>   {/* the icon and the arrow share one row, so their centres line up */}
+        {/* the icon and the arrow share one row, so their centres line up */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <View style={styles.disc}><Icon source={icon} size={26} color="#fff" /></View>
           {note ? (
             <View style={styles.note} testID="hero-note">
