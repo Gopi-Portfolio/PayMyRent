@@ -105,3 +105,13 @@ test('the three cards are drawn in three different colours', () => {
   expect(drawn).toHaveLength(3);
   expect(new Set(drawn).size).toBe(3);
 });
+
+test('a tap anywhere on the card opens it: the card itself is the button, and the colour is only a background that cannot take the tap', () => {
+  const onPress = jest.fn();
+  const ui = render(<ActionCarousel cards={[{ key: 'a', icon: 'home-plus', title: 'Add Property', message: 'm', colors: ['#176F01', '#1F8A02'] as const, onPress, testID: 'card-a' }]} />);
+  fireEvent(ui.getByTestId('action-carousel'), 'layout', { nativeEvent: { layout: { width: 300, height: 100 } } });
+  const card = ui.getByTestId('card-a');
+  expect(card.props.accessibilityRole).toBe('button');
+  fireEvent.press(ui.getByText('Add Property'));       // pressing the text, the icon or the empty part is the same press
+  expect(onPress).toHaveBeenCalledTimes(1);
+});

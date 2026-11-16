@@ -49,10 +49,14 @@ export function ActionCarousel({ cards }: { cards: ActionCard[] }) {
                 </Pressable>
               </>
             );
+            // the whole card is the button: the Pressable itself has the card's size, shape and padding (the colour is drawn behind the content, not around it),
+            // so a tap anywhere on it opens the screen, instead of only where a smaller inner box happened to sit
             return (
               <Pressable key={c.key} onPress={c.onPress} testID={c.testID} accessibilityRole="button" accessibilityLabel={`${c.title}. ${c.message}${c.footnote ? `. ${c.footnote}` : ''}`}
-                         style={({ pressed }) => [{ width }, pressed && { transform: [{ scale: 0.99 }] }]}>
-                <LinearGradient colors={c.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, shadow]}>{body}</LinearGradient>
+                         android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
+                         style={({ pressed }) => [styles.card, shadow, { width, overflow: 'hidden' }, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
+                <LinearGradient pointerEvents="none" colors={c.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                {body}
               </Pressable>
             );
           })}
@@ -83,7 +87,7 @@ export function MiniAction({ icon, label, fg, bg, count, clearText, active, onPr
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, minHeight: 92, borderRadius: radius.lg, paddingVertical: 14, paddingHorizontal: 14, gap: 12, flexDirection: 'row', alignItems: 'center' },
+  card: { minHeight: 92, borderRadius: radius.lg, paddingVertical: 14, paddingHorizontal: 14, gap: 12, flexDirection: 'row', alignItems: 'center' },
   cardIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   cardArrow: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8, rowGap: 2 },
