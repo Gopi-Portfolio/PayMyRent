@@ -322,3 +322,91 @@ test('12. SAFETY: the same key from another person, or for another request, neve
   expect(sameKeyDifferentRequest.json.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
   expect((await units()).filter((u) => u.identifier === 'KEY-B')).toHaveLength(0);
 });
+
+// ------------------------------------------------------------------ renters: add (with a photo ID), allot, remove, against the real server
+const ID_JPEG = Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARQXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAH0AfQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDNooor0TjCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAv6Zpv9oeb+98vy8fw5znPv7Ve/4Rv/AKev/If/ANejwz/y8/8AAP61vVzVKklKyN4QTV2YP/CN/wDT1/5D/wDr0f8ACN/9PX/kP/69b1FZ+1n3K5ImD/wjf/T1/wCQ/wD69H/CN/8AT1/5D/8Ar1vUUe1n3DkiYP8Awjf/AE9f+Q//AK9H/CN/9PX/AJD/APr1vUUe1n3DkiYP/CN/9PX/AJD/APr0f8I3/wBPX/kP/wCvW9RR7WfcOSJg/wDCN/8AT1/5D/8Ar0f8I3/09f8AkP8A+vW9RR7WfcOSJg/8I3/09f8AkP8A+vR/wjf/AE9f+Q//AK9b1FHtZ9w5ImD/AMI3/wBPX/kP/wCvR/wjf/T1/wCQ/wD69b1FHtZ9w5ImD/wjf/T1/wCQ/wD69H/CN/8AT1/5D/8Ar1vUUe1n3DkiYP8Awjf/AE9f+Q//AK9H/CN/9PX/AJD/APr1vUUe1n3DkiYP/CN/9PX/AJD/APr0f8I3/wBPX/kP/wCvW9RR7WfcOSJg/wDCN/8AT1/5D/8Ar0f8I3/09f8AkP8A+vW9RR7WfcOSJg/8I3/09f8AkP8A+vR/wjf/AE9f+Q//AK9b1FHtZ9w5ImD/AMI3/wBPX/kP/wCvR/wjf/T1/wCQ/wD69b1FHtZ9w5ImD/wjf/T1/wCQ/wD69H/CN/8AT1/5D/8Ar1vUUe1n3DkiYP8Awjf/AE9f+Q//AK9H/CN/9PX/AJD/APr1vUUe1n3DkiYP/CN/9PX/AJD/APr0f8I3/wBPX/kP/wCvW9RR7WfcOSJg/wDCN/8AT1/5D/8Ar0f8I3/09f8AkP8A+vW9RR7WfcOSJg/8I3/09f8AkP8A+vR/wjf/AE9f+Q//AK9b1FHtZ9w5InETx+TPJFndsYrnHXBqOp7/AP4/7n/rq38zUFdi2OZ7hRRRTAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigDd8M/wDLz/wD+tb1YPhn/l5/4B/Wt6uKr8bOmHwhRRRWZYUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAHF3/APx/3P8A11b+ZqCp7/8A4/7n/rq38zUFegtjje4UUUUwCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA3fDP/AC8/8A/rW9WD4Z/5ef8AgH9a3q4qvxs6YfCFFFFZlhRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAcXf/APH/AHP/AF1b+ZqCp7//AI/7n/rq38zUFegtjje4UUUUwCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA3fDP/Lz/AMA/rW9WD4Z/5ef+Af1reriq/Gzph8IUUUVmWFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQBxd//AMf9z/11b+ZqCp7/AP4/7n/rq38zUFegtjje4UUUUwCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA3fDP/Lz/wAA/rW9WD4Z/wCXn/gH9a3q4qvxs6YfCFFFFZlhRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAcXf/8AH/c/9dW/magqe/8A+P8Auf8Arq38zUFegtjje4UUUUwCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA3fDP8Ay8/8A/rW9WD4Z/5ef+Af1reriq/Gzph8IUUUVmWFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQBxd/wD8f9z/ANdW/magqe//AOP+5/66t/M1BXoLY43uFFFFMAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAN3wz/wAvP/AP61vVg+Gf+Xn/AIB/Wt6uKr8bOmHwhRRRWZYUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAHF3/wDx/wBz/wBdW/magqe//wCP+5/66t/M1BXoLY43uFFFFMAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAN3wz/y8/wDAP61vVg+Gf+Xn/gH9a3q4qvxs6YfCFFFFZlhRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAcXf/wDH/c/9dW/magqe/wD+P+5/66t/M1BXoLY43uFFFFMAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAN3wz/y8/8AAP61vVg+Gf8Al5/4B/Wt6uKr8bOmHwhRRRWZYUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAHF3//AB/3P/XVv5moKnv/APj/ALn/AK6t/M1BXoLY43uFFFFMAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAN3wz/AMvP/AP61vVx9jqEth5nlKjb8Z3A9s+/vVv/AISG7/55w/8AfJ/xrmnTlKV0bRmkrM6Wiua/4SG7/wCecP8A3yf8aP8AhIbv/nnD/wB8n/Go9jIr2kTpaK5r/hIbv/nnD/3yf8aP+Ehu/wDnnD/3yf8AGj2Mg9pE6Wiua/4SG7/55w/98n/Gj/hIbv8A55w/98n/ABo9jIPaROlormv+Ehu/+ecP/fJ/xo/4SG7/AOecP/fJ/wAaPYyD2kTpaK5r/hIbv/nnD/3yf8aP+Ehu/wDnnD/3yf8AGj2Mg9pE6Wiua/4SG7/55w/98n/Gj/hIbv8A55w/98n/ABo9jIPaROlormv+Ehu/+ecP/fJ/xo/4SG7/AOecP/fJ/wAaPYyD2kTpaK5r/hIbv/nnD/3yf8aP+Ehu/wDnnD/3yf8AGj2Mg9pE6Wiua/4SG7/55w/98n/Gj/hIbv8A55w/98n/ABo9jIPaROlormv+Ehu/+ecP/fJ/xo/4SG7/AOecP/fJ/wAaPYyD2kTpaK5r/hIbv/nnD/3yf8aP+Ehu/wDnnD/3yf8AGj2Mg9pE6Wiua/4SG7/55w/98n/Gj/hIbv8A55w/98n/ABo9jIPaROlormv+Ehu/+ecP/fJ/xo/4SG7/AOecP/fJ/wAaPYyD2kTpaK5r/hIbv/nnD/3yf8aP+Ehu/wDnnD/3yf8AGj2Mg9pE6Wiua/4SG7/55w/98n/Gj/hIbv8A55w/98n/ABo9jIPaROlormv+Ehu/+ecP/fJ/xo/4SG7/AOecP/fJ/wAaPYyD2kTpaK5r/hIbv/nnD/3yf8aP+Ehu/wDnnD/3yf8AGj2Mg9pE6Wiua/4SG7/55w/98n/Gj/hIbv8A55w/98n/ABo9jIPaRKF//wAf9z/11b+ZqCnyyGaZ5GADOxY46c0yutbHOwooopgFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAH//Z', 'base64');          // a plain 500 x 500 photo
+function upload(path: string, fields: Record<string, string>, token: string, file: Buffer | null = ID_JPEG): Promise<Reply> {
+  const boundary = '----live' + rnd(12);
+  const parts: Buffer[] = [];
+  for (const [k, v] of Object.entries(fields)) parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`));
+  if (file) parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="id.jpg"\r\nContent-Type: image/jpeg\r\n\r\n`), file, Buffer.from('\r\n'));
+  parts.push(Buffer.from(`--${boundary}--\r\n`));
+  const body = Buffer.concat(parts);
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host: BASE.hostname, port: BASE.port, path, method: 'POST',
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'Content-Length': String(body.length) } }, (res) => {
+      let text = ''; res.on('data', (c) => { text += c; });
+      res.on('end', () => { let json: any = null; try { json = text ? JSON.parse(text) : null; } catch { json = { raw: text }; } resolve({ status: res.statusCode ?? 0, json }); });
+    });
+    req.on('error', reject); req.write(body); req.end();
+  });
+}
+const renterFields = (name: string, mobile: string, extra: Record<string, string> = {}) => ({ name, phone: mobile, id_type: 'pan', keep_copy_ok: 'true', ...extra });
+const addRenter = async (token: string, name: string, mobile = phone()) => (await ok(upload('/api/v1/owner/renters', renterFields(name, mobile), token), 'add renter')).id as string;
+const isoDay = (offsetDays: number) => new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+const terms = (unitId: string, over: Record<string, unknown> = {}) => ({ unit_id: unitId, monthly_rent: '9000', due_day: 5, start_date: isoDay(-40), end_date: isoDay(320), security_deposit: '18000', ...over });
+const newUnit = async (token: string, prop: string, ident: string) => (await ok(call('POST', '/api/v1/owner/units', { token, body: { property_id: prop, identifier: ident, kind: 'commercial' } }), 'unit')).id as string;
+
+test('13. ADD A RENTER WITH A PHOTO ID: stored, listed, the photo comes back unchanged, and the required parts really are required', async () => {
+  const mobile = phone();
+  const id = await addRenter(owner.token, 'Live Photo Renter', mobile);
+  const list = (await ok(call('GET', '/api/v1/owner/renters?allotted=false', { token: owner.token }), 'renters')).items as any[];
+  expect(list.find((r) => r.id === id)).toMatchObject({ name: 'Live Photo Renter', allotted: false, id_type: 'pan' });
+  const photo = await new Promise<Buffer>((resolve, reject) => {
+    http.get({ host: BASE.hostname, port: BASE.port, path: `/api/v1/owner/renters/${id}/id-photo`, headers: { Authorization: `Bearer ${owner.token}` } }, (res) => {
+      const chunks: Buffer[] = []; res.on('data', (c) => chunks.push(c)); res.on('end', () => resolve(Buffer.concat(chunks)));
+    }).on('error', reject);
+  });
+  expect(photo.equals(ID_JPEG)).toBe(true);
+  expect((await upload('/api/v1/owner/renters', renterFields('Live Photo Renter', mobile), owner.token)).status).toBe(409);              // the same mobile twice
+  expect((await upload('/api/v1/owner/renters', renterFields('No Photo', phone()), owner.token, null)).status).toBe(422);               // no photo ID
+  expect((await upload('/api/v1/owner/renters', renterFields('No Tick', phone(), { keep_copy_ok: 'false' }), owner.token)).status).toBe(422);   // no permission tick
+  expect((await upload('/api/v1/owner/renters', renterFields('Bad Number', '12345'), owner.token)).status).toBe(422);
+  const stranger = await makeRenter('Live Nosy');
+  expect((await call('GET', `/api/v1/owner/renters/${id}/id-photo`, { token: stranger.token })).status).toBeGreaterThanOrEqual(400);   // nobody else can see the ID
+});
+
+test('14. ALLOT A RENTER: a retried request (same key) allots once, the unit becomes theirs, a second renter cannot take it, and an owner elsewhere sees the invitation', async () => {
+  const unit = await newUnit(owner.token, propertyId, 'LIVE-ALLOT');
+  const other = await makeOwner('Live Other Owner');                         // an owner of another property, who is also being invited as a renter here
+  const rid = await addRenter(owner.token, 'Live Both Roles', other.actor.phone);
+  const key = `allot-${rnd(10)}-key`;
+  const first = await call('POST', `/api/v1/owner/renters/${rid}/allot`, { token: owner.token, key, body: terms(unit) });
+  const again = await call('POST', `/api/v1/owner/renters/${rid}/allot`, { token: owner.token, key, body: terms(unit) });
+  expect(first.status).toBe(200);
+  expect(again.status).toBe(200);
+  expect(again.json).toEqual(first.json);                                  // the very same answer, nothing done twice
+  expect(first.json.notified).toMatchObject({ sms: expect.any(String), whatsapp: expect.any(String), email: 'skipped' });
+  expect(byName(await tenancies(), 'Live Both Roles')).toHaveLength(1);
+  expect((await ok(call('GET', '/api/v1/owner/renters?allotted=true', { token: owner.token }), 'allotted')).items.some((r: any) => r.id === rid)).toBe(true);
+  const second = await addRenter(owner.token, 'Live Second');
+  const taken = await call('POST', `/api/v1/owner/renters/${second}/allot`, { token: owner.token, body: terms(unit) });
+  expect(taken.status).toBe(409);
+  expect((await ok(call('GET', '/api/v1/owner/renters?allotted=false', { token: owner.token }), 'waiting')).items.some((r: any) => r.id === second)).toBe(true);   // still waiting
+  // the person is an owner elsewhere and still sees the invitation, and can accept it
+  const inv = (await ok(call('GET', '/api/v1/tenant/invitations', { token: other.actor.token }), 'invitations')).items as any[];
+  expect(inv).toHaveLength(1);
+  await ok(call('POST', `/api/v1/tenant/invitations/${inv[0].id}/accept`, { token: other.actor.token }), 'accept');
+  expect((await ok(call('GET', '/api/v1/tenant/rentals', { token: other.actor.token }), 'rentals')).items).toHaveLength(1);
+});
+
+test('15. REMOVING: a waiting renter is deleted with their ID; a rental is removed from the unit; a property goes only when nobody lives in it', async () => {
+  const gone = await addRenter(owner.token, 'Live To Delete');
+  expect((await call('DELETE', `/api/v1/owner/renters/${gone}`, { token: owner.token })).status).toBe(200);
+  expect((await ok(call('GET', '/api/v1/owner/renters', { token: owner.token }), 'renters')).items.some((r: any) => r.id === gone)).toBe(false);
+  expect((await call('GET', `/api/v1/owner/renters/${gone}/id-photo`, { token: owner.token })).status).toBe(404);
+
+  const solo = await makeOwner('Live Remover');                             // its own property, so removing it cannot disturb the other scenarios
+  const unit = await newUnit(solo.actor.token, solo.propertyId, 'LIVE-RM');
+  const rid = await addRenter(solo.actor.token, 'Live Lodger');
+  const allotted = await ok(call('POST', `/api/v1/owner/renters/${rid}/allot`, { token: solo.actor.token, body: terms(unit) }), 'allot');
+  expect((await call('DELETE', `/api/v1/owner/renters/${rid}`, { token: solo.actor.token })).status).toBe(409);                   // has a rental: remove from the unit instead
+  const blocked = await call('POST', `/api/v1/owner/properties/${solo.propertyId}/remove`, { token: solo.actor.token });
+  expect(blocked.status).toBe(409);
+  expect(JSON.stringify(blocked.json)).toContain('Remove them first');
+  expect((await ok(call('GET', '/api/v1/owner/properties', { token: solo.actor.token }), 'properties')).items).toHaveLength(1);       // nothing changed
+  await ok(call('POST', `/api/v1/owner/tenancies/${allotted.tenancy_id}/cancel-invite`, { token: solo.actor.token }), 'remove the invited renter');
+  const removed = await call('POST', `/api/v1/owner/properties/${solo.propertyId}/remove`, { token: solo.actor.token });
+  expect(removed.status).toBe(200);
+  expect((await ok(call('GET', '/api/v1/owner/properties', { token: solo.actor.token }), 'properties')).items).toHaveLength(0);
+});
