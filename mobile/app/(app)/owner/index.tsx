@@ -86,9 +86,6 @@ export default function OwnerHome() {
           {state === 'none' ? t('owner.subscriptionNeeded') : t('owner.readOnly')}
         </Banner>
       ) : null}
-      {(state === 'active' || state === 'grace') && !propStatus ? (
-        <Banner visible icon="home-plus-outline" actions={[{ label: t('property.add'), onPress: () => router.push('/(app)/owner/add-property') }]}>{t('property.addYourProperty')}</Banner>
-      ) : null}
       {propStatus === 'submitted' ? <Banner visible icon="clock-outline">{t('property.verifying')}</Banner> : null}
       {unsetPay.length > 0 ? (
         <Banner visible icon="wallet-outline" actions={[{ label: t('payhow.bulkCta'), onPress: () => router.push('/(app)/owner/payment-method') }]}>{t('payhow.banner', { count: unsetPay.length })}</Banner>
