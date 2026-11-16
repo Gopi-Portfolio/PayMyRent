@@ -138,12 +138,17 @@ export default function OwnerHome() {
               <MiniAction icon="creation" label={t('owner.askAi')} fg={brand.blue600} bg={brand.blue100} onPress={guard(() => router.push('/(app)/owner/ai'))} />
               <MiniAction icon="thumb-up-outline" label={t('owner.approvals')} fg={brand.red600} bg={brand.red100} count={m?.approvals_pending ?? 0} clearText={t('owner.allClear')} testID="approvals"
                           onPress={guard(() => router.push('/(app)/owner/approvals'))} />
-              <MiniAction icon="account-remove-outline" label={t('renter.remove')} fg={brand.red600} bg={brand.red100} testID="remove-renter-home"
-                          onPress={guard(() => router.push('/(app)/owner/remove-renter'))} />
               {SHOW_VACANT_BUTTON ? (
                 <MiniAction icon="door-open" label={t('property.vacant')} fg="#7C3AED" bg="#EDE9FE" count={vacantUnits.length} active={showVacant} testID="metric-compact"
                             onPress={() => setShowVacant(!showVacant)} />
               ) : null}
+            </View>
+            {/* removing: both open a list of everything (every property together), each with its own Remove button */}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <MiniAction icon="account-remove-outline" label={t('renter.remove')} fg={brand.red600} bg={brand.red100} testID="remove-renter-home"
+                          onPress={() => router.push('/(app)/owner/remove-renter')} />
+              <MiniAction icon="home-remove-outline" label={t('property.remove')} fg={brand.red600} bg={brand.red100} testID="remove-property-home"
+                          onPress={() => router.push('/(app)/owner/properties')} />
             </View>
             {me?.identity_status !== 'verified' ? <IdentityRow /> : null}
           </View>
