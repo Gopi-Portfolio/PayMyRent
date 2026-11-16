@@ -10,39 +10,48 @@ import { brand, radius, shadow } from '@/theme';
 export type ActionCard = { key: string; icon: string; title: string; message: string; footnote?: string; lead?: boolean; onPress: () => void; testID?: string };
 
 const CARD_GAP = 12;
-const CARD_SHARE = 0.8;          // each card takes this much of the width, so the next one peeks in from the edge and shows there is more to swipe to
 
-/** The main actions as wide cards you swipe left and right. Each card says what it does in a sentence; the one that is the owner's most common action is solid green. */
+/** The main actions as full-width cards you swipe left and right, one at a time. The arrow on each card is the swipe cue: tap it to slide to the next card
+ *  (on the last card it points back and slides to the first). Tapping the card itself opens its screen. The owner's most common action is solid green. */
 export function ActionCarousel({ cards }: { cards: ActionCard[] }) {
   const [width, setWidth] = React.useState(0);
   const [index, setIndex] = React.useState(0);
-  const cardW = Math.round(width * CARD_SHARE);
-  const step = cardW + CARD_GAP;
+  const scroller = React.useRef<{ scrollTo: (o: { x: number; animated?: boolean }) => void } | null>(null);
+  const step = width + CARD_GAP;
+  const goTo = (i: number) => { setIndex(i); scroller.current?.scrollTo({ x: i * step, animated: true }); };
   return (
-    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} testID="action-carousel" style={{ gap: 10 }}>
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} testID="action-carousel" style={{ gap: 8 }}>
       {width > 0 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={step} snapToAlignment="start" decelerationRate="fast" disableIntervalMomentum
+        <ScrollView ref={scroller as any} horizontal showsHorizontalScrollIndicator={false} snapToInterval={step} snapToAlignment="start" decelerationRate="fast" disableIntervalMomentum
                     scrollEventThrottle={16} onScroll={(e) => setIndex(Math.max(0, Math.min(cards.length - 1, Math.round(e.nativeEvent.contentOffset.x / step))))}
-                    contentContainerStyle={{ gap: CARD_GAP, paddingRight: Math.max(0, width - cardW) }} testID="action-scroll">
-          {cards.map((c) => {
+                    contentContainerStyle={{ gap: CARD_GAP }} testID="action-scroll">
+          {cards.map((c, i) => {
+            const last = i === cards.length - 1;
+            const next = cards[last ? 0 : i + 1];
             const fg = c.lead ? '#fff' : brand.ink;
-            const soft = c.lead ? 'rgba(255,255,255,0.88)' : brand.muted;
+            const soft = c.lead ? 'rgba(255,255,255,0.9)' : brand.muted;
             const chip = c.lead ? 'rgba(255,255,255,0.22)' : brand.green100;
             const accent = c.lead ? '#fff' : brand.green600;
             const body = (
               <>
-                <View style={styles.cardTop}>
-                  <View style={[styles.cardIcon, { backgroundColor: chip }]}><Icon source={c.icon} size={28} color={accent} /></View>
-                  <View style={[styles.cardArrow, { backgroundColor: chip }]}><Icon source="arrow-right" size={18} color={accent} /></View>
+                <View style={[styles.cardIcon, { backgroundColor: chip }]}><Icon source={c.icon} size={26} color={accent} /></View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <View style={styles.cardTitleRow}>
+                    <Text style={[styles.cardTitle, { color: fg }]}>{c.title}</Text>
+                    {c.footnote ? <View style={[styles.cardNote, { backgroundColor: chip }]}><Text style={[styles.cardNoteText, { color: accent }]}>{c.footnote}</Text></View> : null}
+                  </View>
+                  <Text style={[styles.cardMessage, { color: soft }]} numberOfLines={2}>{c.message}</Text>
                 </View>
-                <Text style={[styles.cardTitle, { color: fg }]}>{c.title}</Text>
-                <Text style={[styles.cardMessage, { color: soft }]}>{c.message}</Text>
-                {c.footnote ? <View style={[styles.cardNote, { backgroundColor: chip }]}><Text style={[styles.cardNoteText, { color: accent }]}>{c.footnote}</Text></View> : null}
+                {/* the scroll cue: slides to the next card; the last card's arrow points back to the first */}
+                <Pressable onPress={() => goTo(last ? 0 : i + 1)} hitSlop={10} accessibilityRole="button" accessibilityLabel={next.title} testID={`arrow-${i}`}
+                           style={[styles.cardArrow, { backgroundColor: chip }]}>
+                  <Icon source={last ? 'chevron-left' : 'chevron-right'} size={22} color={accent} />
+                </Pressable>
               </>
             );
             return (
               <Pressable key={c.key} onPress={c.onPress} testID={c.testID} accessibilityRole="button" accessibilityLabel={`${c.title}. ${c.message}${c.footnote ? `. ${c.footnote}` : ''}`}
-                         style={({ pressed }) => [{ width: cardW }, pressed && { transform: [{ scale: 0.98 }] }]}>
+                         style={({ pressed }) => [{ width }, pressed && { transform: [{ scale: 0.99 }] }]}>
                 {c.lead ? (
                   <LinearGradient colors={['#176F01', '#1F8A02']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, shadow]}>{body}</LinearGradient>
                 ) : (
@@ -78,15 +87,15 @@ export function MiniAction({ icon, label, fg, bg, count, clearText, active, onPr
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, minHeight: 176, borderRadius: radius.lg, padding: 16, gap: 8 },
+  card: { flex: 1, minHeight: 92, borderRadius: radius.lg, paddingVertical: 14, paddingHorizontal: 14, gap: 12, flexDirection: 'row', alignItems: 'center' },
   cardPlain: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#CFE6C8' },
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  cardIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  cardArrow: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800' },
-  cardMessage: { fontSize: 14, lineHeight: 20, fontWeight: '500' },
-  cardNote: { alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3, marginTop: 2 },
-  cardNoteText: { fontSize: 12, fontWeight: '800' },
+  cardIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  cardArrow: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8, rowGap: 2 },
+  cardTitle: { fontSize: 18, lineHeight: 23, fontWeight: '800' },
+  cardMessage: { fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  cardNote: { borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
+  cardNoteText: { fontSize: 11, fontWeight: '800' },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#C9D6CC' },
   dotOn: { width: 20, backgroundColor: brand.green600 },

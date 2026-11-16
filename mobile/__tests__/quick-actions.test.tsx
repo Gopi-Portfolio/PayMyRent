@@ -60,16 +60,29 @@ test('each swipe card says what it does in a sentence, and opens on a tap', () =
   expect(ui.getByText('2 Vacant')).toBeTruthy();                                         // the vacant count is on the Add Property card
   expect(ui.getByLabelText('Add Property. Add a building or a shop complex, then the units inside it.. 2 Vacant')).toBeTruthy();
   fireEvent.press(ui.getByTestId('add-tenant'));
-  expect(onPress).toHaveBeenCalledTimes(1);
+  expect(onPress).toHaveBeenCalledTimes(1);                                               // a tap on the card opens it; the arrow only scrolls
 });
 
-test('the cards are wide, snap one at a time, and the next one peeks in from the edge', () => {
+test('each card is the full width, one at a time, with the swipe arrow on it', () => {
   const ui = wrap(<ActionCarousel cards={CARDS()} />);
   laidOut(ui, 360);
   const scroll = ui.getByTestId('action-scroll');
-  expect(scroll.props.snapToInterval).toBe(Math.round(360 * 0.8) + 12);                  // one card plus the gap
   expect(scroll.props.horizontal).toBe(true);
-  expect(Math.round(360 * 0.8)).toBeLessThan(360);                                       // narrower than the screen, so the next card shows
+  expect(scroll.props.snapToInterval).toBe(360 + 12);                                    // exactly one full-width card plus the gap per swipe
+  for (const i of [0, 1, 2]) expect(ui.getByTestId(`arrow-${i}`)).toBeTruthy();
+  expect(ui.getByLabelText('Add Renter')).toBeTruthy();                                  // card 1's arrow is labelled with where it goes: the next card
+});
+
+test('the arrow slides to the next card, and on the last card goes back to the first', () => {
+  const ui = wrap(<ActionCarousel cards={CARDS()} />);
+  laidOut(ui, 360);
+  const on = (i: number) => JSON.stringify(ui.getByTestId(`dot-${i}`, { includeHiddenElements: true }).props.style).includes('"width":20');
+  fireEvent.press(ui.getByTestId('arrow-0'));
+  expect([on(0), on(1), on(2)]).toEqual([false, true, false]);
+  fireEvent.press(ui.getByTestId('arrow-1'));
+  expect([on(0), on(1), on(2)]).toEqual([false, false, true]);
+  fireEvent.press(ui.getByTestId('arrow-2'));
+  expect([on(0), on(1), on(2)]).toEqual([true, false, false]);
 });
 
 test('the dots show which card is open and move as you swipe', () => {
@@ -77,7 +90,7 @@ test('the dots show which card is open and move as you swipe', () => {
   laidOut(ui, 360);
   const on = (i: number) => JSON.stringify(ui.getByTestId(`dot-${i}`, { includeHiddenElements: true }).props.style).includes('"width":20');
   expect([on(0), on(1), on(2)]).toEqual([true, false, false]);
-  const step = Math.round(360 * 0.8) + 12;
+  const step = 360 + 12;
   act(() => ui.getByTestId('action-scroll').props.onScroll({ nativeEvent: { contentOffset: { x: step } } }));
   expect([on(0), on(1), on(2)]).toEqual([false, true, false]);
   act(() => ui.getByTestId('action-scroll').props.onScroll({ nativeEvent: { contentOffset: { x: step * 2 } } }));
