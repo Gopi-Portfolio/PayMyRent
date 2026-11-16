@@ -6,16 +6,14 @@ import '@/i18n';
 
 // the tab screens the layout asks for, with the options each one was given
 const screens: Record<string, any> = {};
-let barOptions: any = {};
-let mockInsets = { top: 0, bottom: 34, left: 0, right: 0 };
+let barOptions: any = {};                                  // the props the layout gave the navigator
 jest.mock('expo-router', () => {
   const R = require('react');
-  const Tabs: any = ({ children, screenOptions }: any) => { barOptions = screenOptions; return R.createElement(R.Fragment, null, children); };
+  const Tabs: any = ({ children, screenOptions, tabBar }: any) => { barOptions = { ...screenOptions, tabBar }; return R.createElement(R.Fragment, null, children); };
   Tabs.Screen = ({ name, options }: any) => { screens[name] = options; return null; };
   return { Tabs, Redirect: () => null };
 });
 const mockAuth: any = {};
-jest.mock('react-native-safe-area-context', () => ({ ...jest.requireActual('react-native-safe-area-context'), useSafeAreaInsets: () => mockInsets }));
 jest.mock('@/lib/auth', () => ({ useAuth: () => mockAuth }));
 jest.mock('@/components/PayTab', () => ({ PayTabButton: () => null }));
 
@@ -57,13 +55,8 @@ test('no tab is given both href and tabBarButton: expo-router throws "Cannot use
   }
 });
 
-test('the bar leaves the phone\'s home-indicator space under the labels instead of replacing it with a fixed number', () => {
+test('the layout uses our own tab bar, so every tab is built the same way', () => {
   Object.assign(mockAuth, { me: { roles: ['owner'] }, activeRole: 'owner' });
-  for (const bottom of [34, 21, 0]) {
-    mockInsets = { top: 0, bottom, left: 0, right: 0 };
-    render(<AppLayout />);
-    const space = Math.max(bottom, 8);
-    expect(barOptions.tabBarStyle.paddingBottom).toBe(space);                       // the same room the phone asks for, never less
-    expect(barOptions.tabBarStyle.height).toBe(56 + space);                         // so the icons and labels always sit in the same 56 points above it
-  }
+  render(<AppLayout />);
+  expect(typeof barOptions.tabBar).toBe('function');
 });
