@@ -14,7 +14,7 @@ export function HeroAction({ icon, label, sub, note, colors, onPress, testID }: 
   return (
     <Pressable onPress={onPress} testID={testID} accessibilityRole="button" accessibilityLabel={[label, sub, note ? `${note.value} ${note.label}` : ''].filter(Boolean).join('. ')} style={({ pressed }) => [{ flex: 1 }, pressed && { transform: [{ scale: 0.97 }] }]}>
       <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, shadow]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 30 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>   {/* the icon and the arrow share one row, so their centres line up */}
           <View style={styles.disc}><Icon source={icon} size={26} color="#fff" /></View>
           {note ? (
             <View style={styles.note} testID="hero-note">
@@ -22,12 +22,12 @@ export function HeroAction({ icon, label, sub, note, colors, onPress, testID }: 
               <Text numberOfLines={1} style={styles.noteValue} testID="hero-note-value">{note.value}</Text>
             </View>
           ) : null}
+          <View style={styles.arrow}><Icon source="arrow-right" size={16} color="#fff" /></View>
         </View>
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <View style={{ flex: 1, justifyContent: 'flex-start' }}>
           <Text numberOfLines={2} style={styles.heroLabel}>{label}</Text>
           {sub ? <Text numberOfLines={1} style={styles.heroSub}>{sub}</Text> : null}
         </View>
-        <View style={styles.arrow}><Icon source="arrow-right" size={16} color="#fff" /></View>
       </LinearGradient>
     </Pressable>
   );
@@ -51,14 +51,14 @@ export function MiniAction({ icon, label, fg, bg, count, clearText, active, onPr
 }
 
 const styles = StyleSheet.create({
-  hero: { height: 118, borderRadius: radius.lg, padding: 14, flexDirection: 'column', gap: 8 },
+  hero: { height: 148, borderRadius: radius.lg, padding: 14, flexDirection: 'column', gap: 10 },
   disc: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
   note: { flex: 1, minWidth: 44 },
   noteLabel: { color: 'rgba(255,255,255,0.92)', fontSize: 11, lineHeight: 13, fontWeight: '700' },
   noteValue: { color: '#fff', fontSize: 18, lineHeight: 20, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  heroLabel: { color: '#fff', fontSize: 16, lineHeight: 19, fontWeight: '800' },
+  heroLabel: { color: '#fff', fontSize: 16, lineHeight: 20, fontWeight: '800' },
   heroSub: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600', marginTop: 1 },
-  arrow: { position: 'absolute', top: 14, right: 14, width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  arrow: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
   mini: { flex: 1, minWidth: 72, alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 4, backgroundColor: '#fff', borderRadius: radius.md },
   miniIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   miniLabel: { fontSize: 12, fontWeight: '700', color: '#3B4A47', textAlign: 'center' },

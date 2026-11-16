@@ -102,11 +102,13 @@ export default function OwnerHome() {
                       detail={KIND_GROUPS.map((g) => `${m?.[g.total] ?? 0} ${t(g.label)}`).join('\n')}
                       onPress={() => router.push('/(app)/owner/report/units')} />
             </View>
-            {/* the two things done most are big cards; then one row of Reminders, Ask AI and Approvals. The same for every owner. */}
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <HeroAction icon="account-plus" label={t('owner.addTenant')} sub={t('owner.addTenantSub')} note={vacant.data ? { label: t('property.vacant'), value: vacantUnits.length } : undefined} colors={['#0F766E', '#14B8A6']} testID="add-tenant"
+            {/* the three things done most are big cards in one row: Add Property, Add Renter and Add Rent (record the rent received); then one row of Reminders, Ask AI and Approvals */}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <HeroAction icon="home-plus" label={t('owner.addProperty')} sub={vacant.data ? `${vacantUnits.length} ${t('property.vacant')}` : undefined} colors={['#7446E6', '#9B72F0']} testID="add-property"
+                          onPress={() => router.push('/(app)/owner/add-property')} />
+              <HeroAction icon="account-plus" label={t('owner.addTenant')} colors={['#12998B', '#3FCDBC']} testID="add-tenant"
                           onPress={() => router.push('/(app)/owner/add-tenant')} />
-              <HeroAction icon="hand-coin" label={t('owner.recordPayment')} sub={t('owner.recordPaymentSub')} colors={['#B45309', '#F59E0B']} testID="record-payment"
+              <HeroAction icon="hand-coin" label={t('owner.addRent')} colors={['#E0780F', '#F9AE45']} testID="record-payment"
                           onPress={() => router.push('/(app)/owner/record-payment')} />
             </View>
             <View style={{ flexDirection: 'row', gap: 10 }}>

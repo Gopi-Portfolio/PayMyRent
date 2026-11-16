@@ -24,10 +24,12 @@ test('the help screen has a topic for every feature, each with a title and text 
   }
 });
 
-test('opening a topic shows its text, including the plan prices', () => {
+test('opening a topic shows its text, and the plan help points to the Plans screen instead of repeating prices that can go stale', () => {
   const ui = render(<Help />);
   fireEvent.press(ui.getByTestId('help-pricing'));
-  expect(ui.getByText(/Starter ₹10: up to 10 places/)).toBeTruthy();
+  expect(ui.getByText(/differ in how many units and properties they cover/)).toBeTruthy();
+  expect(ui.getByText(/first month is free for each mobile number/)).toBeTruthy();
+  expect(JSON.stringify(en.help)).not.toMatch(/₹\d/);                     // no prices in the help: the Plans screen is the one place that shows them
 });
 
 test('the help no longer claims a renter sees a masked owner phone number', () => {

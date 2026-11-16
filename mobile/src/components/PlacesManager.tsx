@@ -42,7 +42,7 @@ export function PlacesManager({ propertyId, owner, propertyName, onDone }: { pro
   return (
     <>
       <Panel title={`${t('tenancy.unitsHere')} (${places.length})${propertyName ? ` · ${propertyName}` : ''}`} icon="door-open" tone="teal">
-        {places.length === 0 ? <Text style={{ color: brand.muted }}>{t('property.noPlacesYet', { defaultValue: 'No places added yet. Add the first one below.' })}</Text> : null}
+        {places.length === 0 ? <Text style={{ color: brand.muted }}>{t('property.noPlacesYet')}</Text> : null}
         {places.map((u: any) => (
           <View key={u.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Icon source={kindIcon(u.kind === 'residential' ? 'residential' : 'commercial')} size={20} color={brand.teal700} />
@@ -51,7 +51,7 @@ export function PlacesManager({ propertyId, owner, propertyName, onDone }: { pro
           </View>
         ))}
       </Panel>
-      <Panel title={t('property.addPlace', { defaultValue: 'Add a Place' })} icon="plus-circle-outline" tone="green">
+      <Panel title={t('property.addPlace')} icon="plus-circle-outline" tone="green">
         <View style={{ flexDirection: 'row', gap: 8 }} testID="unit-kind">
           {KIND_GROUPS.map((g) => {
             const on = kind === g.group;
@@ -70,7 +70,7 @@ export function PlacesManager({ propertyId, owner, propertyName, onDone }: { pro
         <FloorSelect value={floor} onChange={setFloor} />
         <ErrorBanner error={err} />
         {added ? <Text style={{ color: brand.green600, fontWeight: '700' }} accessibilityLiveRegion="polite" testID="place-added">{t('property.placeAdded', { defaultValue: '{{name}} added. You can add another.', name: added })}</Text> : null}
-        <AppButton label={t('property.addPlace', { defaultValue: 'Add a Place' })} icon="plus" loading={busy} disabled={busy} onPress={add} testID="add-place" />
+        <AppButton label={t('property.addPlace')} icon="plus" loading={busy} disabled={busy} onPress={add} testID="add-place" />
       </Panel>
       {onDone ? <AppButton variant="outline" label={t('common.done', { defaultValue: 'Done' })} icon="check" onPress={onDone} testID="places-done" /> : null}
     </>

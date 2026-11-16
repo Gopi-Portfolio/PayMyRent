@@ -39,7 +39,7 @@ test('the owner must choose a method; a new UPI ID needs a code, a known one doe
   // a UPI ID in the profile: nothing to type, nothing is sent
   expect(payHowReady(v({ method: 'upi' }), known, 'known@okhdfcbank')).toBe(true);
   expect(payHowBody(v({ method: 'upi' }), known, 'known@okhdfcbank')).toEqual({ pay_method: 'upi', pay_upi_id: null, otp_code: null });
-  // ...unless this tenant gets its own
+  // ...unless this renter gets its own
   expect(payHowReady(v({ method: 'upi', custom: true }), known, 'known@okhdfcbank')).toBe(false);
   expect(payHowBody(v({ method: 'upi', custom: true, upi: 'Shop@oksbi', otp: '123456' }), known, 'known@okhdfcbank')).toEqual({ pay_method: 'upi', pay_upi_id: 'shop@oksbi', otp_code: '123456' });
   expect(payHowBody(v({ method: 'upi', upi: 'Known@okhdfcbank' }), known, null)).toEqual({ pay_method: 'upi', pay_upi_id: 'known@okhdfcbank', otp_code: null });
@@ -52,14 +52,14 @@ test('the owner is asked how they want to receive rent; UPI uses the profile ID 
     return <PayHow value={v} onChange={setV} showErrors />;
   }
   const ui = render(wrap(<Host />));
-  expect(ui.getByText('How do you want to receive rent from this tenant?')).toBeTruthy();
+  expect(ui.getByText('How do you want to receive rent from this renter?')).toBeTruthy();
   expect(ui.getByText('Choose how you want to receive rent')).toBeTruthy();        // nothing is chosen for the owner
   expect(ui.queryByTestId('payhow-profile-upi')).toBeNull();
   fireEvent.press(ui.getByTestId('payhow-upi'));
   await waitFor(() => ui.getByTestId('payhow-profile-upi'));                         // the profile UPI ID is used, nothing to type
   expect(ui.getByTestId('payhow-profile-upi').props.children).toBe('known@okhdfcbank');
   expect(ui.queryByTestId('payhow-upi-id')).toBeNull();
-  fireEvent.press(ui.getByTestId('payhow-use-other'));                                // only if needed: a different ID for this tenant
+  fireEvent.press(ui.getByTestId('payhow-use-other'));                                // only if needed: a different ID for this renter
   await waitFor(() => ui.getByTestId('payhow-upi-id'));
   fireEvent.press(ui.getByTestId('payhow-use-mine'));
   await waitFor(() => ui.getByTestId('payhow-profile-upi'));
@@ -104,7 +104,7 @@ test('Profile: the usual way of receiving rent is shown, can be changed, and is 
   expect(ui.getByText('How I usually receive rent')).toBeTruthy();
   expect(ui.getByTestId('pay-default-save').props.accessibilityState.disabled).toBe(true);        // nothing changed yet
   expect(ui.getByTestId('payhow-online').props.accessibilityState.disabled).toBe(true);           // no live provider: online cannot be the default
-  expect(ui.queryByTestId('payhow-use-other')).toBeNull();                                          // "a different ID for this tenant" belongs on a tenant, not here
+  expect(ui.queryByTestId('payhow-use-other')).toBeNull();                                          // "a different ID for this renter" belongs on a tenant, not here
   fireEvent.press(ui.getByTestId('payhow-cash'));
   await waitFor(() => expect(ui.getByTestId('pay-default-save').props.accessibilityState.disabled).toBe(false));
   fireEvent.press(ui.getByTestId('pay-default-save'));

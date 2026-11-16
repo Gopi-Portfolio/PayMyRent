@@ -21,6 +21,16 @@ export function dmyToIso(s: string): string | null {
   const dt = new Date(Date.UTC(+y, +mo - 1, +d));
   return dt.getUTCFullYear() === +y && dt.getUTCMonth() === +mo - 1 && dt.getUTCDate() === +d ? `${y}-${mo}-${d}` : null;
 }
+/** The same day some months later, as DD-MM-YYYY; a day that does not exist there becomes the month's last day. 05-11-2026 + 11 -> 05-10-2027 */
+export function addMonthsDMY(dmy: string, months: number): string {
+  const iso = dmyToIso(dmy);
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  const total = (m - 1) + months;
+  const ny = y + Math.floor(total / 12), nm = ((total % 12) + 12) % 12;
+  const last = new Date(Date.UTC(ny, nm + 1, 0)).getUTCDate();
+  return `${String(Math.min(d, last)).padStart(2, '0')}-${String(nm + 1).padStart(2, '0')}-${ny}`;
+}
 /** 11-2026 -> 2026-11 (null if invalid) */
 export function myToYm(s: string): string | null {
   const m = /^(\d{2})-(\d{4})$/.exec(s);

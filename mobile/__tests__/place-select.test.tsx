@@ -11,10 +11,10 @@ const places: Place[] = [
   { id: 'c', identifier: 'Room 3', floor: null, vacant: false, tenancy_id: 't3', tenant_name: 'Selvi' },        // taken
 ];
 
-test('closed it is one line; open it lists every place, with taken ones locked and disabled', () => {
+test('closed it is one line; open it lists every unit, with taken ones locked and disabled', () => {
   const onPick = jest.fn();
   const ui = render(<PaperProvider><PlaceSelect places={places} selectedId={null} onPick={onPick} /></PaperProvider>);
-  expect(ui.getByText('Places in This Property (3)')).toBeTruthy();
+  expect(ui.getByText('Units in This Property (3)')).toBeTruthy();
   expect(ui.queryByTestId('unit-free-S-02')).toBeNull();                                  // nothing listed while closed
   fireEvent.press(ui.getByTestId('places-dropdown'));
   expect(ui.getByTestId('unit-locked-S-01').props.accessibilityState.disabled).toBe(true);

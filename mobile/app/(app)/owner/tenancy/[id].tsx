@@ -97,7 +97,7 @@ export default function OwnerTenancy() {
           ) : null}
           {d.tenancy.status === 'invited' ? (
             <Button icon="account-remove-outline" textColor="crimson" onPress={() => setRemoveOpen(true)} testID="remove-invite">
-              {t('tenancy.wrongNumber', { defaultValue: 'Wrong number? Remove tenant' })}
+              {t('tenancy.wrongNumber')}
             </Button>
           ) : null}
         </Panel>
@@ -206,9 +206,9 @@ export default function OwnerTenancy() {
       ) : null}
       <Portal>
         <Dialog visible={removeOpen} onDismiss={() => setRemoveOpen(false)}>
-          <Dialog.Title>{t('tenancy.removeTitle', { defaultValue: 'Remove this tenant?' })}</Dialog.Title>
+          <Dialog.Title>{t('tenancy.removeTitle')}</Dialog.Title>
           <Dialog.Content>
-            <Text>{t('tenancy.removeBody', { defaultValue: 'Remove {{who}} ({{phone}}) from {{unit}}? They have not accepted yet. You can add the tenant again with the right number.',
+            <Text>{t('tenancy.removeBody', {
               who: d?.contact?.name ?? '', phone: d?.contact?.phone ?? d?.tenancy.invited_phone ?? '', unit: d?.unit.identifier ?? '' })}</Text>
           </Dialog.Content>
           <Dialog.Actions>

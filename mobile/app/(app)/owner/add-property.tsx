@@ -105,12 +105,12 @@ export default function AddProperty() {
       <Screen>
         {chooser}
         {full ? (
-          <Panel title={t('property.planFullTitle', { defaultValue: 'Your plan is full' })} icon="home-alert-outline" tone="amber">
+          <Panel title={t('property.planFullTitle')} icon="home-alert-outline" tone="amber">
             <Text style={{ lineHeight: 21 }}>{t('property.planFull', { count: cap })}</Text>
-            <AppButton compact variant="outline" icon="home-plus-outline" label={t('property.addUnderOwnPlan', { defaultValue: 'Add another property with its own plan' })} onPress={() => { setAnother(true); setTarget(NEW); }} testID="add-under-own-plan" />
+            <AppButton compact variant="outline" icon="home-plus-outline" label={t('property.addUnderOwnPlan')} onPress={() => { setAnother(true); setTarget(NEW); }} testID="add-under-own-plan" />
           </Panel>
         ) : null}
-        <Text style={{ color: brand.muted, lineHeight: 22 }}>{t('property.placesIntro', { defaultValue: 'Add the houses, flats, rooms or shops of this property here. When you add a renter, you choose from these.' })}</Text>
+        <Text style={{ color: brand.muted, lineHeight: 22 }}>{t('property.placesIntro')}</Text>
         <PlacesManager propertyId={cur} owner={owner ?? undefined} propertyName={current?.name || current?.address} onDone={goBack} />
       </Screen>
     );
@@ -120,7 +120,7 @@ export default function AddProperty() {
       {chooser}
       {hasProperty && room ? (
         <Text style={{ color: brand.teal700, fontWeight: '700' }} testID="plan-room">
-          {t('property.planRoom', { defaultValue: 'Your plan covers {{cap}} properties. {{used}} added, {{left}} left.', cap, used: acct?.property_count ?? 0, left: cap - (acct?.property_count ?? 0) })}
+          {t('property.planRoom', { cap, used: acct?.property_count ?? 0, left: cap - (acct?.property_count ?? 0) })}
         </Text>
       ) : null}
       <Text style={{ color: brand.muted, lineHeight: 22 }}>{t('property.intro')}</Text>

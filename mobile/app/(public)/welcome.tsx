@@ -21,6 +21,7 @@ const BG = require('../../assets/brand/landing-bg.jpg');       // 1024 x 1536: s
 const BG_RATIO = 1536 / 1024;
 const BLUE = '#003472';
 const GREEN = '#1F8A02';
+const SHOP_ORANGE = '#F96A10';       // the orange of the "Shops" label in the picture
 
 /** One of the two doors: an icon tile, a title, one line of help and a chevron. */
 function Door({ icon, tint, color, title, sub, onPress, testID }: { icon: string; tint: string; color: string; title: string; sub: string; onPress: () => void; testID: string }) {
@@ -126,7 +127,7 @@ const styles = StyleSheet.create({
   doorTitle: { color: '#111', fontSize: 18, fontWeight: '800' },
   doorSub: { color: '#333', fontSize: 13, lineHeight: 17, marginTop: 1 },
   notOwner: { color: '#111', fontSize: 16, lineHeight: 22, fontWeight: '800', textAlign: 'center', marginTop: 12 },
-  primary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: GREEN, borderRadius: 28, height: 54 },
+  primary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: SHOP_ORANGE, borderRadius: 28, height: 54 },
   primaryText: { color: '#fff', fontSize: 18, fontWeight: '800' },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', backgroundColor: 'rgba(255,255,255,0.75)', paddingTop: 10 },
   footItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 6 },

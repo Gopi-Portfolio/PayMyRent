@@ -13,9 +13,9 @@ jest.mock('@/lib/api', () => ({ api: jest.fn(async (path: string) => (path.inclu
 jest.mock('react-native-safe-area-context', () => ({ ...jest.requireActual('react-native-safe-area-context'), useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 const wrap = (ui: React.ReactElement) => <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>;
 
-test('asks whether to transfer the renters first, saying how many renters and places are affected', async () => {
+test('asks whether to transfer the renters first, saying how many renters and units are affected', async () => {
   const { findByText, getByTestId } = render(wrap(<Close />));
-  await findByText(/3 renter\(s\) in 5 place\(s\)/);
+  await findByText(/3 renter\(s\) in 5 unit\(s\)/);
   await findByText('Do you want to transfer them to someone else before closing?');
   expect(getByTestId('close-transfer-yes')).toBeTruthy();
   expect(getByTestId('close-transfer-no')).toBeTruthy();
