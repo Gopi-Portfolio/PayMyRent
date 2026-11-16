@@ -16,7 +16,8 @@ const mockAuth: any = {};
 jest.mock('@/lib/auth', () => ({ useAuth: () => mockAuth }));
 jest.mock('@/components/PayTab', () => ({ PayTabButton: () => null }));
 
-const shown = (name: string) => screens[name] && screens[name].href !== null;      // expo-router hides a tab whose href is null
+// a tab is hidden by href: null, or by a custom button that draws nothing (the Pay tab has its own button, and expo-router refuses href together with tabBarButton)
+const shown = (name: string) => !!screens[name] && screens[name].href !== null && !(screens[name].tabBarButton && screens[name].tabBarButton() === null);
 
 test('an owner sees Owner, Search and Profile, and no Pay tab', () => {
   Object.assign(mockAuth, { me: { roles: ['owner'] }, activeRole: 'owner' });
@@ -43,4 +44,12 @@ test('every tab icon is drawn in the same colour', () => {
   render(<AppLayout />);
   const colours = ['owner', 'search', 'profile/index'].map((n) => JSON.stringify(screens[n].tabBarIcon().props.color));
   expect(new Set(colours).size).toBe(1);
+});
+
+test('no tab is given both href and tabBarButton: expo-router throws "Cannot use href and tabBarButton together" and the app crashes', () => {
+  for (const role of ['owner', 'tenant'] as const) {
+    Object.assign(mockAuth, { me: { roles: [role] }, activeRole: role });
+    render(<AppLayout />);
+    for (const [name, options] of Object.entries(screens)) expect([name, options.href !== undefined && options.tabBarButton !== undefined]).toEqual([name, false]);
+  }
 });
