@@ -20,6 +20,7 @@ import { MessageLink } from '@/components/MessageLink';
 import { api, newIdempotencyKey } from '@/lib/api';
 import { Button } from '@/components/Buttons';
 import { ownerAccountId, useAuth } from '@/lib/auth';
+import { submitOrQueue } from '@/lib/offline';
 import { MAX_ENTRY_PAISE, capToDue, formatINR, parseRupeesToPaise } from '@/lib/format';
 import { brand } from '@/theme';
 
@@ -145,7 +146,7 @@ export default function OwnerTenancy() {
           {saved ? <Text style={{ color: brand.green600, fontWeight: '700' }}>{t('terms.saved')}</Text> : null}
           <Button mode="contained" icon="content-save-outline" disabled={parseRupeesToPaise(terms.rent) === null || !dmyToIso(terms.from) || !terms.due || +terms.due < 1 || +terms.due > 31 || +terms.grace > 60}
                   onPress={() => run(async () => {
-            await api(`/api/v1/owner/tenancies/${id}`, { method: 'PATCH', ownerAccount: owner, body: {
+            await submitOrQueue({ kind: 'tenancy.update', label: t('offline.itemTerms'), path: `/api/v1/owner/tenancies/${id}`, method: 'PATCH', ownerAccount: owner, coalesceKey: `tenancy:${id}`, body: {
               version: d.tenancy.version, monthly_rent: terms.rent, rent_effective_month: dmyToIso(terms.from), due_day: +terms.due,
               grace_days: +(terms.grace || 0), security_deposit: terms.advance || '0', items_provided: terms.items, increment_percent: Number(terms.increase || 0) } });
             setSaved(true); clearTimeout(savedTimer.current); savedTimer.current = setTimeout(() => setSaved(false), 3000);
@@ -158,7 +159,7 @@ export default function OwnerTenancy() {
             options={[...enabled, 'other'].map((c: string) => ({ value: c, label: t(`bill.${c}`, { defaultValue: c }) }))} />
           <Field label={t('pay.amount')} value={amt} onChangeText={setAmt} kind="amount" />
           <Button mode="contained" disabled={!parseRupeesToPaise(amt)} onPress={() => run(async () => {
-            await api(`/api/v1/owner/tenancies/${id}/charges`, { ownerAccount: owner, body: { period_month: month, category: cat, amount: amt } });
+            await submitOrQueue({ kind: 'charge.create', label: t('offline.itemCharge', { amount: `₹${amt}` }), path: `/api/v1/owner/tenancies/${id}/charges`, ownerAccount: owner, body: { period_month: month, category: cat, amount: amt } });
             setAmt('');
           })}>{t('common.save')}</Button>
         </>
@@ -201,7 +202,7 @@ export default function OwnerTenancy() {
         </>
       ) : null}
       {tab === 'notes' ? (
-        <NoteInput onSubmit={(body, method) => run(() => api(`/api/v1/tenancies/${id}/notes`, {
+        <NoteInput onSubmit={(body, method) => run(() => submitOrQueue({ kind: 'note.create', label: t('offline.itemNote', { text: body.slice(0, 40) }), path: `/api/v1/tenancies/${id}/notes`,
           body: { target_type: 'tenancy', target_id: id, body, input_method: method } }))} />
       ) : null}
       <Portal>

@@ -29,6 +29,7 @@ export function AppTabBar({ state, descriptors, emitter, navigateToTab }: AppTab
       {state.routes.map((route, index) => {
         const options = descriptors[route.key]?.options ?? {};
         if (options.hidden) return null;                                               // a tab for the other role
+        if (!options.tabBarIcon && !options.tabBarButton) return null;                // a route file nobody declared as a tab is never drawn as one
         if (options.tabBarButton) {                                                    // the renter's Pay slider draws itself, in a slot of the same width
           const custom = options.tabBarButton({});
           return custom ? <View key={route.key} style={styles.item}>{custom}</View> : null;     // an owner gets nothing here, so no gap is left

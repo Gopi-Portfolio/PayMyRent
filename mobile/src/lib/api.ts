@@ -24,7 +24,8 @@ export class ApiError extends Error {
   }
 }
 
-type Opts = { method?: string; body?: unknown; form?: FormData; ownerAccount?: string | null; auth?: boolean; headers?: Record<string, string>; timeoutMs?: number };
+type Opts = { method?: string; body?: unknown; form?: FormData; ownerAccount?: string | null; auth?: boolean; headers?: Record<string, string>; timeoutMs?: number;
+              idempotencyKey?: string };   // data entry that may be sent twice (a retry, or a saved entry sent later): the server does it once per key
 
 export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json', 'X-App-Language': i18n.language, ...(opts.headers ?? {}) };   // the server writes in the language on screen
@@ -33,6 +34,7 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
     if (token) headers.Authorization = `Bearer ${token}`;
   }
   if (opts.ownerAccount) headers['X-Owner-Account'] = opts.ownerAccount;
+  if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
   let body: BodyInit | undefined;
   if (opts.form) body = opts.form;
   else if (opts.body !== undefined) {
@@ -46,9 +48,9 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
     res = await fetch(`${API_URL}${path}`, { method: opts.method ?? (body ? 'POST' : 'GET'), headers, body, signal: ctl.signal });
   } catch (e) {
     const aborted = (e as { name?: string })?.name === 'AbortError';
-    throw new ApiError(0, aborted ? 'TIMEOUT' : 'OFFLINE', aborted
-      ? `The server at ${API_URL} did not respond within ${(opts.timeoutMs ?? 15000) / 1000} seconds. Check that the API is running and your phone is on the same Wi-Fi.`
-      : `Cannot reach the server at ${API_URL}. Check your internet connection, that the API is running, and that EXPO_PUBLIC_API_URL in mobile/.env is your computer's current IP.`);
+    // what the person sees is plain and translated; the technical hint for a developer goes to the console only
+    if (__DEV__) console.warn(`[api] ${aborted ? 'no reply from' : 'cannot reach'} ${API_URL}${path}: check that the API is running and that EXPO_PUBLIC_API_URL in mobile/.env is this computer's current IP`);
+    throw new ApiError(0, aborted ? 'TIMEOUT' : 'OFFLINE', i18n.t(aborted ? 'error.timeout' : 'error.offline'));
   } finally { clearTimeout(timer); }
   const text = await res.text();
   const data = text ? safeJson(text) : null;

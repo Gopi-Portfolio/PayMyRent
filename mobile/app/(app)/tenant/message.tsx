@@ -13,6 +13,7 @@ import { MicButton } from '@/components/NoteInput';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { DONE_ID, DoneBar, ErrorBanner, Panel, ResultView, Screen, goBack, useDoneTick } from '@/components/ui';
 import { api } from '@/lib/api';
+import { submitOrQueue } from '@/lib/offline';
 import { speechAvailable } from '@/lib/speech';
 import { brand } from '@/theme';
 
@@ -31,12 +32,14 @@ export default function MessageOwner() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const [sent, setSent] = useState(false);
+  const [queued, setQueued] = useState(false);       // saved on the phone, to be sent when the connection is back
 
   async function send() {
     if (!rental || !text.trim()) return;
     setBusy(true); setErr(null);
     try {
-      await api(`/api/v1/tenant/tenancies/${rental.id}/messages`, { body: { text: text.trim(), lang, input_method: viaVoice ? 'voice' : 'typed' } });
+      const sentNow = await submitOrQueue({ kind: 'message.create', label: t('offline.itemMessage'), path: `/api/v1/tenant/tenancies/${rental.id}/messages`, body: { text: text.trim(), lang, input_method: viaVoice ? 'voice' : 'typed' } });
+      setQueued(sentNow.queued);
       qc.invalidateQueries({ queryKey: ['notifications'] });
       setSent(true);
     } catch (e) { setErr(e); } finally { setBusy(false); }
@@ -45,8 +48,8 @@ export default function MessageOwner() {
   if (sent) {
     return (
       <Screen>
-        <ResultView kind="success" title={t('message.renterSentTitle', { defaultValue: 'Message Sent' })}
-                    lines={[t('message.renterSentBody', { defaultValue: '{{owner}} will see it in their notifications and can reply to you there.', owner: rental?.owner_name ?? '' })]}>
+        <ResultView kind="success" title={queued ? t('offline.savedTitle') : t('message.renterSentTitle', { defaultValue: 'Message Sent' })}
+                    lines={[queued ? t('offline.savedOffline') : t('message.renterSentBody', { defaultValue: '{{owner}} will see it in their notifications and can reply to you there.', owner: rental?.owner_name ?? '' })]}>
           <AppButton label={t('common.done', { defaultValue: 'Done' })} icon="check" onPress={() => goBack()} testID="message-done" />
         </ResultView>
       </Screen>

@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { floorChip } from '@/lib/units';
 import { brand, radius } from '@/theme';
 
-export type Place = { id: string; identifier: string; floor?: number | null; vacant?: boolean; tenancy_id?: string | null; tenant_name?: string | null };
+export type Place = { id: string; identifier: string; floor?: number | null; vacant?: boolean; tenancy_id?: string | null; tenant_name?: string | null; pending?: boolean };
 export const isLocked = (u: Place) => !u.vacant && !!u.tenancy_id;
 
 export function PlaceSelect({ places, selectedId, onPick }: { places: Place[]; selectedId?: string | null; onPick: (u: Place) => void }) {
@@ -40,7 +40,8 @@ export function PlaceSelect({ places, selectedId, onPick }: { places: Place[]; s
             {ordered.map((u) => {
               const locked = isLocked(u);
               const on = u.id === selectedId;
-              const status = locked ? (u.tenant_name ? t('tenancy.rentedTo', { name: u.tenant_name }) : t('tenancy.occupiedNoName')) : t('property.vacant');
+              const base = locked ? (u.tenant_name ? t('tenancy.rentedTo', { name: u.tenant_name }) : t('tenancy.occupiedNoName')) : t('property.vacant');
+              const status = u.pending ? `${base} · ${t('offline.statusWaiting')}` : base;          // saved on this phone, not yet sent
               return (
                 <Pressable key={u.id} disabled={locked} onPress={() => { setOpen(false); onPick(u); }} accessibilityRole="button" accessibilityState={{ disabled: locked, selected: on }}
                            accessibilityLabel={`${u.identifier}. ${status}${locked ? `. ${t('tenancy.occupiedLocked')}` : ''}`} testID={`unit-${locked ? 'locked' : 'free'}-${u.identifier}`}

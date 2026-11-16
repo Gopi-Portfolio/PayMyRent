@@ -3,7 +3,6 @@
 // "the documents I submitted are original", signed by typing the name. The server reads and compares everything (no person reviews anything).
 // When it passes, the owner goes to the dashboard.
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
@@ -18,6 +17,7 @@ import { SlotRow, UploadSlot } from '@/components/UploadSlot';
 import { ErrorBanner, Field, Panel, Screen } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
+import { shrink } from '@/lib/photo';
 import { addressSchema, nameSchema } from '@/lib/validation';
 import { brand, radius } from '@/theme';
 
@@ -27,16 +27,6 @@ const same = (a: string, b: string) => a.trim().replace(/\s+/g, ' ').toLowerCase
 const hint = { fontSize: 12, lineHeight: 17, color: brand.muted } as const;
 
 type Check = { code: string; ok: boolean; message: string };
-
-/** A phone photo can be 24 megapixels and over 8 MB, which the server refuses (the phone then only sees "cannot reach the server").
- *  Scale it to 2000 px on the long side, which is plenty for reading text and faces, and send a JPEG of about 1 to 2 MB. */
-async function shrink(asset: { uri: string; width?: number; height?: number }): Promise<string> {
-  const ctx = ImageManipulator.manipulate(asset.uri);
-  if ((asset.width ?? 0) >= (asset.height ?? 0)) { if ((asset.width ?? 0) > 2000) ctx.resize({ width: 2000 }); }
-  else if ((asset.height ?? 0) > 2000) ctx.resize({ height: 2000 });
-  const img = await ctx.renderAsync();
-  return (await img.saveAsync({ compress: 0.8, format: SaveFormat.JPEG })).uri;
-}
 
 export function OwnerDocumentCheck({ docs }: { docs: { items: { kind: Kind; uploaded: boolean }[]; verified: boolean } }) {
   const { t } = useTranslation();

@@ -11,6 +11,8 @@ import { FloorSelect } from '@/components/FloorSelect';
 import { ErrorBanner, Field, Panel } from '@/components/ui';
 import { api } from '@/lib/api';
 import { KIND_GROUPS, type KindGroup, floorChip, kindIcon } from '@/lib/units';
+import { submitOrQueue } from '@/lib/offline';
+import { addPendingUnit } from '@/lib/optimistic';
 import { placeSchema } from '@/lib/validation';
 import { brand, radius } from '@/theme';
 
@@ -33,9 +35,12 @@ export function PlacesManager({ propertyId, owner, propertyName, onDone }: { pro
     if (nameErr) return;
     setBusy(true);
     try {
-      const u = await api<any>('/api/v1/owner/units', { ownerAccount: owner, body: { property_id: propertyId, identifier: name, kind, floor } });
-      setAdded(u.identifier); setName(''); setTouched(false);
-      qc.invalidateQueries({ queryKey: ['units'] }); qc.invalidateQueries({ queryKey: ['properties'] }); qc.invalidateQueries({ queryKey: ['vacant'] });
+      const sent = await submitOrQueue<any>({
+        kind: 'unit.create', label: t('offline.itemUnit', { name }), path: '/api/v1/owner/units', ownerAccount: owner, body: { property_id: propertyId, identifier: name, kind, floor },
+        optimistic: (item) => addPendingUnit(owner, item.id, { property_id: propertyId, identifier: name, kind, floor }),
+      });
+      setAdded(sent.queued ? name : sent.result.identifier); setName(''); setTouched(false);
+      if (!sent.queued) { qc.invalidateQueries({ queryKey: ['units'] }); qc.invalidateQueries({ queryKey: ['properties'] }); qc.invalidateQueries({ queryKey: ['vacant'] }); }
     } catch (e) { setErr(e); } finally { setBusy(false); }
   }
 

@@ -11,6 +11,7 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { Avatar, ErrorBanner, Field, GenderPicker, IdentityRow, Panel, PlanCard, Screen } from '@/components/ui';
 import { LANGUAGES } from '@/i18n';
 import { api } from '@/lib/api';
+import { submitOrQueue } from '@/lib/offline';
 import { FormatSelect } from '@/components/FormatSelect';
 import { OwnerPayDefault } from '@/components/OwnerPayDefault';
 import { OwnerUpi } from '@/components/OwnerUpi';
@@ -69,8 +70,8 @@ export default function ProfileScreen() {
       <Field label={t('profile.address')} value={address} onChangeText={setAddress} kind="address" multiline />
       <GenderPicker />
       <SearchableSelect label={t('profile.language')} value={i18n.language} options={LANGUAGES.map((l) => ({ value: l.code, label: l.label }))}
-        onChange={(lang) => run(async () => { await api('/api/v1/me/profile', { method: 'PUT', body: { full_name: name, address: address || null, preferred_language: lang, version: me.version } }); i18n.changeLanguage(lang); })} />
-      <Button mode="contained" onPress={() => run(() => api('/api/v1/me/profile', { method: 'PUT', body: { full_name: name, address: address || null, preferred_language: i18n.language, version: me.version } }))}>
+        onChange={(lang) => run(async () => { await submitOrQueue({ kind: 'profile.update', label: t('offline.itemProfile'), path: '/api/v1/me/profile', method: 'PUT', coalesceKey: 'profile', body: { full_name: name, address: address || null, preferred_language: lang, version: me.version } }); i18n.changeLanguage(lang); })} />
+      <Button mode="contained" onPress={() => run(() => submitOrQueue({ kind: 'profile.update', label: t('offline.itemProfile'), path: '/api/v1/me/profile', method: 'PUT', coalesceKey: 'profile', body: { full_name: name, address: address || null, preferred_language: i18n.language, version: me.version } }))}>
         {t('common.save')}
       </Button>
       </Panel>

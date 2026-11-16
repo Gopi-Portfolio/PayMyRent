@@ -11,7 +11,7 @@ const mockApi = jest.fn(async (path: string, opts?: any) => {
   return { items: [{ id: 'u1', property_id: 'p1', identifier: 'S-01', kind: 'commercial', floor: 0, vacant: true },
                    { id: 'u2', property_id: 'p2', identifier: 'OTHER-1', kind: 'residential', floor: null, vacant: true }] };
 });
-jest.mock('@/lib/api', () => ({ api: (...a: any[]) => (mockApi as any)(...a), ApiError: class extends Error {} }));
+jest.mock('@/lib/api', () => ({ api: (...a: any[]) => (mockApi as any)(...a), ApiError: class extends Error {}, newIdempotencyKey: () => 'key-' + Math.random().toString(36).slice(2, 14), API_URL: 'http://api.test' }));
 
 const wrap = (ui: React.ReactElement) => <QueryClientProvider client={new QueryClient()}><PaperProvider>{ui}</PaperProvider></QueryClientProvider>;
 
@@ -28,4 +28,5 @@ test('Add Property lists only this property\'s places and is where a new place i
   const post = mockApi.mock.calls.find((c: any[]) => c[1]?.body) as any[];
   expect(post[0]).toBe('/api/v1/owner/units');
   expect(post[1].body).toMatchObject({ property_id: 'p1', kind: 'commercial', floor: null });
+  expect(post[1].idempotencyKey).toMatch(/^key-/);                       // sent with a key, so a retry can never add the unit twice
 });

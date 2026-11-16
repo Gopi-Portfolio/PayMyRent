@@ -14,6 +14,10 @@ import { ApiError, api } from '@/lib/api';
 import { Button } from '@/components/Buttons';
 import { brand, radius, shadow } from '@/theme';
 import { ownerAccountId, useAuth } from '@/lib/auth';
+import { RenterScan } from '@/components/RenterScan';
+import { isOnline } from '@/lib/network';
+import { submitOrQueue } from '@/lib/offline';
+import { markUnitRented } from '@/lib/optimistic';
 import { EMPTY_PAY_HOW, PayHow, type PayHowValue, payHowBody, payHowReady, useKnownUpi } from '@/components/PayHow';
 import { type Place, PlaceSelect, isLocked } from '@/components/PlaceSelect';
 import { amountSchema, dueDaySchema, mobileSchema, nameSchema } from '@/lib/validation';
@@ -81,16 +85,33 @@ export default function AddTenant() {
     if (!step2ok) { if (e2.due || e2.start || e2.end || !payHowReady(payHow, knownUpi, defaultUpi)) setMore(true); return; }       // open the details that need fixing
     setBusy(true); setErr(null);
     try {
-      const out = await api<any>('/api/v1/owner/tenancies', { ownerAccount: owner, body: {
-        unit_id: vacantUnit?.id ?? place?.id ?? null, property_id: null, unit_identifier: '',
+      const unitId = vacantUnit?.id ?? place?.id ?? null;
+      const unitName = vacantUnit?.identifier ?? place?.identifier ?? '';
+      const body = {
+        unit_id: unitId, property_id: null, unit_identifier: '',
         tenant_name: f.name, tenant_mobile: f.mobile, monthly_rent: f.rent, due_day: Number(f.due), start_date: dmyToIso(f.start), end_date: dmyToIso(f.end),
         increment_percent: f.increase ? Number(f.increase) : null, items_provided: f.items.trim() || null,
-        security_deposit: f.deposit, tenant_email: f.email || null, opening_arrears: f.arrears || null, ...payHowBody(payHow, knownUpi, defaultUpi) } });
-      qc.invalidateQueries({ queryKey: ['tenancies'] });
-      qc.invalidateQueries({ queryKey: ['upi-ids'] });
-      qc.invalidateQueries({ queryKey: ['dash'] });
-      qc.invalidateQueries({ queryKey: ['units'] });
-      qc.invalidateQueries({ queryKey: ['vacant'] });
+        security_deposit: f.deposit, tenant_email: f.email || null, opening_arrears: f.arrears || null, ...payHowBody(payHow, knownUpi, defaultUpi) };
+      const refresh = () => {
+        qc.invalidateQueries({ queryKey: ['tenancies'] });
+        qc.invalidateQueries({ queryKey: ['upi-ids'] });
+        qc.invalidateQueries({ queryKey: ['dash'] });
+        qc.invalidateQueries({ queryKey: ['units'] });
+        qc.invalidateQueries({ queryKey: ['vacant'] });
+      };
+      if ((body as any).otp_code) {
+        // a brand-new UPI ID is confirmed with a one-time code that has to be used now, so this one cannot be saved for later
+        if (!isOnline()) { setErr(new Error(t('offline.needsCode'))); return; }
+        await api<any>('/api/v1/owner/tenancies', { ownerAccount: owner, body });
+        refresh();
+      } else {
+        // online it is sent at once; offline it is kept on the phone, shown as rented (waiting to send) and sent when the connection is back
+        const sent = await submitOrQueue({
+          kind: 'tenancy.create', label: t('offline.itemRenter', { name: f.name, unit: unitName }), path: '/api/v1/owner/tenancies', body, ownerAccount: owner,
+          optimistic: (item) => { if (unitId) markUnitRented(owner, unitId, f.name, item.id); },
+        });
+        if (!sent.queued) refresh();
+      }
       // the server texts the number (and notifies a registered renter) by itself: nothing for the owner to send
       goBack();
     } catch (e) { setErr(e); } finally { setBusy(false); }
@@ -177,6 +198,8 @@ export default function AddTenant() {
       ) : (
         <>
           {vacantUnit ? <Text variant="titleMedium" style={{ fontWeight: '800' }}>{`${t('property.addRenter')} · ${vacantUnit.identifier}`}</Text> : null}
+          {/* a photo of the renter's ID card or agreement fills in the name and mobile for the owner to check; needs the internet, so it is never saved for later */}
+          <RenterScan owner={owner} onRead={(r) => setF((x) => ({ ...x, name: r.name ?? x.name, mobile: r.mobile ?? x.mobile }))} />
           {/* the quick form: only what is needed to assign the renter. Everything else has a sensible default and sits under More Details. */}
           <Field label={t('tenancy.tenantName')} value={f.name} onChangeText={set('name')} kind="name" error={touched ? e2.name : undefined} testID="quick-name" />
           <Field label={t('tenancy.tenantMobile')} value={f.mobile} onChangeText={set('mobile')} kind="mobile" error={touched ? e2.mobile : undefined} testID="quick-mobile" />

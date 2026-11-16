@@ -311,7 +311,9 @@
     "otp_incorrect": "That code is not correct. Please check the digits and try again.",
     "otp_expired": "This code has expired or too many wrong tries were made. Please tap Resend Code.",
     "otp_rate": "Too many codes were requested. Please wait a little and try again.",
-    "reading_lower": "Current reading cannot be lower than the previous reading"
+    "reading_lower": "Current reading cannot be lower than the previous reading",
+    "offline": "No internet connection. Please connect and try again.",
+    "timeout": "The server did not answer. Please try again in a moment."
   },
   "welcome": {
     "notOwner": "Not a registered owner? Choose a plan",
@@ -927,5 +929,50 @@
     "rowTitle": "Row {{row}}: {{unit}} {{renter}}",
     "ready": "Ready",
     "done": "Imported {{imported}} renters. Skipped {{skipped}}."
+  },
+  "offline": {
+    "banner": "You're offline. What you enter is saved on this phone and sent when you're back online.",
+    "waiting_one": "{{count}} saved change is waiting to be sent",
+    "waiting_other": "{{count}} saved changes are waiting to be sent",
+    "sending": "Sending your saved changes…",
+    "attention_one": "{{count}} saved change needs your attention",
+    "attention_other": "{{count}} saved changes need your attention",
+    "signIn": "Please sign in again to send your saved changes.",
+    "title": "Saved Changes",
+    "intro": "Entries made while you were offline are kept here. They are sent automatically when you're back online.",
+    "empty": "Nothing is waiting. Everything has been sent.",
+    "statusWaiting": "Waiting to send",
+    "statusFailed": "Not accepted",
+    "tryAgain": "Try Again",
+    "discard": "Discard",
+    "sendNow": "Send Now",
+    "savedOffline": "Saved on this phone. It will be sent when you're back online.",
+    "discardTitle": "Discard this change?",
+    "discardBody": "It will not be sent.",
+    "tooMany": "Too many saved changes are waiting. Please connect to the internet so they can be sent.",
+    "needsCode": "A new UPI ID needs a code, and that needs the internet. Choose cash or online for now, or connect and try again.",
+    "itemRenter": "Add renter {{name}} to {{unit}}",
+    "itemUnit": "Add unit {{name}}",
+    "itemCharge": "Add a charge of {{amount}}",
+    "itemTerms": "Update renter details",
+    "itemNote": "Note: {{text}}",
+    "itemProfile": "Update my profile",
+    "itemMessage": "Message to owner",
+    "err_DEPENDENCY_FAILED": "The change this one depended on needs attention first.",
+    "err_DEPENDENCY_DISCARDED": "The change this one depended on was discarded.",
+    "err_DEPENDENCY_MISSING": "The change this one depended on is gone.",
+    "err_EXPIRED": "This was saved more than 30 days ago and can no longer be sent.",
+    "savedTitle": "Saved"
+  },
+  "scan": {
+    "button": "Scan ID or Agreement",
+    "help": "Take a photo of the renter's ID card or rent agreement. The name and mobile number are read for you to check. The photo is not saved.",
+    "camera": "Take Photo",
+    "photos": "Choose Photo",
+    "reading": "Reading the photo…",
+    "found": "Details read from the photo. Please check them below.",
+    "foundSome": "Some details were read. Please check them and fill in the rest.",
+    "nothing": "Nothing could be read from this photo. Try a clearer, closer photo, or type the details.",
+    "needsInternet": "Scanning needs the internet. You can type the details now."
   }
 }

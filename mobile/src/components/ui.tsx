@@ -18,6 +18,7 @@ import { brand, radius, shadow } from '@/theme';
 import { markLandingSeen } from '@/lib/landing';
 import { type KindGroup, kindGroup } from '@/lib/units';
 import { Logo, LogoWhite, RentMeezyBarLogo, playLogoIntro } from './Logo';
+import { OfflineBanner } from './OfflineBanner';
 import { RoleIcon } from './RoleIcon';
 import { BellButton } from './Bell';
 import { LanguagePill } from './LanguagePill';
@@ -252,7 +253,7 @@ function usePageTitle(): string | null {
     [/^\/owner\/tenancy\//, () => t('titles.renterDetails')], [/^\/owner\/?$/, () => t('titles.ownerDashboard')], [/^\/tenant\/?$/, () => t('titles.renterDashboard')],
     [/^\/tenant\/pay\//, () => t('pay.title')], [/^\/tenant\/rental\//, () => t('titles.rentalDetails')], [/^\/payment-status/, () => t('titles.paymentStatus')],
     [/^\/profile/, () => t('profile.title')], [/^\/help/, () => t('help.title')], [/^\/privacy/, () => t('privacy.title')], [/^\/identity/, () => t('identity.title')],
-    [/^\/owner-details/, () => t('ownerDetails.title')], [/^\/plan/, () => t('pricing.selectPlan')],
+    [/^\/owner-details/, () => t('ownerDetails.title')], [/^\/plan/, () => t('pricing.selectPlan')], [/^\/sync/, () => t('offline.title')],
   ];
   for (const [re, f] of rules) if (re.test(path)) return f();
   return null;
@@ -271,6 +272,7 @@ export function DemoBanner() {
   const colors: [string, string] = current === 'tenant' ? ['#001F4D', brand.blue600] : [brand.teal900, brand.teal700];
   const roleName = (r: 'owner' | 'tenant') => t(r === 'owner' ? 'role.switchOwner' : 'role.switchTenant');
   return (
+    <>
     <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                     style={[styles.header, { paddingTop: insets.top + 8, paddingBottom: 14, flexDirection: 'column', alignItems: 'stretch', gap: 12 }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
@@ -305,6 +307,8 @@ export function DemoBanner() {
         </View>
       ) : null}
     </LinearGradient>
+    <OfflineBanner />
+    </>
   );
 }
 

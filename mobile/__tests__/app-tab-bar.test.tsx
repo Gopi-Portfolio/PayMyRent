@@ -87,3 +87,11 @@ test('the room under the labels is the phone\'s own bottom space, at least a few
     expect(style.height).toBe(TAB_HEIGHT + space);
   }
 });
+
+test('a route that was never declared as a tab (no icon, no button) is not drawn, so a new screen file can never appear as a stray tab', () => {
+  const extra = [...routes, { key: 'sync-1', name: 'sync' }, { key: 'close-1', name: 'profile/close-account' }];
+  const d = { ...descriptors(), 'sync-1': { options: { title: 'sync' } }, 'close-1': { options: { title: 'profile/close-account' } } };
+  const nav = { emitter: { emit: jest.fn(() => ({ defaultPrevented: false })) }, navigateToTab: jest.fn() };
+  const ui = render(<PaperProvider><AppTabBar state={{ index: 0, routes: extra }} descriptors={d as any} emitter={nav.emitter} navigateToTab={nav.navigateToTab} /></PaperProvider>);
+  expect(ui.getAllByRole('tab').map((t) => t.props.testID)).toEqual(['tab-owner', 'tab-search', 'tab-profile/index']);
+});

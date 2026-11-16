@@ -2,9 +2,9 @@ import 'expo-crypto';
 import '@/i18n';
 
 import { Montserrat_900Black_Italic, useFonts } from '@expo-google-fonts/montserrat';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 
-import { queryClient } from '@/lib/queryClient';
+import { CACHE_MAX_AGE, persister, queryClient, shouldSave } from '@/lib/queryClient';
 import { Stack } from 'expo-router';
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
@@ -15,6 +15,8 @@ import { LANGUAGES } from '@/i18n';
 import i18n from '@/i18n';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { loadLanguage } from '@/lib/language';
+import { outbox, startOfflineSync } from '@/lib/offline';
+import { startNetworkMonitor } from '@/lib/network';
 import { usePendingRole } from '@/lib/landing';
 import { setBrandRole, themeFor } from '@/theme';
 
@@ -28,7 +30,16 @@ function RoleThemed({ children }: { children: React.ReactNode }) {
   return <PaperProvider theme={themeFor(role)} settings={{ icon: (props) => <MaterialCommunityIcons {...(props as any)} /> }}>{children}</PaperProvider>;
 }
 
+/** Once someone is signed in: their saved entries are loaded, and sent whenever the connection allows. */
+function OfflineSync() {
+  const { me } = useAuth();
+  React.useEffect(() => { void outbox.setUser(me?.id ?? null); }, [me?.id]);
+  React.useEffect(() => (me ? startOfflineSync() : undefined), [!!me]);   // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
 export default function RootLayout() {
+  React.useEffect(() => startNetworkMonitor(), []);        // is the phone online? known from the first screen on
   useFonts({ Montserrat_900Black_Italic });   // the landing page headline font; the screen draws at once and the font fills in when it is ready
   React.useEffect(() => {   // the language chosen last time on this phone, applied as the app opens
     loadLanguage().then((c) => { if (c && LANGUAGES.some((l) => l.code === c) && c !== i18n.language) i18n.changeLanguage(c); });
@@ -39,15 +50,16 @@ export default function RootLayout() {
     return () => { i18n.off('languageChanged', refetch); };
   }, []);
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: CACHE_MAX_AGE, buster: 'cache-v1', dehydrateOptions: { shouldDehydrateQuery: shouldSave } }}>
       <PaperProvider theme={themeFor('owner')} settings={{ icon: (props) => <MaterialCommunityIcons {...(props as any)} /> }}>
         <StatusBar style="light" />
         <AuthProvider>
+          <OfflineSync />
           <RoleThemed>
             <Stack screenOptions={{ headerShown: false, gestureEnabled: false, fullScreenGestureEnabled: false }} />
           </RoleThemed>
         </AuthProvider>
       </PaperProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }

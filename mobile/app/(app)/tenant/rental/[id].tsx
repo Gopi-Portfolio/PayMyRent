@@ -16,6 +16,7 @@ import { NoteInput } from '@/components/NoteInput';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { Avatar, ErrorBanner, Field, Panel, Screen, StatusPill, TabPills } from '@/components/ui';
 import { api } from '@/lib/api';
+import { submitOrQueue } from '@/lib/offline';
 import { Button } from '@/components/Buttons';
 import { formatINR, parseRupeesToPaise } from '@/lib/format';
 import { brand } from '@/theme';
@@ -93,7 +94,7 @@ export default function Rental() {
         </>
       ) : null}
       {tab === 'notes' ? (
-        <NoteInput onSubmit={(body, method) => run(() => api(`/api/v1/tenancies/${id}/notes`, { body: { target_type: 'tenancy', target_id: id, body, input_method: method } }))} />
+        <NoteInput onSubmit={(body, method) => run(() => submitOrQueue({ kind: 'note.create', label: t('offline.itemNote', { text: body.slice(0, 40) }), path: `/api/v1/tenancies/${id}/notes`, body: { target_type: 'tenancy', target_id: id, body, input_method: method } }))} />
       ) : null}
     </Screen>
   );

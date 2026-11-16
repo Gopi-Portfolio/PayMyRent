@@ -6,8 +6,11 @@ import { markRegistered } from './landing';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ApiError, api } from './api';
+import { reportUnreachable } from './network';
+import { KEYS, clearOfflineData, switchUser } from './offlineData';
 import { registerPush, unregisterPush } from './push';
 import { queryClient } from './queryClient';
+import { storage } from './storage';
 
 const MODE = (process.env.EXPO_PUBLIC_AUTH_MODE ?? 'dev') as 'dev' | 'firebase';
 const DEV_TOKEN_KEY = 'rg.devToken';
@@ -71,17 +74,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { SecureStore.getItemAsync(GENDER_KEY).then((g) => { if (g === 'male' || g === 'female') setGenderState(g); }).catch(() => {}); }, []);
   const setGender = useCallback((g: 'male' | 'female') => { setGenderState(g); SecureStore.setItemAsync(GENDER_KEY, g).catch(() => {}); }, []);
 
+  const apply = useCallback(async (m: Me) => {
+    setAuthError(null);
+    setMe(m);
+    setActionCodesRequired(m.action_codes_required !== false);
+    const saved = (await SecureStore.getItemAsync(ROLE_KEY)) as 'owner' | 'tenant' | null;
+    setRole(saved && m.roles.includes(saved) ? saved : m.roles[0] ?? null);
+  }, []);
+
+  /** With no connection, the app opens as the person who was signed in last time, using the profile kept on the phone. */
+  const openOffline = useCallback(async (): Promise<Me | null> => {
+    const kept = await storage.getJson<Me>(KEYS.me);
+    if (!kept) return null;
+    reportUnreachable();
+    await apply(kept);
+    return kept;
+  }, [apply]);
+
   const refresh = useCallback(async () => {
     try {
       const m = await api<Me>('/api/v1/me');
-      setAuthError(null);
-      setMe(m);
-      setActionCodesRequired(m.action_codes_required !== false);
+      await apply(m);
       markRegistered();
-      const saved = (await SecureStore.getItemAsync(ROLE_KEY)) as 'owner' | 'tenant' | null;
-      setRole(saved && m.roles.includes(saved) ? saved : m.roles[0] ?? null);
+      void storage.setJson(KEYS.me, m);
+      void switchUser(m.id).then((otherPerson) => { if (otherPerson) queryClient.clear(); });     // never show the previous person's saved data to this one
       return m;
     } catch (e) {
+      if (e instanceof ApiError && (e.code === 'OFFLINE' || e.code === 'TIMEOUT')) { const kept = await openOffline(); if (kept) return kept; }
       // keep network problems visible instead of silently dropping back to the login screen
       setAuthError(e instanceof ApiError && (e.code === 'OFFLINE' || e.code === 'TIMEOUT' || e.status >= 500) ? e : null);
       setMe(null);
@@ -98,13 +117,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         if (await getIdToken()) await refresh();
       } catch (e) {
-        // e.g. Firebase not configured in this build: show the login screen instead of an endless spinner
-        setAuthError(e);
+        // no connection and the sign-in token cannot be renewed right now: open with what is kept on the phone; otherwise (e.g. Firebase not configured
+        // in this build) show the login screen instead of an endless spinner
+        if (!(await openOffline())) setAuthError(e);
       } finally {
         setLoading(false);
       }
     })();
-  }, [refresh]);
+  }, [refresh, openOffline]);
 
   const requestOtp = useCallback(async (phoneE164: string, linkToCurrent = false): Promise<OtpSession> => {
     if (MODE === 'firebase') {
@@ -151,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     chosenOwner = null; setSelectedOwnerState(null);
     await Promise.all([SecureStore.deleteItemAsync(ROLE_KEY), SecureStore.deleteItemAsync(GENDER_KEY), SecureStore.deleteItemAsync(OWNER_KEY)]).catch(() => {});
     queryClient.clear();            // nothing from this account may be visible to the next person who signs in on this phone
+    await clearOfflineData();       // the saved cache, the saved profile and any entries still waiting to be sent
     setRole(null); setGenderState(null);
     setMe(null);
   }, []);

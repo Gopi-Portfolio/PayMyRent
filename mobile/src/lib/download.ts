@@ -26,7 +26,7 @@ export async function downloadReport(path: string, format: FileFormat, fileName:
   const timer = setTimeout(() => ctl.abort(), 45000);          // building a PDF takes a few seconds
   let res: Response;
   try { res = await fetch(url, { headers, signal: ctl.signal }); }
-  catch { throw new ApiError(0, 'OFFLINE', `Cannot reach the server at ${API_URL}. Check your internet connection and try again.`); }
+  catch { throw new ApiError(0, 'OFFLINE', i18n.t('error.offline')); }               // downloading a report needs the internet
   finally { clearTimeout(timer); }
   if (!res.ok) {
     let e: any = {};

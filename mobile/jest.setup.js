@@ -7,3 +7,7 @@ const original = QueryClient.prototype.defaultQueryOptions;
 QueryClient.prototype.defaultQueryOptions = function patched(...args) { clients.add(this); return original.apply(this, args); };
 
 afterAll(() => { clients.forEach((c) => c.clear()); clients.clear(); });
+
+// The phone's storage and connection state are native modules; use their ready-made test doubles.
+jest.mock('@react-native-async-storage/async-storage', () => require('@react-native-async-storage/async-storage/jest/async-storage-mock'));
+jest.mock('@react-native-community/netinfo', () => require('@react-native-community/netinfo/jest/netinfo-mock.js'));
