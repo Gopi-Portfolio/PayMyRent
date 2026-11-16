@@ -11,7 +11,8 @@ import '@/i18n';
 
 jest.mock('@/lib/api', () => ({ api: jest.fn(), ApiError: class extends Error {}, newIdempotencyKey: () => 'k', API_URL: 'http://api.test' }));
 jest.mock('@/lib/auth', () => ({ useAuth: () => ({ me: { id: 'u1', owner_accounts: [{ owner_account_id: 'o1' }] }, selectOwner: jest.fn() }), ownerAccountId: () => 'o1' }));
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true }, usePathname: () => '/owner/properties' }));
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({ router: { push: (...a: any[]) => mockPush(...a), replace: jest.fn(), back: jest.fn(), canGoBack: () => true }, usePathname: () => '/owner/properties' }));
 jest.mock('react-native-safe-area-context', () => ({ ...jest.requireActual('react-native-safe-area-context'), useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@/components/ui', () => {
   const R = require('react'); const RN = require('react-native'); const a = jest.requireActual('@/components/ui');
@@ -49,5 +50,21 @@ test('when renters still live in the property the server says so, and the messag
   fireEvent.press(ui.getByTestId('remove-property-p1'));
   await act(async () => { await (alert.mock.calls[0][2] as any[])[1].onPress(); });
   await waitFor(() => expect(ui.getByText(/renters still live here \(S-01\)/)).toBeTruthy());
+  alert.mockRestore();
+});
+
+test('a property with a renter in it is not removed: the owner is told to remove the renters first, and is taken there', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  mockPush.mockReset();
+  mockApi.mockImplementation(async () => ({ items: [{ ...W.items[0], active_units: 3, vacant_units: 1 }] }));       // 2 of the 3 units are occupied
+  const ui = wrap();
+  await waitFor(() => ui.getByTestId('remove-property-p1'));
+  fireEvent.press(ui.getByTestId('remove-property-p1'));
+  expect(alert).toHaveBeenCalledWith('Tower still has renters', expect.stringContaining('Remove the renters first, then remove the property.'), expect.any(Array));
+  expect(mockApi.mock.calls.some((c) => String(c[0]).endsWith('/remove'))).toBe(false);          // nothing was sent: it never reaches the confirmation
+  const buttons = alert.mock.calls[0][2] as any[];
+  expect(buttons.map((b) => b.text)).toEqual(['Cancel', 'Remove renters']);
+  buttons[1].onPress();
+  expect(mockPush).toHaveBeenCalledWith('/(app)/owner/remove-renter');
   alert.mockRestore();
 });

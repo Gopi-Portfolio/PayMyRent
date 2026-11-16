@@ -2,7 +2,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React from 'react';
-import { Pressable, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { Button } from '@/components/Buttons';
 import { confirmRemove } from '@/lib/confirm';
 import { Icon, Text } from 'react-native-paper';
@@ -41,9 +41,20 @@ export default function MyProperties() {
             <Text style={{ fontWeight: '700', color: w.vacant_units ? '#B45309' : brand.muted }}>{`${t('property.vacant')}: ${w.vacant_units}`}</Text>
           </View>
           {w.property && w.role === 'owner' ? (
-            <Button textColor="crimson" icon="home-remove-outline" testID={`remove-property-${w.property.id}`} onPress={() => confirmRemove(
-              t('property.removeTitle', { name: w.property.name || w.property.address }), t('property.removeBody'), t('property.remove'),
-              async () => { try { setErr(null); await api(`/api/v1/owner/properties/${w.property.id}/remove`, { method: 'POST', ownerAccount: w.owner_account_id }); qc.invalidateQueries(); } catch (x) { setErr(x); } })}>
+            <Button textColor="crimson" icon="home-remove-outline" testID={`remove-property-${w.property.id}`} onPress={() => {
+              const name = w.property.name || w.property.address;
+              const occupied = Math.max((w.active_units ?? 0) - (w.vacant_units ?? 0), 0);        // units with a renter living in them or an invitation waiting
+              if (occupied > 0) {
+                // not allowed while anyone is in it: say so, and take the owner to the renters to remove them first
+                Alert.alert(t('property.removeBlockedTitle', { name }), t('property.removeBlockedBody', { count: occupied }), [
+                  { text: t('common.cancel'), style: 'cancel' },
+                  { text: t('property.removeRentersFirst'), onPress: () => router.push('/(app)/owner/remove-renter') },
+                ]);
+                return;
+              }
+              confirmRemove(t('property.removeTitle', { name }), t('property.removeBody'), t('property.remove'),
+                async () => { try { setErr(null); await api(`/api/v1/owner/properties/${w.property.id}/remove`, { method: 'POST', ownerAccount: w.owner_account_id }); qc.invalidateQueries(); } catch (x) { setErr(x); } });
+            }}>
               {t('property.remove')}
             </Button>
           ) : null}

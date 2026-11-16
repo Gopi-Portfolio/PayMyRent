@@ -593,7 +593,10 @@
     "removeTitle": "Remove {{name}}?",
     "removeBody": "Only possible when no renter lives in it. Its units are taken off your list; past rent records are kept.",
     "allCount": "All properties ({{count}})",
-    "chooseFirst": "Choose a property first."
+    "chooseFirst": "Choose a property first.",
+    "removeBlockedTitle": "{{name}} still has renters",
+    "removeBlockedBody": "{{count}} unit(s) have a renter or a waiting invitation. Remove the renters first, then remove the property.",
+    "removeRentersFirst": "Remove renters"
   },
   "otp": {
     "title": "Confirm with a Code",
