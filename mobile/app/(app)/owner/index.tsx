@@ -105,8 +105,8 @@ export default function OwnerHome() {
             {/* the three things done most are wide cards you swipe left and right, each with a sentence saying what it does; then one row of Reminders, Ask AI and Approvals */}
             <ActionCarousel cards={[
               { key: 'property', icon: 'home-plus', title: t('owner.addProperty'), message: t('owner.addPropertyMsg'), footnote: vacant.data ? `${vacantUnits.length} ${t('property.vacant')}` : undefined,
-                colors: ['#00346F', '#0B58A8'], onPress: () => router.push('/(app)/owner/add-property'), testID: 'add-property' },
-              { key: 'renter', icon: 'account-plus', title: t('owner.addTenant'), message: t('owner.addRenterMsg'), colors: ['#176F01', '#1F8A02'],
+                colors: ['#176F01', '#1F8A02'], onPress: () => router.push('/(app)/owner/add-property'), testID: 'add-property' },
+              { key: 'renter', icon: 'account-plus', title: t('owner.addTenant'), message: t('owner.addRenterMsg'), colors: ['#00346F', '#0B58A8'],
                 onPress: () => router.push('/(app)/owner/add-tenant'), testID: 'add-tenant' },
               { key: 'rent', icon: 'hand-coin', title: t('owner.addRent'), message: t('owner.addRentMsg'),
                 colors: ['#E0620C', '#F97A1B'], onPress: () => router.push('/(app)/owner/record-payment'), testID: 'record-payment' },

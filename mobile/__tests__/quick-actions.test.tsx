@@ -43,8 +43,8 @@ test('a small button can show a green tick when nothing is waiting, so Approvals
 });
 
 const CARDS = (onPress = jest.fn()) => [
-  { key: 'property', icon: 'home-plus', title: 'Add Property', message: 'Add a building or a shop complex, then the units inside it.', footnote: '2 Vacant', colors: ['#00346F', '#0B58A8'] as const, onPress, testID: 'add-property' },
-  { key: 'renter', icon: 'account-plus', title: 'Add Renter', message: 'Move a renter into a vacant unit and set the rent.', colors: ['#176F01', '#1F8A02'] as const, onPress, testID: 'add-tenant' },
+  { key: 'property', icon: 'home-plus', title: 'Add Property', message: 'Add a building or a shop complex, then the units inside it.', footnote: '2 Vacant', colors: ['#176F01', '#1F8A02'] as const, onPress, testID: 'add-property' },
+  { key: 'renter', icon: 'account-plus', title: 'Add Renter', message: 'Move a renter into a vacant unit and set the rent.', colors: ['#00346F', '#0B58A8'] as const, onPress, testID: 'add-tenant' },
   { key: 'rent', icon: 'hand-coin', title: 'Add Rent', message: 'Record the cash rent a renter has paid you in hand.', colors: ['#E0620C', '#F97A1B'] as const, onPress, testID: 'record-payment' },
 ];
 const laidOut = (ui: ReturnType<typeof render>, width = 360) =>
