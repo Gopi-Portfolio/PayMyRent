@@ -63,6 +63,11 @@ test('with one property there is no All row and no count: it is simply that prop
   expect(ui.queryByTestId('property-all')).toBeNull();
 });
 
+test('before any property has answered there are no totals yet (the screen shows zeros instead of failing)', () => {
+  expect(combineMetrics([undefined, undefined])).toBeUndefined();
+  expect(combineMetrics([])).toBeUndefined();
+});
+
 test('the totals of all properties are added up, money keeps its display', () => {
   const a = { collected_paise: { value: 100000, display: '' }, units: 3, vacate_pending: 1 };
   const b = { collected_paise: { value: 50000, display: '' }, units: 2, vacate_pending: 0 };

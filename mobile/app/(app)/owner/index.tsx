@@ -32,6 +32,7 @@ function split(m: any, k: 'collected' | 'pending' | 'overdue', t: (key: string) 
 
 /** The totals of every property: money and counts are added up; the money keeps its display text. */
 export function combineMetrics(list: any[]): any {
+  if (!list.some(Boolean)) return undefined;         // nothing has arrived yet: show the loading zeros, not an empty object
   const out: any = {};
   for (const m of list) {
     if (!m) continue;
@@ -116,9 +117,9 @@ export default function OwnerHome() {
           <View style={{ gap: 16, marginBottom: 6 }}>
             <PropertySwitcher />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              <Metric label={t('owner.collected')} paise={m?.collected_paise.value ?? 0} detail={split(m, 'collected', t)} icon="check-circle-outline" tone="green" onPress={guard(() => router.push('/(app)/owner/report/collected'))} />
-              <Metric label={t('owner.pending')} paise={m?.pending_paise.value ?? 0} detail={split(m, 'pending', t)} icon="clock-outline" tone="amber" onPress={guard(() => router.push('/(app)/owner/report/pending'))} />
-              <Metric label={t('owner.overdue')} paise={m?.overdue_paise.value ?? 0} detail={split(m, 'overdue', t)} icon="alert-circle-outline" tone="red" onPress={guard(() => router.push('/(app)/owner/report/overdue'))} />
+              <Metric label={t('owner.collected')} paise={m?.collected_paise?.value ?? 0} detail={split(m, 'collected', t)} icon="check-circle-outline" tone="green" onPress={guard(() => router.push('/(app)/owner/report/collected'))} />
+              <Metric label={t('owner.pending')} paise={m?.pending_paise?.value ?? 0} detail={split(m, 'pending', t)} icon="clock-outline" tone="amber" onPress={guard(() => router.push('/(app)/owner/report/pending'))} />
+              <Metric label={t('owner.overdue')} paise={m?.overdue_paise?.value ?? 0} detail={split(m, 'overdue', t)} icon="alert-circle-outline" tone="red" onPress={guard(() => router.push('/(app)/owner/report/overdue'))} />
               {/* every place the owner lets out, with how many of each kind: residential and commercial */}
               <Metric label={t('owner.allUnits')} count={m?.units ?? 0} icon="home-city-outline" tone="blue"
                       detail={KIND_GROUPS.map((g) => `${m?.[g.total] ?? 0} ${t(g.label)}`).join('\n')}
