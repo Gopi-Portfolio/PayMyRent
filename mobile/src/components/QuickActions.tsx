@@ -7,12 +7,12 @@ import { Icon, Text } from 'react-native-paper';
 
 import { brand, radius, shadow } from '@/theme';
 
-export type ActionCard = { key: string; icon: string; title: string; message: string; footnote?: string; lead?: boolean; onPress: () => void; testID?: string };
+export type ActionCard = { key: string; icon: string; title: string; message: string; footnote?: string; colors: readonly [string, string]; onPress: () => void; testID?: string };
 
 const CARD_GAP = 12;
 
 /** The main actions as full-width cards you swipe left and right, one at a time. The arrow on each card is the swipe cue: tap it to slide to the next card
- *  (on the last card it points back and slides to the first). Tapping the card itself opens its screen. The owner's most common action is solid green. */
+ *  (on the last card it points back and slides to the first). Tapping the card itself opens its screen. Each card has its own solid colour and white text. */
 export function ActionCarousel({ cards }: { cards: ActionCard[] }) {
   const [width, setWidth] = React.useState(0);
   const [index, setIndex] = React.useState(0);
@@ -28,10 +28,10 @@ export function ActionCarousel({ cards }: { cards: ActionCard[] }) {
           {cards.map((c, i) => {
             const last = i === cards.length - 1;
             const next = cards[last ? 0 : i + 1];
-            const fg = c.lead ? '#fff' : brand.ink;
-            const soft = c.lead ? 'rgba(255,255,255,0.9)' : brand.muted;
-            const chip = c.lead ? 'rgba(255,255,255,0.22)' : brand.green100;
-            const accent = c.lead ? '#fff' : brand.green600;
+            const fg = '#fff';
+            const soft = 'rgba(255,255,255,0.92)';
+            const chip = 'rgba(255,255,255,0.24)';
+            const accent = '#fff';
             const body = (
               <>
                 <View style={[styles.cardIcon, { backgroundColor: chip }]}><Icon source={c.icon} size={26} color={accent} /></View>
@@ -52,11 +52,7 @@ export function ActionCarousel({ cards }: { cards: ActionCard[] }) {
             return (
               <Pressable key={c.key} onPress={c.onPress} testID={c.testID} accessibilityRole="button" accessibilityLabel={`${c.title}. ${c.message}${c.footnote ? `. ${c.footnote}` : ''}`}
                          style={({ pressed }) => [{ width }, pressed && { transform: [{ scale: 0.99 }] }]}>
-                {c.lead ? (
-                  <LinearGradient colors={['#176F01', '#1F8A02']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, shadow]}>{body}</LinearGradient>
-                ) : (
-                  <View style={[styles.card, styles.cardPlain, shadow]}>{body}</View>
-                )}
+                <LinearGradient colors={c.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, shadow]}>{body}</LinearGradient>
               </Pressable>
             );
           })}
@@ -88,7 +84,6 @@ export function MiniAction({ icon, label, fg, bg, count, clearText, active, onPr
 
 const styles = StyleSheet.create({
   card: { flex: 1, minHeight: 92, borderRadius: radius.lg, paddingVertical: 14, paddingHorizontal: 14, gap: 12, flexDirection: 'row', alignItems: 'center' },
-  cardPlain: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#CFE6C8' },
   cardIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   cardArrow: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8, rowGap: 2 },

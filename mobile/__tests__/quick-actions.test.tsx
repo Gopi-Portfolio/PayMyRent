@@ -1,5 +1,6 @@
 import { act, fireEvent, render } from '@testing-library/react-native';
 import React from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { PaperProvider } from 'react-native-paper';
 
 import { ActionCarousel, MiniAction } from '@/components/QuickActions';
@@ -42,9 +43,9 @@ test('a small button can show a green tick when nothing is waiting, so Approvals
 });
 
 const CARDS = (onPress = jest.fn()) => [
-  { key: 'property', icon: 'home-plus', title: 'Add Property', message: 'Add a building or a shop complex, then the units inside it.', footnote: '2 Vacant', onPress, testID: 'add-property' },
-  { key: 'renter', icon: 'account-plus', title: 'Add Renter', message: 'Move a renter into a vacant unit and set the rent.', lead: true, onPress, testID: 'add-tenant' },
-  { key: 'rent', icon: 'hand-coin', title: 'Add Rent', message: 'Record the cash rent a renter has paid you in hand.', onPress, testID: 'record-payment' },
+  { key: 'property', icon: 'home-plus', title: 'Add Property', message: 'Add a building or a shop complex, then the units inside it.', footnote: '2 Vacant', colors: ['#00346F', '#0B58A8'] as const, onPress, testID: 'add-property' },
+  { key: 'renter', icon: 'account-plus', title: 'Add Renter', message: 'Move a renter into a vacant unit and set the rent.', colors: ['#176F01', '#1F8A02'] as const, onPress, testID: 'add-tenant' },
+  { key: 'rent', icon: 'hand-coin', title: 'Add Rent', message: 'Record the cash rent a renter has paid you in hand.', colors: ['#E0620C', '#F97A1B'] as const, onPress, testID: 'record-payment' },
 ];
 const laidOut = (ui: ReturnType<typeof render>, width = 360) =>
   act(() => ui.getByTestId('action-carousel').props.onLayout({ nativeEvent: { layout: { width, height: 200 } } }));
@@ -95,4 +96,12 @@ test('the dots show which card is open and move as you swipe', () => {
   expect([on(0), on(1), on(2)]).toEqual([false, true, false]);
   act(() => ui.getByTestId('action-scroll').props.onScroll({ nativeEvent: { contentOffset: { x: step * 2 } } }));
   expect([on(0), on(1), on(2)]).toEqual([false, false, true]);
+});
+
+test('the three cards are drawn in three different colours', () => {
+  const ui = wrap(<ActionCarousel cards={CARDS()} />);
+  laidOut(ui);
+  const drawn = ui.UNSAFE_getAllByType(LinearGradient).map((g: any) => JSON.stringify(g.props.colors));
+  expect(drawn).toHaveLength(3);
+  expect(new Set(drawn).size).toBe(3);
 });
