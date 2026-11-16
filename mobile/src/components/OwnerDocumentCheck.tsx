@@ -15,6 +15,7 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { Segmented } from '@/components/Segmented';
 import { SlotRow, UploadSlot } from '@/components/UploadSlot';
 import { ErrorBanner, Field, Panel, Screen } from '@/components/ui';
+import { uploadPart } from '@/lib/uploadPart';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { shrink } from '@/lib/photo';
@@ -67,7 +68,7 @@ export function OwnerDocumentCheck({ docs }: { docs: { items: { kind: Kind; uplo
     const form = new FormData();
     setBusy(kind); setChecks(null);
     try {
-      form.append('file', { uri: await shrink(r.assets[0]), name: `${kind}.jpg`, type: 'image/jpeg' } as any);
+      form.append('file', uploadPart(await shrink(r.assets[0])));
       const res = await api<{ address?: string | null }>(`/api/v1/owner/documents/${kind}`, { method: 'PUT', form, ownerAccount: owner, timeoutMs: 120000 });
       if (kind === 'aadhaar_back') {            // the address printed on the back of the Aadhaar: filled in here, the owner can correct reading mistakes
         if (res.address) { setF((x) => ({ ...x, address: res.address as string })); setFromCard(true); } else setFromCard(false);

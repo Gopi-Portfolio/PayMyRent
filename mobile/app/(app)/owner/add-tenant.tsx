@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { AppButton, Button } from '@/components/Buttons';
 import { RenterScan } from '@/components/RenterScan';
 import { ErrorBanner, Field, Screen } from '@/components/ui';
+import { uploadPart } from '@/lib/uploadPart';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { cameraAllowed } from '@/lib/cameraAccess';
@@ -61,7 +62,7 @@ export default function AddRenter() {
       form.append('name', f.name); form.append('phone', f.mobile); form.append('id_type', idType); form.append('keep_copy_ok', 'true');
       if (f.email.trim()) form.append('email', f.email.trim());
       if (f.address.trim()) form.append('address', f.address.trim());
-      form.append('file', { uri: photo, name: 'id.jpg', type: 'image/jpeg' } as any);
+      form.append('file', uploadPart(photo));
       const r = await api<{ id: string }>('/api/v1/owner/renters', { method: 'POST', form, ownerAccount: owner, timeoutMs: 60000 });
       qc.invalidateQueries({ queryKey: ['renters'] });
       router.replace({ pathname: '/(app)/owner/allot', params: { open: r.id } });         // next: give them a place

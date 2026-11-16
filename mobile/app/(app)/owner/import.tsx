@@ -12,6 +12,7 @@ import { API_URL, api } from '@/lib/api';
 import { Button } from '@/components/Buttons';
 import { brand, radius, shadow } from '@/theme';
 import { ownerAccountId, useAuth } from '@/lib/auth';
+import { uploadPart } from '@/lib/uploadPart';
 
 export default function ImportScreen() {
   const { t } = useTranslation();
@@ -27,7 +28,7 @@ export default function ImportScreen() {
     if (r.canceled) return;
     const f = r.assets[0];
     const form = new FormData();
-    form.append('file', { uri: f.uri, name: f.name, type: f.mimeType ?? 'application/octet-stream' } as any);
+    form.append('file', uploadPart(f.uri));
     setBusy(true); setErr(null); setResult(null);
     try { setPreview(await api('/api/v1/owner/imports', { form, ownerAccount: owner })); } catch (e) { setErr(e); } finally { setBusy(false); }
   }

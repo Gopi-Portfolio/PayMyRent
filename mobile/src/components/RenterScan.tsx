@@ -8,6 +8,7 @@ import { Icon, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { AppButton } from '@/components/Buttons';
+import { uploadPart } from '@/lib/uploadPart';
 import { api } from '@/lib/api';
 import { useOnline } from '@/lib/network';
 import { cameraAllowed } from '@/lib/cameraAccess';
@@ -31,7 +32,7 @@ export function RenterScan({ owner, onRead }: { owner?: string | null; onRead: (
     setBusy(true);
     try {
       const form = new FormData();
-      form.append('file', { uri: await shrink(picked.assets[0]), name: 'renter.jpg', type: 'image/jpeg' } as any);
+      form.append('file', uploadPart(await shrink(picked.assets[0])));
       const res = await api<ScanResult>('/api/v1/owner/renter-scan', { method: 'POST', form, ownerAccount: owner, timeoutMs: 60000 });
       if (!res.found) { setNote({ text: t('scan.nothing'), tone: 'warn' }); return; }
       onRead({ name: res.name, mobile: res.mobile });
