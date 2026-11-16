@@ -2,35 +2,61 @@
 // everything else is a row of small buttons underneath. No outlines: colour, a soft shadow and a press animation do the work.
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
 
 import { brand, radius, shadow } from '@/theme';
 
-/** A big action card: gradient, large icon on a soft disc, the action's name and one line saying what it is for. */
-export function HeroAction({ icon, label, sub, note, colors, onPress, testID }: {
-  icon: string; label: string; sub?: string; note?: { label: string; value: string | number }; colors: readonly [string, string]; onPress: () => void; testID?: string;   // note: a small label next to the icon with its number under it, e.g. "Vacant" over "3"
-}) {
+export type ActionCard = { key: string; icon: string; title: string; message: string; footnote?: string; lead?: boolean; onPress: () => void; testID?: string };
+
+const CARD_GAP = 12;
+const CARD_SHARE = 0.8;          // each card takes this much of the width, so the next one peeks in from the edge and shows there is more to swipe to
+
+/** The main actions as wide cards you swipe left and right. Each card says what it does in a sentence; the one that is the owner's most common action is solid green. */
+export function ActionCarousel({ cards }: { cards: ActionCard[] }) {
+  const [width, setWidth] = React.useState(0);
+  const [index, setIndex] = React.useState(0);
+  const cardW = Math.round(width * CARD_SHARE);
+  const step = cardW + CARD_GAP;
   return (
-    <Pressable onPress={onPress} testID={testID} accessibilityRole="button" accessibilityLabel={[label, sub, note ? `${note.value} ${note.label}` : ''].filter(Boolean).join('. ')} style={({ pressed }) => [{ flex: 1 }, pressed && { transform: [{ scale: 0.97 }] }]}>
-      <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, shadow]}>
-        {/* the icon and the arrow share one row, so their centres line up */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <View style={styles.disc}><Icon source={icon} size={26} color="#fff" /></View>
-          {note ? (
-            <View style={styles.note} testID="hero-note">
-              <Text numberOfLines={1} style={styles.noteLabel}>{note.label}</Text>
-              <Text numberOfLines={1} style={styles.noteValue} testID="hero-note-value">{note.value}</Text>
-            </View>
-          ) : null}
-          <View style={styles.arrow}><Icon source="arrow-right" size={16} color="#fff" /></View>
-        </View>
-        <View style={{ flex: 1, justifyContent: 'flex-start' }}>
-          <Text numberOfLines={2} style={styles.heroLabel}>{label}</Text>
-          {sub ? <Text numberOfLines={1} style={styles.heroSub}>{sub}</Text> : null}
-        </View>
-      </LinearGradient>
-    </Pressable>
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} testID="action-carousel" style={{ gap: 10 }}>
+      {width > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={step} snapToAlignment="start" decelerationRate="fast" disableIntervalMomentum
+                    scrollEventThrottle={16} onScroll={(e) => setIndex(Math.max(0, Math.min(cards.length - 1, Math.round(e.nativeEvent.contentOffset.x / step))))}
+                    contentContainerStyle={{ gap: CARD_GAP, paddingRight: Math.max(0, width - cardW) }} testID="action-scroll">
+          {cards.map((c) => {
+            const fg = c.lead ? '#fff' : brand.ink;
+            const soft = c.lead ? 'rgba(255,255,255,0.88)' : brand.muted;
+            const chip = c.lead ? 'rgba(255,255,255,0.22)' : brand.green100;
+            const accent = c.lead ? '#fff' : brand.green600;
+            const body = (
+              <>
+                <View style={styles.cardTop}>
+                  <View style={[styles.cardIcon, { backgroundColor: chip }]}><Icon source={c.icon} size={28} color={accent} /></View>
+                  <View style={[styles.cardArrow, { backgroundColor: chip }]}><Icon source="arrow-right" size={18} color={accent} /></View>
+                </View>
+                <Text style={[styles.cardTitle, { color: fg }]}>{c.title}</Text>
+                <Text style={[styles.cardMessage, { color: soft }]}>{c.message}</Text>
+                {c.footnote ? <View style={[styles.cardNote, { backgroundColor: chip }]}><Text style={[styles.cardNoteText, { color: accent }]}>{c.footnote}</Text></View> : null}
+              </>
+            );
+            return (
+              <Pressable key={c.key} onPress={c.onPress} testID={c.testID} accessibilityRole="button" accessibilityLabel={`${c.title}. ${c.message}${c.footnote ? `. ${c.footnote}` : ''}`}
+                         style={({ pressed }) => [{ width: cardW }, pressed && { transform: [{ scale: 0.98 }] }]}>
+                {c.lead ? (
+                  <LinearGradient colors={['#176F01', '#1F8A02']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, shadow]}>{body}</LinearGradient>
+                ) : (
+                  <View style={[styles.card, styles.cardPlain, shadow]}>{body}</View>
+                )}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+      <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        {cards.map((c, i) => <View key={c.key} testID={`dot-${i}`} style={[styles.dot, i === index && styles.dotOn]} />)}
+      </View>
+    </View>
   );
 }
 
@@ -52,14 +78,18 @@ export function MiniAction({ icon, label, fg, bg, count, clearText, active, onPr
 }
 
 const styles = StyleSheet.create({
-  hero: { height: 148, borderRadius: radius.lg, padding: 14, flexDirection: 'column', gap: 10 },
-  disc: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
-  note: { flex: 1, minWidth: 44 },
-  noteLabel: { color: 'rgba(255,255,255,0.92)', fontSize: 11, lineHeight: 13, fontWeight: '700' },
-  noteValue: { color: '#fff', fontSize: 18, lineHeight: 20, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  heroLabel: { color: '#fff', fontSize: 16, lineHeight: 20, fontWeight: '800' },
-  heroSub: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600', marginTop: 1 },
-  arrow: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  card: { flex: 1, minHeight: 176, borderRadius: radius.lg, padding: 16, gap: 8 },
+  cardPlain: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#CFE6C8' },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  cardIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  cardArrow: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800' },
+  cardMessage: { fontSize: 14, lineHeight: 20, fontWeight: '500' },
+  cardNote: { alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3, marginTop: 2 },
+  cardNoteText: { fontSize: 12, fontWeight: '800' },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#C9D6CC' },
+  dotOn: { width: 20, backgroundColor: brand.green600 },
   mini: { flex: 1, minWidth: 72, alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 4, backgroundColor: '#fff', borderRadius: radius.md },
   miniIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   miniLabel: { fontSize: 12, fontWeight: '700', color: '#3B4A47', textAlign: 'center' },

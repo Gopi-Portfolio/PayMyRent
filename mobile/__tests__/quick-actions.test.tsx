@@ -1,20 +1,10 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render } from '@testing-library/react-native';
 import React from 'react';
 import { PaperProvider } from 'react-native-paper';
 
-import { HeroAction, MiniAction } from '@/components/QuickActions';
+import { ActionCarousel, MiniAction } from '@/components/QuickActions';
 
 const wrap = (ui: React.ReactElement) => render(<PaperProvider>{ui}</PaperProvider>);
-
-test('a big action card shows its name and what it is for, and opens on a tap', () => {
-  const onPress = jest.fn();
-  const ui = wrap(<HeroAction icon="hand-coin" label="Record Payment" sub="Receive cash in hand" colors={['#BE185D', '#F472B6']} onPress={onPress} testID="record-payment" />);
-  expect(ui.getByText('Record Payment')).toBeTruthy();
-  expect(ui.getByText('Receive cash in hand')).toBeTruthy();
-  expect(ui.getByLabelText('Record Payment. Receive cash in hand')).toBeTruthy();
-  fireEvent.press(ui.getByTestId('record-payment'));
-  expect(onPress).toHaveBeenCalledTimes(1);
-});
 
 test('a small button shows a number only when something is waiting, and can be selected', () => {
   const none = wrap(<MiniAction icon="door-open" label="Vacant" fg="#7C3AED" bg="#EDE9FE" onPress={jest.fn()} testID="vacant" />);
@@ -51,11 +41,45 @@ test('a small button can show a green tick when nothing is waiting, so Approvals
   expect(clear.getByLabelText('Approvals, All clear')).toBeTruthy();
 });
 
-test('the Add Renter card shows "Vacant" next to the icon with the number under it', () => {
-  const ui = wrap(<HeroAction icon="account-plus" label="Add Renter" sub="Invite a new renter" note={{ label: 'Vacant', value: 3 }} colors={['#0F766E', '#14B8A6']} onPress={jest.fn()} testID="add-tenant" />);
-  expect(ui.getByTestId('hero-note')).toBeTruthy();
-  expect(ui.getByText('Vacant')).toBeTruthy();                                   // the label next to the icon ...
-  expect(ui.getByTestId('hero-note-value').props.children).toBe(3);              // ... and the number under it
-  expect(ui.getByLabelText('Add Renter. Invite a new renter. 3 Vacant')).toBeTruthy();
-  expect(wrap(<HeroAction icon="x" label="Record Payment" colors={['#000', '#111']} onPress={jest.fn()} />).queryByTestId('hero-note')).toBeNull();
+const CARDS = (onPress = jest.fn()) => [
+  { key: 'property', icon: 'home-plus', title: 'Add Property', message: 'Add a building or a shop complex, then the units inside it.', footnote: '2 Vacant', onPress, testID: 'add-property' },
+  { key: 'renter', icon: 'account-plus', title: 'Add Renter', message: 'Move a renter into a vacant unit and set the rent.', lead: true, onPress, testID: 'add-tenant' },
+  { key: 'rent', icon: 'hand-coin', title: 'Add Rent', message: 'Record the cash rent a renter has paid you in hand.', onPress, testID: 'record-payment' },
+];
+const laidOut = (ui: ReturnType<typeof render>, width = 360) =>
+  act(() => ui.getByTestId('action-carousel').props.onLayout({ nativeEvent: { layout: { width, height: 200 } } }));
+
+test('each swipe card says what it does in a sentence, and opens on a tap', () => {
+  const onPress = jest.fn();
+  const ui = wrap(<ActionCarousel cards={CARDS(onPress)} />);
+  laidOut(ui);
+  for (const [title, message] of [['Add Property', 'Add a building or a shop complex, then the units inside it.'], ['Add Renter', 'Move a renter into a vacant unit and set the rent.'], ['Add Rent', 'Record the cash rent a renter has paid you in hand.']]) {
+    expect(ui.getByText(title)).toBeTruthy();
+    expect(ui.getByText(message)).toBeTruthy();
+  }
+  expect(ui.getByText('2 Vacant')).toBeTruthy();                                         // the vacant count is on the Add Property card
+  expect(ui.getByLabelText('Add Property. Add a building or a shop complex, then the units inside it.. 2 Vacant')).toBeTruthy();
+  fireEvent.press(ui.getByTestId('add-tenant'));
+  expect(onPress).toHaveBeenCalledTimes(1);
+});
+
+test('the cards are wide, snap one at a time, and the next one peeks in from the edge', () => {
+  const ui = wrap(<ActionCarousel cards={CARDS()} />);
+  laidOut(ui, 360);
+  const scroll = ui.getByTestId('action-scroll');
+  expect(scroll.props.snapToInterval).toBe(Math.round(360 * 0.8) + 12);                  // one card plus the gap
+  expect(scroll.props.horizontal).toBe(true);
+  expect(Math.round(360 * 0.8)).toBeLessThan(360);                                       // narrower than the screen, so the next card shows
+});
+
+test('the dots show which card is open and move as you swipe', () => {
+  const ui = wrap(<ActionCarousel cards={CARDS()} />);
+  laidOut(ui, 360);
+  const on = (i: number) => JSON.stringify(ui.getByTestId(`dot-${i}`, { includeHiddenElements: true }).props.style).includes('"width":20');
+  expect([on(0), on(1), on(2)]).toEqual([true, false, false]);
+  const step = Math.round(360 * 0.8) + 12;
+  act(() => ui.getByTestId('action-scroll').props.onScroll({ nativeEvent: { contentOffset: { x: step } } }));
+  expect([on(0), on(1), on(2)]).toEqual([false, true, false]);
+  act(() => ui.getByTestId('action-scroll').props.onScroll({ nativeEvent: { contentOffset: { x: step * 2 } } }));
+  expect([on(0), on(1), on(2)]).toEqual([false, false, true]);
 });

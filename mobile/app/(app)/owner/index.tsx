@@ -8,7 +8,7 @@ import { Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { PropertySwitcher } from '@/components/PropertySwitcher';
-import { HeroAction, MiniAction } from '@/components/QuickActions';
+import { ActionCarousel, MiniAction } from '@/components/QuickActions';
 import { KIND_GROUPS, floorLabel, kindIcon } from '@/lib/units';
 import { DemoBanner, ErrorBanner, SlideIn, IdentityRow, Metric } from '@/components/ui';
 import { brand, radius, shadow } from '@/theme';
@@ -102,15 +102,15 @@ export default function OwnerHome() {
                       detail={KIND_GROUPS.map((g) => `${m?.[g.total] ?? 0} ${t(g.label)}`).join('\n')}
                       onPress={() => router.push('/(app)/owner/report/units')} />
             </View>
-            {/* the three things done most are big cards in one row: Add Property, Add Renter and Add Rent (record the rent received); then one row of Reminders, Ask AI and Approvals */}
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <HeroAction icon="home-plus" label={t('owner.addProperty')} sub={vacant.data ? `${vacantUnits.length} ${t('property.vacant')}` : undefined} colors={['#7446E6', '#9B72F0']} testID="add-property"
-                          onPress={() => router.push('/(app)/owner/add-property')} />
-              <HeroAction icon="account-plus" label={t('owner.addTenant')} colors={['#12998B', '#3FCDBC']} testID="add-tenant"
-                          onPress={() => router.push('/(app)/owner/add-tenant')} />
-              <HeroAction icon="hand-coin" label={t('owner.addRent')} colors={['#E0780F', '#F9AE45']} testID="record-payment"
-                          onPress={() => router.push('/(app)/owner/record-payment')} />
-            </View>
+            {/* the three things done most are wide cards you swipe left and right, each with a sentence saying what it does; then one row of Reminders, Ask AI and Approvals */}
+            <ActionCarousel cards={[
+              { key: 'property', icon: 'home-plus', title: t('owner.addProperty'), message: t('owner.addPropertyMsg'), footnote: vacant.data ? `${vacantUnits.length} ${t('property.vacant')}` : undefined,
+                onPress: () => router.push('/(app)/owner/add-property'), testID: 'add-property' },
+              { key: 'renter', icon: 'account-plus', title: t('owner.addTenant'), message: t('owner.addRenterMsg'), lead: true,
+                onPress: () => router.push('/(app)/owner/add-tenant'), testID: 'add-tenant' },
+              { key: 'rent', icon: 'hand-coin', title: t('owner.addRent'), message: t('owner.addRentMsg'),
+                onPress: () => router.push('/(app)/owner/record-payment'), testID: 'record-payment' },
+            ]} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <MiniAction icon="bell-ring" label={t('owner.reminders')} fg="#B45309" bg={brand.amber100} onPress={() => router.push('/(app)/owner/ai')} />
               <MiniAction icon="creation" label={t('owner.askAi')} fg={brand.blue600} bg={brand.blue100} onPress={() => router.push('/(app)/owner/ai')} />

@@ -160,7 +160,10 @@
     "template": "Template",
     "draftAi": "Draft with AI",
     "addProperty": "Add Property",
-    "addRent": "Add Rent"
+    "addRent": "Add Rent",
+    "addPropertyMsg": "Add a building or a shop complex, then the units inside it.",
+    "addRenterMsg": "Move a renter into a vacant unit and set the rent.",
+    "addRentMsg": "Record the cash rent a renter has paid you in hand."
   },
   "tenancy": {
     "property": "Building Address",
