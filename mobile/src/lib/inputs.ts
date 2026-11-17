@@ -11,6 +11,15 @@ const LIMITS: Record<InputKind, number> = {
 
 export const maxLengthFor = (kind: InputKind) => LIMITS[kind];
 
+/** A box with no kind and no limit of its own still has one: 100 characters on one line, 500 in a text area. Nothing accepts unlimited text. */
+export const DEFAULT_MAX = { line: 100, area: 500 };
+
+/** The fewest characters a typed value may have (an empty optional box is fine; a started one must reach this). Boxes that are exactly one length are the phone, code, PAN and dates. */
+const MINS: Partial<Record<InputKind, number>> = {
+  mobile: 10, otp: 6, pan: 10, month: 7, date: 10, name: 2, address: 5, email: 6, day: 1,      // (name and address match the server's own minimums)
+};
+export const minLengthFor = (kind: InputKind): number | undefined => MINS[kind];
+
 /** Keep at most one "." and at most `dp` digits after it. */
 function decimal(s: string, dp: number, intDigits: number) {
   const cleaned = s.replace(/[^\d.]/g, '');

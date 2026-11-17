@@ -79,7 +79,7 @@ export default function OwnerDetails() {
       </Panel>
       <Panel title={t('ownerDetails.proofType')} icon="file-document-check-outline" tone="blue">
         <SearchableSelect label={t('ownerDetails.proofType')} value={f.proof_type} options={PROOF_TYPES.map((v) => ({ value: v, label: t(`ownerDetails.doc_${v}`) }))} onChange={(v) => setF({ ...f, proof_type: v })} />
-        <Field label={t('ownerDetails.proofRef')} value={f.proof_ref} onChangeText={(v) => setF({ ...f, proof_ref: v })} maxLength={80} error={touched ? e.proof_ref : undefined} />
+        <Field label={t('ownerDetails.proofRef')} value={f.proof_ref} onChangeText={(v) => setF({ ...f, proof_ref: v })} maxLength={80} minLength={3} error={touched ? e.proof_ref : undefined} />
       </Panel>
       <Pressable onPress={() => setDeclare(!declare)} accessibilityRole="checkbox" accessibilityState={{ checked: declare }}
                  style={({ pressed }) => [{ flexDirection: 'row', gap: 12, alignItems: 'center', padding: 14, borderRadius: radius.md, backgroundColor: pressed ? brand.teal100 : brand.teal50 }]}>

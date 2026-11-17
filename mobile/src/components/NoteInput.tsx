@@ -50,7 +50,7 @@ export function NoteInput({ onSubmit, busy }: Props) {
   return (
     <View>
       <DoneBar />
-      <TextInput mode="outlined" multiline {...done} inputAccessoryViewID={DONE_ID} maxLength={1000} value={text.toLocaleUpperCase()} onChangeText={(v) => { setText(v.toLocaleUpperCase()); }} autoCapitalize="characters" placeholder={t('notes.placeholder')}
+      <TextInput mode="outlined" multiline {...done} inputAccessoryViewID={DONE_ID} maxLength={250} value={text.toLocaleUpperCase()} onChangeText={(v) => { setText(v.toLocaleUpperCase()); }} autoCapitalize="characters" placeholder={t('notes.placeholder')}
                  accessibilityLabel={t('notes.placeholder')} error={over}
                  right={done.right ?? (!speechAvailable ? undefined : <TextInput.Icon icon={listening ? 'microphone-off' : 'microphone'} accessibilityLabel={t('common.voiceInput')}
                                         onPress={() => (listening ? ExpoSpeechRecognitionModule.stop() : startVoice())} />)} />

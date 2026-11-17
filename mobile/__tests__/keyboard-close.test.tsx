@@ -1,5 +1,5 @@
-// Every text box that has no Return-to-close key must carry the tick that closes the keyboard: a number or phone pad, and a multi-line box.
-// Boxes made with the shared Field get it from Field itself; this checks the ones that are written out by hand.
+// Every text box carries the tick that closes the keyboard while it is typed in: text, number, phone pad and multi-line alike.
+// Boxes made with the shared Field get it from Field itself; this checks the ones that are written out by hand (the search bar has its own, tested in search-box-done.test.tsx).
 import { fs, path } from '../test-support/files';
 
 /** The text of a JSX element from its opening `<` to its own closing `/>`, skipping any `/>` inside `{ ... }`. */
@@ -13,21 +13,21 @@ function element(src: string, start: number): string {
   return src.slice(start, start + 600);
 }
 
-test('every hand-written text box that is multi-line or a number/phone pad has the tick that closes the keyboard', () => {
+test('every hand-written text box has the tick that closes the keyboard', () => {
   const missing: string[] = [];
   let checked = 0;
   for (const file of fs.walk(['app', 'src'], /\.tsx$/)) {
     if (path.rel(file).endsWith('src/components/ui.tsx')) continue;                       // Field itself, tested in keyboard-dismiss.test.tsx
+    if (path.rel(file).endsWith('src/components/SearchBox.tsx')) continue;                // the search bar, tested in search-box-done.test.tsx
     const src = fs.read(file);
     for (const m of src.matchAll(/<TextInput\b(?!\.)/g)) {
       const el = element(src, m.index!);
       if (/editable=\{false\}/.test(el)) continue;                                        // nothing can be typed in it
-      if (!/\bmultiline\b|number-pad|decimal-pad|phone-pad/.test(el)) continue;           // a text keyboard has its own Done key
       checked++;
       if (!/\{\.\.\.\w*[dD]one\w*\}|icon="check-circle"/.test(el)) missing.push(`${path.rel(file)}:${src.slice(0, m.index!).split('\n').length}`);
     }
   }
-  expect(checked).toBeGreaterThanOrEqual(7);                                              // the scan really found the boxes
+  expect(checked).toBeGreaterThanOrEqual(9);                                              // the scan really found the boxes
   expect(missing).toEqual([]);
 });
 

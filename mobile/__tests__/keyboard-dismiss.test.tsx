@@ -37,7 +37,7 @@ test('pressing Return on a single-line field closes the keyboard', () => {
 });
 
 // The bar above the iOS keyboard is not reliable, so a number pad also has a tick inside the box that closes the keyboard, on any phone.
-test('while a number pad is open, the box shows a tick that closes the keyboard; a text box has none', () => {
+test('while any box is being typed in (number pad or text), it shows a tick that closes the keyboard', () => {
   const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => undefined);
   const pad = render(wrap(<Field label="Code" value="" onChangeText={() => {}} testID="code" keyboardType="number-pad" />));
   expect(pad.queryByTestId('code-done')).toBeNull();                      // not shown until the box is being typed in
@@ -48,8 +48,12 @@ test('while a number pad is open, the box shows a tick that closes the keyboard;
   expect(pad.queryByTestId('code-done')).toBeNull();                      // and gone again when the keyboard closes
 
   const text = render(wrap(<Field label="Name" value="" onChangeText={() => {}} testID="name" kind="name" />));
+  expect(text.queryByTestId('name-done')).toBeNull();                     // not shown until the box is being typed in
   fireEvent(text.getByTestId('name'), 'focus');
-  expect(text.queryByTestId('name-done')).toBeNull();                     // a text keyboard has its own Done key
+  fireEvent.press(text.getByTestId('name-done'));                         // a text box has the same tick, so every box closes the same way
+  expect(dismiss).toHaveBeenCalled();
+  fireEvent(text.getByTestId('name'), 'blur');
+  expect(text.queryByTestId('name-done')).toBeNull();
   dismiss.mockRestore();
 });
 
@@ -69,4 +73,13 @@ test('a multi-line box (address, notes, items provided) also gets the tick, sinc
   fireEvent.press(ui.getByTestId('addr-done'));
   expect(dismiss).toHaveBeenCalled();
   dismiss.mockRestore();
+});
+
+test('every kind of box shows the tick: text, name, address, email, document number, amount, day and multi-line', () => {
+  for (const [id, props] of [['t', { kind: 'text' }], ['nm', { kind: 'name' }], ['ad', { kind: 'address', multiline: true }], ['em', { kind: 'email' }], ['pr', { kind: 'text', maxLength: 40 }],
+                              ['am', { kind: 'amount' }], ['dy', { kind: 'day' }], ['ml', { multiline: true, lines: 3 }]] as const) {
+    const ui = render(wrap(<Field label={id} value="" onChangeText={() => {}} testID={id} {...(props as any)} />));
+    fireEvent(ui.getByTestId(id), 'focus');
+    expect(ui.getByTestId(`${id}-done`)).toBeTruthy();
+  }
 });

@@ -155,7 +155,7 @@ export function OwnerDocumentCheck({ docs }: { docs: { items: { kind: Kind; uplo
       </Panel>
       <Panel title={t('docCheck.propertyDocument')} icon="file-document-outline" tone="blue">
         <SearchableSelect label={t('ownerDetails.proofType')} value={f.proofType} options={PROOF_TYPES.map((v) => ({ value: v, label: t(`ownerDetails.doc_${v}`) }))} onChange={set('proofType')} />
-        <Field label={t('ownerDetails.proofRef')} value={f.proofRef} onChangeText={set('proofRef')} maxLength={40} error={touched ? e.proofRef : undefined} />
+        <Field label={t('ownerDetails.proofRef')} value={f.proofRef} onChangeText={set('proofRef')} maxLength={40} minLength={3} error={touched ? e.proofRef : undefined} />
         <SlotRow>{slot('deed_first', t('docCheck.firstPage'))}{slot('deed_last', t('docCheck.lastPage'))}</SlotRow>
         <Text style={hint}>{t('docCheck.hintDeed')}</Text>
       </Panel>

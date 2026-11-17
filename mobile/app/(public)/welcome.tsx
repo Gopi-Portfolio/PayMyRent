@@ -94,7 +94,14 @@ export default function Welcome() {
             <>
               <Door icon="home-outline" tint="#E4F3DF" color={GREEN} title={t('welcome.loginOwner')} sub={t('welcome.loginOwnerSub')} onPress={() => go('owner')} testID="cta-owner-registered" />
               <Door icon="account-group" tint={brand.blue100} color={BLUE} title={t('welcome.loginRenter')} sub={t('welcome.loginRenterSub')} onPress={() => go('tenant')} testID="cta-renter" />
-              <Text style={styles.notOwner}>{t('welcome.notOwner')}</Text>
+              <Text style={styles.notOwner} testID="not-owner">
+                {/* the word between the * marks (OWNER) and the question mark are orange, extra bold, 2 larger than the rest; the word is in capitals. The translation decides which word that is */}
+                {t('welcome.notOwner').split('*').map((part, i) => (i % 2
+                  ? <Text key={i} style={styles.notOwnerMark} testID="not-owner-word">{part.toLocaleUpperCase()}</Text>
+                  : <React.Fragment key={i}>{part.split('?').map((seg, k, all) => (
+                      <React.Fragment key={k}>{seg}{k < all.length - 1 ? <Text style={styles.notOwnerMark} testID="not-owner-q">?</Text> : null}</React.Fragment>))}
+                    </React.Fragment>))}
+              </Text>
               <Pressable onPress={() => router.push('/(public)/plans')} accessibilityRole="button" testID="cta-plans" style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }]}>
                 <Icon source="crown" size={22} color="#fff" />
                 <Text style={styles.primaryText}>{t('welcome.choosePlanBtn')}</Text>
@@ -127,6 +134,7 @@ const styles = StyleSheet.create({
   doorTitle: { color: '#111', fontSize: 18, fontWeight: '800' },
   doorSub: { color: '#333', fontSize: 13, lineHeight: 17, marginTop: 1 },
   notOwner: { color: '#111', fontSize: 16, lineHeight: 22, fontWeight: '800', textAlign: 'center', marginTop: 12 },
+  notOwnerMark: { color: SHOP_ORANGE, fontSize: 18, fontWeight: '900' },      // 2 larger than the sentence (16)
   primary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: SHOP_ORANGE, borderRadius: 28, height: 54 },
   primaryText: { color: '#fff', fontSize: 18, fontWeight: '800' },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', backgroundColor: 'rgba(255,255,255,0.75)', paddingTop: 10 },

@@ -1,7 +1,7 @@
 // Reusable searchable select in a bottom sheet. Used for every substantive picker (tenant, unit,
 // language, charge type, state, city…). Keyboard and screen-reader accessible.
 import React, { useMemo, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text as RNText, View } from 'react-native';
+import { FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text as RNText, View } from 'react-native';
 import { Icon, Searchbar, Text, useTheme } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { radius } from '@/theme';
@@ -19,6 +19,7 @@ export function SearchableSelect<V extends string>({ label, value, options, onCh
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
+  const [typing, setTyping] = useState(false);          // the search box is being typed in: show the tick that closes the keyboard
   React.useEffect(() => { if (openKey && openKey > 0 && !disabled) setOpen(true); }, [openKey]);   // eslint-disable-line react-hooks/exhaustive-deps
   const selected = options.find((o) => o.value === value);
   const filtered = useMemo(() => {
@@ -45,7 +46,9 @@ export function SearchableSelect<V extends string>({ label, value, options, onCh
           <View style={[styles.sheet, { backgroundColor: theme.colors.surface }]}>
             <View style={styles.grab} />
             <Text variant="titleSmall" style={{ fontWeight: '800', marginBottom: 8, paddingHorizontal: 4 }}>{label}</Text>
-            <Searchbar placeholder={t('common.search')} value={q} onChangeText={setQ} accessibilityLabel={t('common.search')} style={{ marginBottom: 8 }} />
+            <Searchbar placeholder={t('common.search')} value={q} onChangeText={setQ} maxLength={100} accessibilityLabel={t('common.search')} style={{ marginBottom: 8 }}
+                       onFocus={() => setTyping(true)} onBlur={() => setTyping(false)}
+                       traileringIcon={typing ? 'check-circle' : undefined} onTraileringIconPress={() => Keyboard.dismiss()} traileringIconAccessibilityLabel={t('common.done')} />
             <FlatList
               data={filtered}
               keyExtractor={(o) => o.value}

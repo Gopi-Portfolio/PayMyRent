@@ -1,6 +1,6 @@
 // A search bar with a filter button INSIDE it, on the right (a small dot on the button shows that a filter is on).
 import React from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, TextInput, View } from 'react-native';
 import { Icon } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
@@ -11,12 +11,18 @@ export function SearchBox({ value, onChangeText, placeholder, onFilter, filterAc
   disabled?: boolean; filterLabel: string; testID?: string;
 }) {
   const { t } = useTranslation();
+  const [focused, setFocused] = React.useState(false);       // while typing, a tick closes the keyboard
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', height: 46, borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1.5, borderColor: brand.line,
                    paddingLeft: 12, opacity: disabled ? 0.5 : 1 }}>
       <Icon source="magnify" size={22} color={brand.muted} />
       <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={brand.faint} editable={!disabled} testID={testID}
-                 returnKeyType="search" autoCorrect={false} accessibilityLabel={placeholder} style={{ flex: 1, height: 44, paddingHorizontal: 8, fontSize: 15, color: brand.ink }} />
+                 returnKeyType="search" maxLength={100} autoCorrect={false} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} accessibilityLabel={placeholder} style={{ flex: 1, height: 44, paddingHorizontal: 8, fontSize: 15, color: brand.ink }} />
+      {focused ? (
+        <Pressable onPress={() => Keyboard.dismiss()} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('common.done')} testID={testID ? `${testID}-done` : undefined} style={{ paddingHorizontal: 6 }}>
+          <Icon source="check-circle" size={22} color={brand.teal700} />
+        </Pressable>
+      ) : null}
       {value ? (
         <Pressable onPress={() => onChangeText('')} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('common.clear')} style={{ paddingHorizontal: 6 }}>
           <Icon source="close-circle" size={18} color={brand.faint} />

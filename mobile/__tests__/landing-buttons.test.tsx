@@ -32,7 +32,14 @@ beforeEach(() => { mockRouter.push.mockReset(); (api as jest.Mock).mockReset(); 
 test('there is no owner sign-up button: a new owner is sent to the plans screen, and the Renter door is always ready', async () => {
   const ui = wrap(<Welcome />);
   expect(ui.queryByTestId('cta-owner')).toBeNull();
-  expect(ui.getByText('Not a registered owner? Choose a plan')).toBeTruthy();
+  expect(ui.getByText('Not a registered OWNER? Choose a plan')).toBeTruthy();       // the word OWNER alone is in capitals
+  const flat = (id: string) => JSON.stringify(ui.getByTestId(id).props.style);
+  expect(ui.getByTestId('not-owner-word').props.children).toBe('OWNER');
+  for (const id of ['not-owner-word', 'not-owner-q']) {                              // the word and the question mark: orange, extra bold, 2 larger than the sentence
+    expect(flat(id)).toContain('#F96A10'); expect(flat(id)).toContain('"fontWeight":"900"'); expect(flat(id)).toContain('"fontSize":18');
+  }
+  expect(flat('not-owner')).not.toContain('#F96A10');                                 // the rest of the sentence is not
+  expect(flat('not-owner')).toContain('"fontSize":16');
   expect(ui.getByTestId('cta-renter').props.accessibilityState.disabled).not.toBe(true);
   fireEvent.press(ui.getByTestId('cta-plans'));
   expect(mockRouter.push).toHaveBeenCalledWith('/(public)/plans');
@@ -85,4 +92,15 @@ test('an owner who is already registered signs in through the owner door, with n
   expect(getPendingRole()).toBe('owner');
   expect(getPendingPlan()).toBeNull();
   expect(mockRouter.push).toHaveBeenCalledWith('/(public)/phone');
+});
+
+test.each(['hi', 'ta', 'te', 'kn', 'ml', 'mr', 'bn'])('in %s the line has no stray * mark, and the owner word and the question mark are orange', async (lang) => {
+  const i18n = require('@/i18n').default;
+  await act(async () => { await i18n.changeLanguage(lang); });
+  const ui = wrap(<Welcome />);
+  const drawn = (n: any): string => (n == null ? '' : typeof n === 'string' ? n : Array.isArray(n) ? n.map(drawn).join('') : (n.children ?? []).map(drawn).join(''));
+  expect(drawn(ui.toJSON())).not.toContain('*');                                      // the marker is never shown
+  expect(ui.getByTestId('not-owner-word')).toBeTruthy();
+  expect(ui.getByTestId('not-owner-q')).toBeTruthy();
+  await act(async () => { await i18n.changeLanguage('en'); });
 });

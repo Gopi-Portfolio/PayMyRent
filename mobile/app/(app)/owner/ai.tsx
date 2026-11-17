@@ -29,6 +29,7 @@ export default function Ai() {
   const [tenancy, setTenancy] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const draftDone = useDoneTick();
+  const askDone = useDoneTick();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const u = usage.data;
@@ -69,7 +70,7 @@ export default function Ai() {
       ) : null}
       {exhausted ? <Text style={{ color: brand.amber700 }}>{t('ai.exhausted')}</Text> : <ErrorBanner error={err} />}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <TextInput mode="outlined" style={{ flex: 1 }} value={q} onChangeText={(v) => { setQ(v); setVoice(false); }} placeholder={t('owner.askAi')} maxLength={300} returnKeyType="done" blurOnSubmit inputAccessoryViewID={DONE_ID} />
+        <TextInput mode="outlined" {...askDone} style={{ flex: 1 }} value={q} onChangeText={(v) => { setQ(v); setVoice(false); }} placeholder={t('owner.askAi')} maxLength={300} returnKeyType="done" blurOnSubmit inputAccessoryViewID={DONE_ID} />
         <DoneBar />
         <MicButton onText={(s) => { setQ(s); setVoice(true); }} />
       </View>

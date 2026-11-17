@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 import { fmtDate } from '@/lib/dates';
 import { LANGUAGES } from '@/i18n';
-import { type InputKind, keyboardFor, maxLengthFor, sanitize } from '@/lib/inputs';
+import { DEFAULT_MAX, type InputKind, keyboardFor, maxLengthFor, minLengthFor, sanitize } from '@/lib/inputs';
 import { ApiError, api } from '@/lib/api';
 import { AppButton, Button } from '@/components/Buttons';
 import { useAuth } from '@/lib/auth';
@@ -391,9 +391,9 @@ export function useDoneTick(testID?: string) {
 const KEEP_CASE: (InputKind | undefined)[] = ['email'];
 const upper = (v: string) => v.toLocaleUpperCase();
 
-export function Field({ label, value, onChangeText, error, keyboardType, secure, maxLength, testID, multiline, kind, maxPaise, maxNumber, min, lines }: {
+export function Field({ label, value, onChangeText, error, keyboardType, secure, maxLength, minLength, testID, multiline, kind, maxPaise, maxNumber, min, lines }: {
   label: string; value: string; onChangeText: (s: string) => void; error?: string; keyboardType?: 'default' | 'number-pad' | 'decimal-pad' | 'phone-pad' | 'email-address';
-  secure?: boolean; maxLength?: number; testID?: string; multiline?: boolean; kind?: InputKind;
+  secure?: boolean; maxLength?: number; minLength?: number; testID?: string; multiline?: boolean; kind?: InputKind;
   maxPaise?: number;     // amount boxes: the most that can be entered here (shown as "Up to"); without it the server's ceiling applies
   maxNumber?: number;    // day / reading boxes: the largest number that can be entered
   min?: number;          // day boxes: the smallest number (typing 0 or less is held at this)
@@ -424,9 +424,15 @@ export function Field({ label, value, onChangeText, error, keyboardType, secure,
   // number / phone pads have no Return key on iOS (and Return in a multi-line box is a new line), so they get a Done bar that closes the keyboard
   const numeric = Platform.OS === 'ios' && (!!multiline || kbType === 'number-pad' || kbType === 'decimal-pad' || kbType === 'phone-pad');   // also multi-line boxes: Return there starts a new line
   const accId = `done-${React.useId()}`;
-  // a number pad has no Return key and Return in a multi-line box is a new line, so those get the tick that closes the keyboard (any phone)
-  const pad = kbType === 'number-pad' || kbType === 'decimal-pad' || kbType === 'phone-pad';
   const done = useDoneTick(testID);
+  // every box has a standard length: a limit while typing (never unlimited) and a minimum once the box has been left with something in it
+  const maxLen = maxLength ?? (kind ? maxLengthFor(kind) : multiline ? DEFAULT_MAX.area : DEFAULT_MAX.line);
+  const minLen = minLength ?? (kind ? minLengthFor(kind) : undefined);
+  const [left, setLeft] = React.useState(false);                    // the box has been typed in and left
+  const typed = value.trim().length;
+  const digits = kind === 'mobile' || kind === 'otp' || kbType === 'number-pad' || kbType === 'phone-pad';
+  const shortText = !error && left && minLen !== undefined && typed > 0 && typed < minLen
+    ? (minLen === maxLen ? t(digits ? 'form.exactDigits' : 'form.exactChars', { count: minLen }) : t('form.minChars', { count: minLen })) : undefined;
   return (
     <View>
       {numeric ? (
@@ -441,12 +447,13 @@ export function Field({ label, value, onChangeText, error, keyboardType, secure,
       <TextInput mode="outlined" label={label} value={shown} onChangeText={change}
                  returnKeyType={multiline ? undefined : 'done'} blurOnSubmit={multiline ? false : true} onSubmitEditing={multiline ? undefined : () => Keyboard.dismiss()}
                  inputAccessoryViewID={numeric ? accId : undefined}
-                 {...(pad || multiline ? { onFocus: done.onFocus, onBlur: done.onBlur, right: done.right } : {})}
+                 onFocus={done.onFocus} onBlur={() => { done.onBlur(); setLeft(true); }} right={done.right}      /* every box shows the tick that closes the keyboard while it is typed in */
                  keyboardType={kbType} secureTextEntry={secure}
-                 maxLength={maxLength ?? (kind ? maxLengthFor(kind) : undefined)} autoCorrect={kind === 'email' || kind === 'pan' ? false : undefined}
-                 autoCapitalize={!caps ? 'none' : 'characters'} error={!!error} testID={testID} accessibilityLabel={label} multiline={multiline} numberOfLines={multiline ? lines : undefined}
+                 maxLength={maxLen} autoCorrect={kind === 'email' || kind === 'pan' ? false : undefined}
+                 autoCapitalize={!caps ? 'none' : 'characters'} error={!!error || !!shortText} testID={testID} accessibilityLabel={label} multiline={multiline} numberOfLines={multiline ? lines : undefined}
                  outlineStyle={{ borderRadius: radius.md }} style={[{ backgroundColor: '#FFFFFF' }, multiline && lines ? { minHeight: 24 * lines + 32, textAlignVertical: 'top' } : null]} />
       {error ? <HelperText type="error" accessibilityLiveRegion="polite">{t(`error.${error}`, { defaultValue: error })}</HelperText>
+        : shortText ? <HelperText type="error" accessibilityLiveRegion="polite" testID="field-short">{shortText}</HelperText>
         : limitText ? <HelperText type={held ? 'error' : 'info'} accessibilityLiveRegion="polite" testID="field-limit">{limitText}</HelperText> : null}
     </View>
   );

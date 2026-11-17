@@ -325,7 +325,7 @@
     "timeout": "The server did not answer. Please try again in a moment."
   },
   "welcome": {
-    "notOwner": "Not a registered owner? Choose a plan",
+    "notOwner": "Not a registered *owner*? Choose a plan",
     "choosePlanBtn": "Choose a Plan",
     "heroA": "Renting Made",
     "heroB": "Simple",
@@ -614,6 +614,9 @@
     "demo": "Demo mode: no SMS is sent. Use {{code}}."
   },
   "form": {
+    "minChars": "Enter at least {{count}} characters",
+    "exactChars": "Enter exactly {{count}} characters",
+    "exactDigits": "Enter exactly {{count}} digits",
     "maxAmount": "The most you can enter here is {{amount}}",
     "maxNumber": "The most you can enter here is {{max}}"
   },

@@ -136,16 +136,16 @@ export default function AddProperty() {
       <Panel title={t('property.title')} icon="home-city-outline" tone="teal">
         <Field label={t('property.name')} value={f.name} onChangeText={set('name')} kind="text" />
         <Field label={t('property.address')} value={f.address} onChangeText={set('address')} kind="address" multiline error={touched && f.address.trim().length < 5 ? t('error.required') : undefined} />
-        <Field label={t('property.city')} value={f.city} onChangeText={set('city')} kind="text" error={touched && f.city.trim().length < 2 ? t('error.required') : undefined} />
-        <Field label={t('property.state')} value={f.state} onChangeText={set('state')} kind="text" />
-        <Field label={t('property.pincode')} value={f.pincode} onChangeText={(v) => set('pincode')(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6}
+        <Field label={t('property.city')} value={f.city} onChangeText={set('city')} kind="text" maxLength={80} error={touched && f.city.trim().length < 2 ? t('error.required') : undefined} />
+        <Field label={t('property.state')} value={f.state} onChangeText={set('state')} kind="text" maxLength={80} />
+        <Field label={t('property.pincode')} value={f.pincode} onChangeText={(v) => set('pincode')(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} minLength={6}
                kind="text" error={touched && !/^[1-9]\d{5}$/.test(f.pincode) ? t('error.required') : undefined} />
         <Segmented testID="property-kind" value={f.kind} onChange={(v) => set('kind')(v as PropertyDraft['kind'])} options={kinds.map(({ value, label }) => ({ value, label }))} />
       </Panel>
       {auto ? null : (
         <Panel title={t('property.proofType')} icon="shield-check-outline" tone="green">
           <SearchableSelect label={t('property.proofType')} value={f.proofType} options={proofs.map(({ value, label }) => ({ value, label }))} onChange={(v) => set('proofType')(v as PropertyDraft['proofType'])} />
-          <Field label={t('property.proofRef')} value={f.proofRef} onChangeText={set('proofRef')} kind="text" maxLength={40}
+          <Field label={t('property.proofRef')} value={f.proofRef} onChangeText={set('proofRef')} kind="text" maxLength={40} minLength={6}
                  error={touched && f.proofRef.trim().length < 6 ? t('error.required') : undefined} />
         </Panel>
       )}
