@@ -9,9 +9,9 @@ import '@/i18n';
 
 const mockSelect = jest.fn();
 let mockOwners = [
-  { owner_account_id: 'o1', role: 'owner', property_name: 'Tower', property_status: 'verified' },
-  { owner_account_id: 'o2', role: 'owner', property_name: 'Villa', property_status: 'verified' },
-  { owner_account_id: 'o3', role: 'owner', property_name: 'Shops', property_status: 'verified' },
+  { owner_account_id: 'o1', role: 'owner', property_name: 'Tower', property_status: 'verified', property_kind: 'residential' },
+  { owner_account_id: 'o2', role: 'owner', property_name: 'Villa', property_status: 'verified', property_kind: 'residential' },
+  { owner_account_id: 'o3', role: 'owner', property_name: 'Shops', property_status: 'verified', property_kind: 'commercial' },
 ];
 jest.mock('@/lib/auth', () => ({ useAuth: () => ({ me: { owner_accounts: mockOwners }, selectOwner: mockSelect }), ownerAccountId: () => 'o2', ownerProperties: (me: any) => me.owner_accounts }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
@@ -84,4 +84,17 @@ test('an empty account left after a property was removed is not listed while ano
   const full = { owner_account_id: 'o1', role: 'owner', property_name: 'Tower', property_address: '1 Road', property_status: 'verified' };
   expect(real.ownerProperties({ owner_accounts: [full, empty] } as any).map((o) => o.owner_account_id)).toEqual(['o1']);
   expect(real.ownerProperties({ owner_accounts: [empty] } as any).map((o) => o.owner_account_id)).toEqual(['x']);          // a new owner still sees the starting account
+});
+
+test('the dropdown shows R or C for each property instead of an icon, and the chosen one is ticked', () => {
+  mockOwners = [
+    { owner_account_id: 'o1', role: 'owner', property_name: 'Tower', property_status: 'verified', property_kind: 'residential' },
+    { owner_account_id: 'o2', role: 'owner', property_name: 'Shops', property_status: 'verified', property_kind: 'commercial' }];
+  const ui = wrap();
+  fireEvent.press(ui.getByTestId('property-dropdown'));
+  expect(ui.getByTestId('property-kind-0').props.accessibilityLabel).toBe('Residential');
+  expect(ui.getByTestId('property-kind-1').props.accessibilityLabel).toBe('Commercial');
+  expect(ui.getByText('R')).toBeTruthy(); expect(ui.getByText('C')).toBeTruthy();
+  fireEvent.press(ui.getByTestId('property-1'));
+  expect(ui.getByTestId('property-shown-kind').props.accessibilityLabel).toBe('Commercial');      // the closed dropdown shows the chosen property's badge
 });

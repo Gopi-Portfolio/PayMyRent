@@ -78,7 +78,7 @@ export function PayHow({ value, onChange, showErrors, scope = 'tenant' }: { valu
           </Pressable>
         );
       })}
-      {showErrors && !value.method ? <Text style={{ color: '#B45309', fontWeight: '700' }}>{t('payhow.choose')}</Text> : null}
+      {showErrors && !value.method ? <Text style={{ color: brand.amber700, fontWeight: '700' }}>{t('payhow.choose')}</Text> : null}
       {value.method === 'upi' ? (
         <View style={{ gap: 10 }}>
           {def && !value.custom ? (
@@ -102,7 +102,7 @@ export function PayHow({ value, onChange, showErrors, scope = 'tenant' }: { valu
               {def ? <Button mode="text" icon="account-check-outline" onPress={() => onChange({ ...value, custom: false, upi: '', otp: '' })} testID="payhow-use-mine">{t('payhow.useMine')}</Button> : null}
               {needsOtp(value, known, def) ? (
                 <>
-                  <Text style={{ color: '#B45309', fontWeight: '700', lineHeight: 20 }}>{t('payhow.upiNew')}</Text>
+                  <Text style={{ color: brand.amber700, fontWeight: '700', lineHeight: 20 }}>{t('payhow.upiNew')}</Text>
                   <ActionOtp action="payout" code={value.otp} onChange={(c) => onChange({ ...value, otp: c })} ownerAccount={owner} />
                 </>
               ) : null}
@@ -153,10 +153,10 @@ export function OwnerPayHow({ tenancyId, method, upi, active, effective }: { ten
   return (
     <View style={{ gap: 12 }}>
       <Panel title={t('payhow.current')} icon="wallet-outline" tone={unset ? 'amber' : 'teal'}>
-        <Text style={{ fontWeight: '800', fontSize: 16, color: unset ? '#B45309' : brand.ink }} testID="payhow-current">{payMethodLabel(t, shown)}</Text>
+        <Text style={{ fontWeight: '800', fontSize: 16, color: unset ? brand.amber700 : brand.ink }} testID="payhow-current">{payMethodLabel(t, shown)}</Text>
         {shown === 'upi' && (upi ?? def) ? <Text style={{ color: brand.muted }}>{upi ?? def}</Text> : null}
         {!method && effective ? <Text variant="bodySmall" style={{ color: brand.muted }}>{t('payhow.followsDefault')}</Text> : null}
-        {unset && active ? <Text style={{ color: '#B45309', lineHeight: 21 }}>{t('payhow.setNow')}</Text> : null}
+        {unset && active ? <Text style={{ color: brand.amber700, lineHeight: 21 }}>{t('payhow.setNow')}</Text> : null}
         {active ? (
           <Button mode="outlined" icon="pencil-outline" onPress={() => { setOpen(!open); setV({ method: shown, upi: upi ?? '', otp: '', custom: !!upi }); setErr(null); }} testID="payhow-change">
             {unset ? t('payhow.choose') : t('payhow.change')}

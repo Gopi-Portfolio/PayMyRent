@@ -10,7 +10,8 @@ import { AppButton } from '@/components/Buttons';
 import { FloorSelect } from '@/components/FloorSelect';
 import { ErrorBanner, Field, Panel } from '@/components/ui';
 import { api } from '@/lib/api';
-import { KIND_GROUPS, type KindGroup, floorChip, kindIcon } from '@/lib/units';
+import { KindBadge } from '@/components/KindBadge';
+import { KIND_GROUPS, type KindGroup, floorChip } from '@/lib/units';
 import { submitOrQueue } from '@/lib/offline';
 import { addPendingUnit } from '@/lib/optimistic';
 import { placeSchema } from '@/lib/validation';
@@ -46,13 +47,13 @@ export function PlacesManager({ propertyId, owner, propertyName, onDone }: { pro
 
   return (
     <>
-      <Panel title={`${t('tenancy.unitsHere')} (${places.length})${propertyName ? ` · ${propertyName}` : ''}`} icon="door-open" tone="teal">
+      <Panel title={`${t('owner.units')} (${places.length})${propertyName ? ` · ${propertyName}` : ''}`} icon="door-open" tone="teal">
         {places.length === 0 ? <Text style={{ color: brand.muted }}>{t('property.noPlacesYet')}</Text> : null}
         {places.map((u: any) => (
           <View key={u.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Icon source={kindIcon(u.kind === 'residential' ? 'residential' : 'commercial')} size={20} color={brand.teal700} />
+            <KindBadge kind={u.kind} testID={`unit-kind-${u.id}`} />
             <Text style={{ flex: 1, fontWeight: '700' }} numberOfLines={1}>{`${u.identifier}${u.floor !== null && u.floor !== undefined ? ` · ${floorChip(u.floor, t, i18n.language)}` : ''}`}</Text>
-            <Text style={{ color: u.vacant ? brand.green600 : '#B45309', fontWeight: '700' }}>{u.vacant ? t('property.vacant') : (u.tenant_name ?? t('tenancy.occupiedLocked'))}</Text>
+            <Text style={{ color: u.vacant ? brand.green600 : brand.amber700, fontWeight: '700' }}>{u.vacant ? t('property.vacant') : (u.tenant_name ?? t('tenancy.occupiedLocked'))}</Text>
           </View>
         ))}
       </Panel>
@@ -63,7 +64,7 @@ export function PlacesManager({ propertyId, owner, propertyName, onDone }: { pro
             return (
               <Pressable key={g.group} onPress={() => setKind(g.group)} accessibilityRole="button" accessibilityState={{ selected: on }} testID={`kind-${g.group}`}
                          style={{ flex: 1, alignItems: 'center', gap: 4, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1.5, borderColor: on ? brand.teal700 : brand.line, backgroundColor: on ? brand.teal50 : '#fff' }}>
-                <Icon source={kindIcon(g.group)} size={22} color={on ? brand.teal700 : brand.muted} />
+                <KindBadge kind={g.group} size={26} />
                 <Text style={{ fontWeight: '800', color: on ? brand.teal700 : brand.ink, fontSize: 12 }} numberOfLines={1}>{t(`tenancy.kind_${g.group}`)}</Text>
               </Pressable>
             );

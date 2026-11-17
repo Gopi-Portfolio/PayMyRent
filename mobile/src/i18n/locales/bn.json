@@ -127,6 +127,8 @@
     "verifyFirst": "আগে এই নম্বরটি যাচাই করুন"
   },
   "owner": {
+    "allRenters": "সব ভাড়াটিয়া",
+    "allProperties": "সব সম্পত্তি",
     "collected": "আদায় হয়েছে",
     "pending": "এখন প্রদেয়",
     "overdue": "বিলম্বিত",

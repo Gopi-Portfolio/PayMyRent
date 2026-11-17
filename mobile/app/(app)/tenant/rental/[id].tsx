@@ -44,7 +44,7 @@ export default function Rental() {
             <Avatar name={rental.owner_name} size={48} />
             <View style={{ flex: 1 }}>
               <Text variant="titleSmall" style={{ fontWeight: '800' }}>{rental.owner_name}</Text>
-              <Text variant="bodySmall" style={{ color: '#5B6B67' }}>{`${rental.identifier} · ${rental.property_name ?? rental.address}`}</Text>
+              <Text variant="bodySmall" style={{ color: brand.muted }}>{`${rental.identifier} · ${rental.property_name ?? rental.address}`}</Text>
             </View>
             <StatusPill status={rental.owner_verification === 'verified' ? 'verified' : rental.owner_verification === 'submitted' ? 'pending' : rental.status} />
           </View>
@@ -80,7 +80,7 @@ export default function Rental() {
           <DownloadButtons path={`/api/v1/tenancies/${id}/statement`} fileName="rentmeezy-statement" />
           {(hist.data?.months ?? []).map((m: any) => (
             <Panel key={m.period_month}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={{ flex: 1 }}><Text style={{ fontWeight: '800' }}>{fmtMonth(m.period_month)}</Text><Text variant="bodySmall" style={{ color: '#5B6B67' }}>{`${formatINR(m.total_paise)} · ${formatINR(m.open_paise)} open · ${t('dates.dueOn', { date: fmtDate(m.due_date) })}`}</Text></View>
+              <View style={{ flex: 1 }}><Text style={{ fontWeight: '800' }}>{fmtMonth(m.period_month)}</Text><Text variant="bodySmall" style={{ color: brand.muted }}>{`${formatINR(m.total_paise)} · ${formatINR(m.open_paise)} open · ${t('dates.dueOn', { date: fmtDate(m.due_date) })}`}</Text></View>
               <StatusPill status={m.status} /></View></Panel>
           ))}
           {(hist.data?.payments ?? []).map((p: any) => (

@@ -107,7 +107,7 @@ export default function AddRenter() {
         </View>
         {touched && e.photo ? <Text style={{ color: brand.red600 }}>{t('renter.photoRequired')}</Text> : null}
         <Text style={{ color: brand.muted, lineHeight: 20 }}>{t('renter.privateNote')}</Text>
-        {note ? <Text style={{ color: '#B45309', fontWeight: '700' }}>{note}</Text> : null}
+        {note ? <Text style={{ color: brand.amber700, fontWeight: '700' }}>{note}</Text> : null}
       </View>
 
       <Pressable onPress={() => setOk(!ok)} accessibilityRole="checkbox" accessibilityState={{ checked: ok }} testID="keep-copy"

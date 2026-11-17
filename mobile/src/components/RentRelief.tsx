@@ -11,7 +11,7 @@ import { ErrorBanner, Field, Panel } from '@/components/ui';
 import { api } from '@/lib/api';
 import { fmtMonth } from '@/lib/dates';
 import { formatINR, parseRupeesToPaise } from '@/lib/format';
-import { brand } from '@/theme';
+import { brand, radius } from '@/theme';
 
 const refreshAll = (qc: ReturnType<typeof useQueryClient>) => ['bill', 'tenancy', 'rentals', 'dash', 'updates', 'relief-pending', 'tenancies', 'notifications'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
 
@@ -54,7 +54,7 @@ function Row({ k, v, strong, warn }: { k: string; v: string; strong?: boolean; w
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
       <Text style={{ flex: 1, fontWeight: strong ? '800' : '600' }}>{k}</Text>
-      <Text style={{ fontWeight: '800', color: warn ? '#B45309' : brand.ink, fontVariant: ['tabular-nums'] }}>{v}</Text>
+      <Text style={{ fontWeight: '800', color: warn ? brand.amber700 : brand.ink, fontVariant: ['tabular-nums'] }}>{v}</Text>
     </View>
   );
 }
@@ -69,10 +69,10 @@ export function ReliefChip({ relief, who }: { relief: any; who: 'owner' | 'rente
   if (!text) return null;
   const bad = s === 'declined';
   return (
-    <View testID="relief-chip" style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
+    <View testID="relief-chip" style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill,
                                          backgroundColor: bad ? brand.red100 : s === 'approved' ? brand.green100 : brand.amber100 }}>
-      <Icon source={s === 'approved' ? 'handshake-outline' : bad ? 'close-circle-outline' : 'hand-heart-outline'} size={13} color={bad ? brand.red600 : s === 'approved' ? brand.green600 : '#B45309'} />
-      <Text style={{ fontSize: 11, fontWeight: '800', color: bad ? brand.red600 : s === 'approved' ? brand.green600 : '#B45309' }}>{text}</Text>
+      <Icon source={s === 'approved' ? 'handshake-outline' : bad ? 'close-circle-outline' : 'hand-heart-outline'} size={13} color={bad ? brand.red600 : s === 'approved' ? brand.green600 : brand.amber700} />
+      <Text style={{ fontSize: 11, fontWeight: '800', color: bad ? brand.red600 : s === 'approved' ? brand.green600 : brand.amber700 }}>{text}</Text>
     </View>
   );
 }
@@ -147,7 +147,7 @@ export function OwnerRelief({ tenancyId, month, bill, owner }: { tenancyId: stri
       ) : <Text variant="bodySmall" style={{ color: brand.muted, marginBottom: 8 }}>{t('relief.grantHelp', { amount: formatINR(unpaid) })}</Text>}
       <ErrorBanner error={err} />
       <Field label={t('relief.ownerAmount')} value={amount} onChangeText={setAmount} kind="amount" maxPaise={below(unpaid)} testID="relief-owner-amount" />
-      {valid ? <Text variant="bodySmall" style={{ color: '#B45309', fontWeight: '700', marginBottom: 6 }}>{t('relief.willMove', { amount: formatINR(unpaid - (paise ?? 0)) })}</Text> : null}
+      {valid ? <Text variant="bodySmall" style={{ color: brand.amber700, fontWeight: '700', marginBottom: 6 }}>{t('relief.willMove', { amount: formatINR(unpaid - (paise ?? 0)) })}</Text> : null}
       <Field label={t('relief.note')} value={note} onChangeText={setNote} kind="reason" testID="relief-note" />
       <View style={{ flexDirection: 'row', gap: 10 }}>
         {asked ? (

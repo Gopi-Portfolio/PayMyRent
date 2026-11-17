@@ -5,6 +5,7 @@ import { Icon, Text } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useToast } from '@/lib/toast';
+import { radius } from '@/theme';
 
 export function OfflineToast() {
   const message = useToast();
@@ -22,6 +23,6 @@ export function OfflineToast() {
 
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: 16, right: 16, alignItems: 'center' },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#1F2A24', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 16, maxWidth: 520 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#1F2A24', borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 16, maxWidth: 520 },
   text: { color: '#fff', fontSize: 14, lineHeight: 20, fontWeight: '600', flexShrink: 1 },
 });

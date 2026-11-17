@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { PaperProvider } from 'react-native-paper';
 
@@ -53,4 +53,37 @@ test('an uploaded page shows a tick and offers Retake; Continue needs everything
   expect(ui.getAllByText('Retake').length).toBe(2);
   fireEvent.press(ui.getByTestId('doc-continue'));
   expect(ui.getByText('Fill in every field and upload all four photos to continue.')).toBeTruthy();
+});
+
+describe('choosing a photo', () => {
+  const picker = require('expo-image-picker');
+  beforeEach(() => { Object.values(picker).forEach((f: any) => typeof f?.mockReset === 'function' && f.mockReset()); });
+
+  test('Gallery opens the phone\'s picker straight away, without asking for photo access (it was refused or limited before)', async () => {
+    picker.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: false, canAskAgain: false });
+    picker.launchImageLibraryAsync.mockResolvedValue({ canceled: true });
+    const ui = show();
+    fireEvent.press(ui.getByTestId('doc-gallery-pan'));
+    await waitFor(() => expect(picker.launchImageLibraryAsync).toHaveBeenCalledTimes(1));
+    expect(picker.requestMediaLibraryPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  test('Gallery works for Aadhaar front and back too', async () => {
+    picker.launchImageLibraryAsync.mockResolvedValue({ canceled: true });
+    const ui = show();
+    fireEvent.press(ui.getByTestId('doc-id-aadhaar'));
+    fireEvent.press(ui.getByTestId('doc-gallery-aadhaar'));
+    fireEvent.press(ui.getByTestId('doc-gallery-aadhaar_back'));
+    await waitFor(() => expect(picker.launchImageLibraryAsync).toHaveBeenCalledTimes(2));
+  });
+
+  test('Camera still needs permission: when refused, the camera is not opened and the person is told', async () => {
+    const alert = jest.spyOn(require('react-native').Alert, 'alert').mockImplementation(() => undefined);
+    picker.requestCameraPermissionsAsync.mockResolvedValue({ granted: false, canAskAgain: false });
+    const ui = show();
+    fireEvent.press(ui.getByTestId('doc-camera-pan'));
+    await waitFor(() => expect(alert).toHaveBeenCalled());
+    expect(picker.launchCameraAsync).not.toHaveBeenCalled();
+    alert.mockRestore();
+  });
 });

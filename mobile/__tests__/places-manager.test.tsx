@@ -4,6 +4,7 @@ import React from 'react';
 import { PaperProvider } from 'react-native-paper';
 
 import { PlacesManager } from '@/components/PlacesManager';
+import { brand } from '@/theme';
 import '@/i18n';
 
 const mockApi = jest.fn(async (path: string, opts?: any) => {
@@ -29,4 +30,17 @@ test('Add Property lists only this property\'s places and is where a new place i
   expect(post[0]).toBe('/api/v1/owner/units');
   expect(post[1].body).toMatchObject({ property_id: 'p1', kind: 'commercial', floor: null });
   expect(post[1].idempotencyKey).toMatch(/^key-/);                       // sent with a key, so a retry can never add the unit twice
+});
+
+test('each unit shows R for residential or C for commercial instead of an icon', async () => {
+  mockApi.mockImplementationOnce(async () => ({ items: [
+    { id: 'u1', property_id: 'p1', identifier: 'S-01', kind: 'commercial', floor: 0, vacant: true },
+    { id: 'u3', property_id: 'p1', identifier: 'F-02', kind: 'residential', floor: 1, vacant: true }] }));
+  const ui = render(wrap(<PlacesManager propertyId="p1" owner="o1" />));
+  await waitFor(() => ui.getByText(/S-01/));
+  expect(ui.getByTestId('unit-kind-u1').props.accessibilityLabel).toBeTruthy();
+  expect(ui.getAllByText('C').length).toBeGreaterThan(0);
+  expect(ui.getAllByText('R').length).toBeGreaterThan(0);
+  expect(JSON.stringify(ui.getByTestId('unit-kind-u1').props.style)).toContain('#F97316');      // C is orange
+  expect(JSON.stringify(ui.getByTestId('unit-kind-u3').props.style)).toContain(brand.blue600);      // R is blue (the app's blue)
 });

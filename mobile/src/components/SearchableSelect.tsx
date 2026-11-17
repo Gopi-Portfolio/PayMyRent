@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text as RNText, View } from 'react-native';
 import { Icon, Searchbar, Text, useTheme } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
+import { radius } from '@/theme';
 
 export type Option<V extends string = string> = { value: V; label: string; subtitle?: string };
 
@@ -69,7 +70,7 @@ export function SearchableSelect<V extends string>({ label, value, options, onCh
 
 const styles = StyleSheet.create({
   box: { height: 58, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, paddingRight: 8, borderWidth: 1, borderRadius: 12 },
-  row: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 8, borderRadius: 10 },
+  row: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 8, borderRadius: radius.sm },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
   sheet: { maxHeight: '75%', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 14, paddingBottom: 32 },
   grab: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#C5D2CE', marginBottom: 10 },

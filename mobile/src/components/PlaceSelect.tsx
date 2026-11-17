@@ -61,7 +61,7 @@ export function PlaceSelect({ places, selectedId, onPick }: { places: Place[]; s
         </View>
       ) : null}
       {taken > 0 ? <Text variant="bodySmall" style={{ color: brand.muted }}>{t('tenancy.occupiedLocked')}</Text> : null}
-      {places.every((u) => !u.vacant) ? <Text variant="bodySmall" style={{ color: '#B45309', fontWeight: '700' }} testID="no-free-unit">{t('tenancy.noFreeUnits')}</Text> : null}
+      {places.every((u) => !u.vacant) ? <Text variant="bodySmall" style={{ color: brand.amber700, fontWeight: '700' }} testID="no-free-unit">{t('tenancy.noFreeUnits')}</Text> : null}
     </View>
   );
 }

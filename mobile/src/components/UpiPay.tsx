@@ -76,8 +76,8 @@ export function UpiPay({ tenancyId, ownerName, upi, unit, paise, due, onReported
             <UpiAppButton app="other" label={t('upi.otherAppShort', { defaultValue: 'Other UPI app' })} disabled={!amountOk} onPress={() => open('upi')} testID="upi-other" />
           )}
         </View>
-        {!amountOk && paise ? <Text style={{ color: '#B45309', fontWeight: '700' }}>{t('pay.maxIsDue', { amount: formatINR(due) })}</Text> : null}
-        {noApp ? <Text style={{ color: '#B45309', lineHeight: 20 }} testID="upi-noapp">{t('upi.noApp')}</Text> : null}
+        {!amountOk && paise ? <Text style={{ color: brand.amber700, fontWeight: '700' }}>{t('pay.maxIsDue', { amount: formatINR(due) })}</Text> : null}
+        {noApp ? <Text style={{ color: brand.amber700, lineHeight: 20 }} testID="upi-noapp">{t('upi.noApp')}</Text> : null}
       </Panel>
       <Panel title={t('upi.afterTitle')} icon="receipt-text-check-outline" tone={opened ? 'amber' : 'teal'}>
         <Text style={{ color: brand.muted, lineHeight: 21 }}>{t('upi.afterHint')}</Text>

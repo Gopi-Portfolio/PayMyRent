@@ -127,6 +127,8 @@
     "verifyFirst": "आधी हा क्रमांक पडताळा"
   },
   "owner": {
+    "allRenters": "सर्व भाडेकरू",
+    "allProperties": "सर्व मालमत्ता",
     "collected": "वसूल झाले",
     "pending": "आता देय",
     "overdue": "उशिराचे",

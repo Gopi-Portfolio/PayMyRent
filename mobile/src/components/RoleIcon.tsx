@@ -3,9 +3,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, Path, Rect } from 'react-native-svg';
+import { brand } from '@/theme';
 
 const SKIN = '#E3A877', HAIR = '#1F1A17', MOUTH = '#8E3B2E';
-const OWNER = '#1F8A02', RENTER = '#003472';     // the two roles' colours
+const OWNER = brand.green600, RENTER = brand.blue600;     // the two roles' colours
 
 function Eyes({ y }: { y: number }) {
   return (
@@ -25,7 +26,7 @@ const Brows = ({ y }: { y: number }) => (
   <Path d={`M13.6 ${y}Q16 ${y - 1.4} 18.4 ${y}M21.6 ${y}Q24 ${y - 1.4} 26.4 ${y}`} stroke={HAIR} strokeWidth="1" fill="none" strokeLinecap="round" />
 );
 
-function ManBody({ shirt = '#1F8A02' }: { shirt?: string }) {
+function ManBody({ shirt = brand.green600 }: { shirt?: string }) {
   return (
     <>
       <Path d="M5 40Q5 28.5 20 28.5Q35 28.5 35 40Z" fill={shirt} />

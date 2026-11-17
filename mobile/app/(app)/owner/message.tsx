@@ -81,7 +81,7 @@ export default function MessageRenter() {
         <Icon source={on ? 'checkbox-marked' : 'checkbox-blank-outline'} size={24} color={usable ? brand.teal700 : brand.disabled} />
         <Icon source={icon} size={20} color={brand.muted} />
         <Text style={{ flex: 1, fontWeight: '700' }}>{label}</Text>
-        <Text variant="labelSmall" style={{ color: c?.mode === 'test' ? '#B45309' : brand.muted, fontWeight: '800' }}>{usable ? (c.mode === 'test' ? t('message.testMode') : '') : t('message.notConnected')}</Text>
+        <Text variant="labelSmall" style={{ color: c?.mode === 'test' ? brand.amber700 : brand.muted, fontWeight: '800' }}>{usable ? (c.mode === 'test' ? t('message.testMode') : '') : t('message.notConnected')}</Text>
       </Pressable>
     );
   };
@@ -104,7 +104,7 @@ export default function MessageRenter() {
               <Text style={{ fontWeight: '800', fontSize: 16 }}>{renter ?? '…'}{info.data?.unit ? ` · ${info.data.unit}` : ''}</Text>
             </View>
           </View>
-          {info.data && !info.data.can_message ? <Text style={{ color: '#B45309', fontWeight: '700' }}>{t('message.cannot')}</Text> : null}
+          {info.data && !info.data.can_message ? <Text style={{ color: brand.amber700, fontWeight: '700' }}>{t('message.cannot')}</Text> : null}
 
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}><LanguageSelect label={t('message.iSpeak')} value={fromLang} onChange={(c) => { setFromLang(c); setResult(null); }} testID="lang-from" /></View>

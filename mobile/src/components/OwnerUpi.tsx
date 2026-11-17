@@ -43,7 +43,7 @@ export function OwnerUpi() {
   return (
     <Panel title={t('upiProfile.title')} icon="cellphone-check" tone="green">
       <Text style={{ color: brand.muted, lineHeight: 21 }}>{t('upiProfile.explain')}</Text>
-      <Text selectable style={{ fontWeight: '800', fontSize: 18, color: def ? brand.green600 : '#B45309' }} testID="profile-upi">{def ?? t('upiProfile.notSet')}</Text>
+      <Text selectable style={{ fontWeight: '800', fontSize: 18, color: def ? brand.green600 : brand.amber700 }} testID="profile-upi">{def ?? t('upiProfile.notSet')}</Text>
       {canEdit && !open ? <Button mode="outlined" icon="pencil-outline" onPress={() => setOpen(true)} testID="profile-upi-edit">{def ? t('payhow.change') : t('upiProfile.add')}</Button> : null}
       {open ? (
         <>

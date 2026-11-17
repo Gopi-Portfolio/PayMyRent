@@ -261,3 +261,9 @@ def test_an_invited_number_and_a_current_renter_are_known(actor, engine, sent):
 
 def test_renter_access_needs_a_signed_in_user(actor):
     assert actor(roles=("tenant",)).c.get("/api/v1/me/renter-access").status_code == 401
+
+
+def test_the_profile_tells_the_kind_of_each_property_for_the_home_dropdown(actor):
+    owner = ready_owner(actor)
+    acct = owner.get("/api/v1/me").json()["owner_accounts"][0]
+    assert acct["property_kind"] in ("residential", "commercial", "mixed")

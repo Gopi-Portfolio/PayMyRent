@@ -37,7 +37,7 @@ export function ActionOtp({ action, code, onChange, ownerAccount }: { action: Ot
       {sentTo ? (
         <View style={{ gap: 6 }}>
           <Field label={t('otp.code')} value={code} onChangeText={(v) => { const c = v.replace(/\D/g, '').slice(0, 6); onChange(c); if (c.length === 6) Keyboard.dismiss(); }} keyboardType="number-pad" maxLength={6} testID={`otp-${action}`} />
-          {demo ? <Text variant="bodySmall" style={{ color: '#B45309' }}>{t('otp.demo', { code: demo })}</Text> : null}
+          {demo ? <Text variant="bodySmall" style={{ color: brand.amber700 }}>{t('otp.demo', { code: demo })}</Text> : null}
         </View>
       ) : null}
       {err ? <Text style={{ color: '#B42318' }}>{err}</Text> : null}

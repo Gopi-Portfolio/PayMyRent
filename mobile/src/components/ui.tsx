@@ -250,6 +250,7 @@ function usePageTitle(): string | null {
     [/^\/owner\/ai/, () => t('owner.askAi')], [/^\/owner\/approvals/, () => t('owner.approvals')], [/^\/owner\/relief/, () => t('relief.title')], [/^\/owner\/message/, () => t('message.title')], [/^\/notifications/, () => t('notifications.title')], [/^\/owner\/import/, () => t('owner.import')],
     [/^\/owner\/report\/collected/, () => t('owner.collected')], [/^\/owner\/report\/pending/, () => t('owner.pending')],
     [/^\/owner\/report\/overdue/, () => t('owner.overdue')], [/^\/owner\/report\/units/, () => t('owner.units')],
+    [/^\/owner\/report\/renters/, () => t('owner.allRenters')], [/^\/owner\/report\/properties/, () => t('owner.allProperties')], [/^\/search/, () => t('common.search')],
     [/^\/owner\/tenancy\//, () => t('titles.renterDetails')], [/^\/owner\/?$/, () => t('titles.ownerDashboard')], [/^\/tenant\/?$/, () => t('titles.renterDashboard')],
     [/^\/tenant\/pay\//, () => t('pay.title')], [/^\/tenant\/rental\//, () => t('titles.rentalDetails')], [/^\/payment-status/, () => t('titles.paymentStatus')],
     [/^\/profile/, () => t('profile.title')], [/^\/help/, () => t('help.title')], [/^\/privacy/, () => t('privacy.title')], [/^\/identity/, () => t('identity.title')],
@@ -457,7 +458,7 @@ export function Money({ paise, style }: { paise: number; style?: object }) {
 
 const TONES = {
   green: { bg: brand.green100, fg: brand.green600 },
-  amber: { bg: brand.amber100, fg: '#B45309' },
+  amber: { bg: brand.amber100, fg: brand.amber700 },
   red: { bg: brand.red100, fg: brand.red600 },
   blue: { bg: brand.blue100, fg: brand.blue600 },
   get teal() { return { bg: brand.teal100, fg: brand.teal700 }; },
@@ -466,19 +467,19 @@ const TONES = {
 } as const;
 export type Tone = keyof typeof TONES;
 
-export function Metric({ label, paise, count, detail, icon = 'cash', tone = 'teal', onPress, active, tinted, compact }: { label: string; paise?: number; count?: number; detail?: string; icon?: string; tone?: Tone; onPress?: () => void; active?: boolean; tinted?: boolean; compact?: boolean }) {
+export function Metric({ label, paise, count, detail, icon = 'cash', tone = 'teal', onPress, active, tinted, compact, testID }: { label: string; paise?: number; count?: number; detail?: string; icon?: string; tone?: Tone; onPress?: () => void; active?: boolean; tinted?: boolean; compact?: boolean; testID?: string }) {
   const c = TONES[tone];
   if (compact) {   // tile-sized box for the shortcut row: the number first, the name under it, light fill and a very light border
     return (
-      <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} testID="metric-compact"
+      <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} testID={testID ?? 'metric-compact'}
                  style={({ pressed }) => [{ width: '31%', backgroundColor: `${c.fg}12`, borderRadius: radius.lg, borderWidth: active ? 2 : 1.5, borderColor: active ? c.fg : `${c.fg}1A`,
                                             paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', gap: 2 }, shadow, pressed && { backgroundColor: c.bg, transform: [{ scale: 0.96 }] }]}
                  accessible accessibilityLabel={`${label} ${paise !== undefined ? formatINR(paise) : count}${detail ? `, ${detail}` : ''}`}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Icon source={icon} size={22} color={c.fg} />
-          <Text style={{ fontSize: 28, fontWeight: '800', color: brand.ink, fontVariant: ['tabular-nums'] }}>{paise !== undefined ? formatINR(paise) : count}</Text>
+          <Text style={{ fontSize: 28, fontWeight: '800', color: tinted ? c.fg : brand.ink, fontVariant: ['tabular-nums'] }}>{paise !== undefined ? formatINR(paise) : count}</Text>
         </View>
-        <Text variant="labelLarge" style={{ color: brand.muted, fontWeight: '700' }} numberOfLines={1}>{label}</Text>
+        <Text variant="labelLarge" style={[{ color: brand.muted, fontWeight: '700' }, tinted && { color: '#000', fontSize: 14 }]} numberOfLines={2}>{label}</Text>
       </Pressable>
     );
   }
@@ -488,11 +489,11 @@ export function Metric({ label, paise, count, detail, icon = 'cash', tone = 'tea
                accessible accessibilityLabel={`${label} ${paise !== undefined ? formatINR(paise) : count}${detail ? `, ${detail}` : ''}`}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <View style={[styles.metricIcon, { backgroundColor: c.bg }]}><Icon source={icon} size={20} color={c.fg} /></View>
-        <Text variant="labelMedium" style={{ color: brand.muted, flex: 1 }} numberOfLines={1}>{label}</Text>
+        <Text variant="labelMedium" style={[{ color: brand.muted, flex: 1 }, tinted && { color: '#000', fontSize: 15, lineHeight: 20, fontWeight: '700' }]} numberOfLines={1}>{label}</Text>
       </View>
       <View style={{ height: 10 }} />
-      <Text style={styles.metricValue} adjustsFontSizeToFit numberOfLines={1}>{paise !== undefined ? formatINR(paise) : count}</Text>
-      {detail ? <Text variant="labelSmall" style={{ color: brand.muted, marginTop: 2 }} numberOfLines={3}>{detail}</Text> : null}
+      <Text style={[styles.metricValue, tinted && { color: c.fg }]} adjustsFontSizeToFit numberOfLines={1}>{paise !== undefined ? formatINR(paise) : count}</Text>
+      {detail ? <Text variant="labelSmall" style={[{ color: brand.muted, marginTop: 2 }, tinted && { color: '#000', fontSize: 13, lineHeight: 18, fontWeight: '500' }]} numberOfLines={3}>{detail}</Text> : null}
     </Pressable>
   );
 }
@@ -548,7 +549,7 @@ export function PricingCards({ onSelect, selected, cardCta, currentPlan, freeMon
                      style={({ pressed }) => [styles.planCard, shadow, { borderColor: active ? brand.green600 : popular ? '#8CC779' : '#E1E8E1', borderWidth: active ? 2.5 : 1.5 },
                        (active || popular) && { backgroundColor: brand.teal50 }, pressed && { backgroundColor: brand.teal100 }]}>
             {freeMonth ? (
-              <View style={{ alignSelf: 'flex-start', backgroundColor: brand.amber500, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, marginBottom: 10 }} testID={`free-${p.code}`}>
+              <View style={{ alignSelf: 'flex-start', backgroundColor: brand.amber500, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3, marginBottom: 10 }} testID={`free-${p.code}`}>
                 <Text style={{ fontSize: 12, fontWeight: '800', color: '#3B2300' }}>{t('pricing.firstMonthFree')}</Text>
               </View>
             ) : null}
@@ -602,7 +603,7 @@ export function PlanCard({ owner, compact = false }: { owner: string | null; com
       <Pressable onPress={go} accessibilityRole="button" accessibilityLabel={`${label} ${t('pricing.change')}`} testID="plan-link"
                  style={({ pressed }) => [styles.planRow, shadow, pressed && { backgroundColor: brand.teal50 }]}>
         <View style={[styles.planIcon, { width: 40, height: 40, borderRadius: 13, backgroundColor: bad ? brand.amber100 : brand.teal100 }]}>
-          <Icon source="crown" size={22} color={bad ? '#B45309' : brand.teal700} />
+          <Icon source="crown" size={22} color={bad ? brand.amber700 : brand.teal700} />
         </View>
         <View style={{ flex: 1 }}>
           <Text variant="titleSmall" style={{ fontWeight: '800' }}>{label}</Text>
@@ -619,7 +620,7 @@ export function PlanCard({ owner, compact = false }: { owner: string | null; com
         <View style={[styles.planIcon, { backgroundColor: brand.teal100 }]}><Icon source="crown" size={26} color={brand.teal700} /></View>
         <View style={{ flex: 1 }}>
           <Text variant="titleMedium" style={{ fontWeight: '800' }}>{label}</Text>
-          <Text variant="bodySmall" style={{ color: bad ? '#B45309' : brand.muted }}>{`${d.state}${end ? ` · ${end}` : ''}`}</Text>
+          <Text variant="bodySmall" style={{ color: bad ? brand.amber700 : brand.muted }}>{`${d.state}${end ? ` · ${end}` : ''}`}</Text>
         </View>
       </View>
       <Text variant="bodySmall" style={{ color: brand.muted, marginTop: 12 }}>{`${d.units_used}/${d.units_capacity}`}</Text>
@@ -666,7 +667,7 @@ export function StatusPill({ status }: { status: string }) {
 
 /** Big gradient figure card (amount due, receipt total…). */
 export function AmountHero({ label, paise, caption, icon = 'wallet', tone = 'teal', compact = false }: { label: string; paise: number; caption?: string; icon?: string; tone?: 'teal' | 'amber' | 'green'; compact?: boolean }) {
-  const colors = tone === 'amber' ? ['#B45309', '#F59E0B'] as const : tone === 'green' ? [brand.green600, brand.green600] as const : [brand.teal900, brand.teal600] as const;
+  const colors = tone === 'amber' ? [brand.amber700, '#F59E0B'] as const : tone === 'green' ? [brand.green600, brand.green600] as const : [brand.teal900, brand.teal600] as const;
   if (compact) {                    // one slim row: label on the left, the amount on the right
     return (
       <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
@@ -717,7 +718,7 @@ export function ResultView({ kind, title, lines = [], hint, error, children }: {
       {(kind === 'pending' || kind === 'review') && hint ? <Text style={{ color: brand.muted, textAlign: 'center' }}>{hint}</Text> : null}
       {kind === 'pending' && slow && !error ? (
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: brand.amber100, borderRadius: radius.md, padding: 12 }}>
-          <Icon source="timer-sand" size={20} color="#B45309" /><Text style={{ flex: 1, color: '#92400E' }}>{t('common.slow')}</Text>
+          <Icon source="timer-sand" size={20} color={brand.amber700} /><Text style={{ flex: 1, color: '#92400E' }}>{t('common.slow')}</Text>
         </View>
       ) : null}
       {error ? <View style={{ alignSelf: 'stretch' }}><ErrorBanner error={error} /></View> : null}
@@ -817,7 +818,7 @@ const styles = StyleSheet.create({
   pad: { padding: 16, gap: 12 },
   back: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
-  planBadge: { backgroundColor: brand.green600, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start' },
+  planBadge: { backgroundColor: brand.green600, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start' },
   planBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   planBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', minWidth: 120, maxWidth: 170, height: 46, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1.5, borderColor: brand.green600, backgroundColor: '#fff' },
   planBtnText: { color: brand.green600, fontSize: 15, fontWeight: '800' },
@@ -834,14 +835,14 @@ const styles = StyleSheet.create({
   cards: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   planCard: { backgroundColor: '#fff', borderRadius: radius.lg, padding: 16, borderWidth: 2 },
   panel: { backgroundColor: '#fff', borderRadius: radius.lg, padding: 16 },
-  panelIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  panelIcon: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   amountHero: { borderRadius: radius.lg + 4, padding: 20, gap: 6, overflow: 'hidden' },
   amountDeco: { position: 'absolute', right: -40, top: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.10)' },
   amountBig: { color: '#fff', fontSize: 38, fontWeight: '800', fontVariant: ['tabular-nums'] },
   tab: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 8, paddingHorizontal: 2, borderRadius: radius.sm + 2 },
   planRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: radius.lg, padding: 12 },
   planBox: { backgroundColor: '#fff', borderRadius: radius.lg, padding: 16 },
-  planIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  planIcon: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   expandBtn: { alignSelf: 'center', marginTop: 8, width: 40, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pager: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginTop: 4 },
   arrow: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
@@ -858,7 +859,7 @@ export function BalancePreview({ duePaise, paise }: { duePaise: number; paise: n
   const left = duePaise - paise;
   const settled = left === 0;
   const advance = left < 0;
-  const fg = settled || advance ? brand.green600 : '#B45309';
+  const fg = settled || advance ? brand.green600 : brand.amber700;
   const bg = settled || advance ? brand.green100 : brand.amber100;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: radius.md, backgroundColor: bg }} accessibilityLiveRegion="polite" testID="balance-preview">

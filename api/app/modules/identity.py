@@ -151,6 +151,7 @@ def me_payload(db: Db, uid: UUID) -> dict:
                               (SELECT p.name FROM properties p WHERE p.owner_account_id = m.owner_account_id AND p.archived_at IS NULL ORDER BY p.created_at LIMIT 1) AS property_name,
                               (SELECT p.address FROM properties p WHERE p.owner_account_id = m.owner_account_id AND p.archived_at IS NULL ORDER BY p.created_at LIMIT 1) AS property_address,
                               (SELECT p.verification_status FROM properties p WHERE p.owner_account_id = m.owner_account_id AND p.archived_at IS NULL ORDER BY p.created_at LIMIT 1) AS property_status,
+                              (SELECT p.kind FROM properties p WHERE p.owner_account_id = m.owner_account_id AND p.archived_at IS NULL ORDER BY p.created_at LIMIT 1) AS property_kind,
                               (SELECT count(*) FROM properties p WHERE p.owner_account_id = m.owner_account_id AND p.archived_at IS NULL AND p.verification_status <> 'rejected') AS property_count,
                               GREATEST(rg_property_allowance(m.owner_account_id), (SELECT count(*) FROM properties p WHERE p.owner_account_id = m.owner_account_id AND p.archived_at IS NULL)) AS property_capacity
                        FROM owner_memberships m WHERE m.user_id = :u AND m.status = 'active' ORDER BY m.created_at""", u=uid)

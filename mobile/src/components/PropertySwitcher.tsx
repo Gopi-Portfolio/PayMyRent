@@ -7,6 +7,7 @@ import { Pressable, View } from 'react-native';
 import { Icon, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
+import { KindBadge } from '@/components/KindBadge';
 import { ownerAccountId, useAuth, ownerProperties } from '@/lib/auth';
 import { closePropertyAsk, setViewAll, useAskingForProperty, useViewAll } from '@/lib/propertyView';
 import { brand, radius } from '@/theme';
@@ -38,12 +39,12 @@ export function PropertySwitcher() {
                    accessibilityLabel={`${t('property.title')}: ${shown}`}
                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: radius.md,
                             backgroundColor: '#fff', borderWidth: 1.5, borderColor: isOpen ? brand.teal700 : brand.line }}>
-          <Icon source={all ? 'home-group' : icon(sel)} size={18} color={brand.teal700} />
+          {all || !sel.property_kind ? <Icon source={all ? 'home-group' : icon(sel)} size={18} color={brand.teal700} /> : <KindBadge kind={sel.property_kind} size={24} testID="property-shown-kind" />}
           <Text numberOfLines={1} style={{ flex: 1, fontWeight: '800', color: brand.ink }} testID="property-shown">{shown}</Text>
           <Icon source={isOpen ? 'menu-up' : 'menu-down'} size={24} color={brand.teal700} />
         </Pressable>
       </View>
-      {asking ? <Text style={{ color: '#B45309', fontWeight: '700' }} testID="choose-property-first">{t('property.chooseFirst')}</Text> : null}
+      {asking ? <Text style={{ color: brand.amber700, fontWeight: '700' }} testID="choose-property-first">{t('property.chooseFirst')}</Text> : null}
       {isOpen ? (
         <View style={{ marginLeft: 0, borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: brand.line, overflow: 'hidden' }}>
           {many ? (
@@ -61,9 +62,10 @@ export function PropertySwitcher() {
                          accessibilityState={{ selected: on }} testID={`property-${i}`}
                          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 13,
                                                     backgroundColor: on ? brand.teal50 : pressed ? brand.teal50 : '#fff', borderBottomWidth: i < mine.length - 1 ? 1 : 0, borderBottomColor: brand.line })}>
-                <Icon source={on ? 'check-circle' : icon(o)} size={20} color={brand.teal700} />
+                {o.property_kind ? <KindBadge kind={o.property_kind} size={24} testID={`property-kind-${i}`} /> : <Icon source={icon(o)} size={20} color={brand.teal700} />}
                 <Text numberOfLines={1} style={{ flex: 1, fontWeight: on ? '800' : '600', color: brand.ink }}>{nameOf(o, i)}</Text>
-                {o.property_status === 'submitted' ? <Text variant="labelSmall" style={{ color: '#B45309' }}>{t('property.verifying')}</Text> : null}
+                {on ? <Icon source="check-circle" size={18} color={brand.teal700} /> : null}
+                {o.property_status === 'submitted' ? <Text variant="labelSmall" style={{ color: brand.amber700 }}>{t('property.verifying')}</Text> : null}
               </Pressable>
             );
           })}

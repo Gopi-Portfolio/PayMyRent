@@ -82,14 +82,14 @@ export default function RecordPayment() {
         <Field label={t('pay.amount')} value={amount} kind="amount"
                onChangeText={(v) => { const c = sel ? capToDue(v, Number(payNow(sel))) : { text: v, capped: false }; setAmount(c.text); setCapped(c.capped); }}
                error={amount && (paise === null || paise === 0) ? 'amount_invalid' : undefined} testID="amount" />
-        {capped && sel ? <Text style={{ color: '#B45309', fontWeight: '700' }} accessibilityLiveRegion="polite" testID="amount-capped">{t('pay.maxIsDue', { amount: formatINR(Math.max(0, payNow(sel))) })}</Text> : null}
+        {capped && sel ? <Text style={{ color: brand.amber700, fontWeight: '700' }} accessibilityLiveRegion="polite" testID="amount-capped">{t('pay.maxIsDue', { amount: formatINR(Math.max(0, payNow(sel))) })}</Text> : null}
         {sel && Number(payNow(sel)) <= 0 ? <Text style={{ color: brand.green600, fontWeight: '700' }}>{t('pay.nothingDue')}</Text> : null}
         {sel ? <BalancePreview duePaise={Number(payNow(sel))} paise={paise} /> : null}
         {sel ? <View style={{ flexDirection: 'row' }}><Chip2 icon="check-all" label={`${t('pay.full')} ${formatINR(payNow(sel))}`} onPress={() => setAmount(String(Math.max(0, payNow(sel)) / 100))} /></View> : null}
       </Panel>
       <View style={{ backgroundColor: brand.amber100, borderRadius: radius.md, padding: 14, gap: 10, borderWidth: 1, borderColor: '#F5C77E' }} testID="cash-notice">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Icon source="alert-decagram-outline" size={22} color="#B45309" />
+          <Icon source="alert-decagram-outline" size={22} color={brand.amber700} />
           <Text style={{ fontWeight: '800', color: '#7A3E00' }}>{t('pay.cashNoticeTitle')}</Text>
         </View>
         <Text style={{ lineHeight: 21, color: '#5A3200' }}>{t('pay.cashNotice')}</Text>
@@ -101,7 +101,7 @@ export default function RecordPayment() {
       </View>
       <ErrorBanner error={err} />
       <Button mode="contained" icon="cash-check" disabled={!tenancy || !paise || !read || !!(sel && paise > Math.max(0, Number(payNow(sel))))} onPress={() => setConfirm(true)}>{t('common.continue')}</Button>
-      {tenancy && paise && !read ? <Text style={{ color: '#B45309', fontWeight: '700' }}>{t('pay.cashTickFirst')}</Text> : null}
+      {tenancy && paise && !read ? <Text style={{ color: brand.amber700, fontWeight: '700' }}>{t('pay.cashTickFirst')}</Text> : null}
       <Portal>
         <Dialog visible={confirm} onDismiss={() => setConfirm(false)}>
           <Dialog.Title>{t('common.confirm')}</Dialog.Title>

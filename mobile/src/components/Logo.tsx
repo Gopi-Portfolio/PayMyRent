@@ -4,7 +4,7 @@ import React from 'react';
 import { Image, View } from 'react-native';
 import { Text } from 'react-native-paper';
 
-import { brand } from '@/theme';
+import { brand, radius } from '@/theme';
 
 const WHITE = require('../../assets/brand/logo-white.png');     // 2172 x 724, white on transparent: for the coloured headers
 const WHITE_RATIO = 2172 / 724;
@@ -33,7 +33,7 @@ export function Logo({ size = 44, light = false, bare = false }: { size?: number
   if (bare) return <Image source={FULL} accessibilityLabel={BRAND_NAME} style={{ width, height: Math.round(width / FULL_RATIO) }} resizeMode="contain" />;
   return (
     <View accessibilityLabel={BRAND_NAME} accessibilityRole="image"
-          style={{ backgroundColor: '#fff', borderRadius: 22, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center',
+          style={{ backgroundColor: '#fff', borderRadius: radius.lg, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center',
                    ...(light ? { shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6 } : {}) }}>
       <Image source={FULL} style={{ width, height: Math.round(width / FULL_RATIO) }} resizeMode="contain" />
     </View>

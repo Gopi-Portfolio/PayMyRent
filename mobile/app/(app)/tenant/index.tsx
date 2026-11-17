@@ -12,6 +12,7 @@ import { DownloadButtons } from '@/components/DownloadButtons';
 import { PayFlow } from '@/components/PayFlow';
 import { ReliefChip } from '@/components/RentRelief';
 import { RoleIcon } from '@/components/RoleIcon';
+import { KindBadge } from '@/components/KindBadge';
 import { KIND_GROUPS, floorLabel, kindGroup, kindIcon } from '@/lib/units';
 import { DemoBanner, ErrorBanner, Metric, SlideIn } from '@/components/ui';
 import { SearchableSelect } from '@/components/SearchableSelect';
@@ -26,9 +27,9 @@ function VerifyBadge({ status }: { status?: string }) {
   const pending = status === 'submitted';
   if (!ok && !pending) return null;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: ok ? brand.green100 : brand.amber100, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
-      <Icon source={ok ? 'shield-check' : 'shield-half-full'} size={13} color={ok ? brand.green600 : '#B45309'} />
-      <Text style={{ fontSize: 11, fontWeight: '800', color: ok ? brand.green600 : '#B45309' }}>{t(ok ? 'ownerDetails.verified' : 'ownerDetails.submitted')}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: ok ? brand.green100 : brand.amber100, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3 }}>
+      <Icon source={ok ? 'shield-check' : 'shield-half-full'} size={13} color={ok ? brand.green600 : brand.amber700} />
+      <Text style={{ fontSize: 11, fontWeight: '800', color: ok ? brand.green600 : brand.amber700 }}>{t(ok ? 'ownerDetails.verified' : 'ownerDetails.submitted')}</Text>
     </View>
   );
 }
@@ -107,7 +108,7 @@ export default function TenantHome() {
             {(invites.data?.items ?? []).map((i: any) => (
               <View key={i.id} style={[card, shadow, { borderLeftWidth: 5, borderLeftColor: brand.amber500 }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Icon source="email-fast-outline" size={22} color="#B45309" />
+                  <Icon source="email-fast-outline" size={22} color={brand.amber700} />
                   <Text variant="titleSmall" style={{ fontWeight: '800', flex: 1 }}>{t('tenant.invitations')}</Text>
                   <VerifyBadge status={i.owner_verification} />
                 </View>
@@ -145,17 +146,17 @@ export default function TenantHome() {
           <Pressable onPress={() => router.push(`/(app)/tenant/rental/${item.id}`)}
                      style={({ pressed }) => [card, shadow, { borderLeftWidth: 5, borderLeftColor: section.color.fg, marginBottom: 8 }, pressed && { backgroundColor: brand.teal50, transform: [{ scale: 0.99 }] }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={{ backgroundColor: section.color.bg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
+              <View style={{ backgroundColor: section.color.bg, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4 }}>
                 <Text style={{ fontWeight: '800', color: section.color.fg }}>{item.identifier}</Text>
               </View>
-              <Icon source={kindIcon(item.kind)} size={18} color={section.color.fg} />
+              <KindBadge kind={item.kind} size={22} />
               <Text variant="titleSmall" style={{ flex: 1, fontWeight: '700' }} numberOfLines={1}>{item.property_name ?? item.address}</Text>
               <Icon source="chevron-right" size={20} color={brand.muted} />
             </View>
             <Text variant="bodySmall" style={{ color: brand.muted, marginTop: 4 }} numberOfLines={1}>{item.floor !== null && item.floor !== undefined ? `${floorLabel(item.floor, t, i18n.language)} · ` : ''}{item.address}</Text>
             <ReliefChip relief={item.relief} who="renter" />
-            <Text style={{ fontSize: 30, fontWeight: '800', marginTop: 12, color: payNow(item) > 0 ? '#B45309' : brand.green600 }}>{formatINR(payNow(item))}</Text>
-            {Number(item.balance_paise) > payNow(item) ? <Text variant="bodySmall" style={{ color: '#B45309', fontWeight: '700' }}>{t('relief.movesToNext', { amount: formatINR(Number(item.balance_paise) - payNow(item)) })}</Text> : null}
+            <Text style={{ fontSize: 30, fontWeight: '800', marginTop: 12, color: payNow(item) > 0 ? brand.amber700 : brand.green600 }}>{formatINR(payNow(item))}</Text>
+            {Number(item.balance_paise) > payNow(item) ? <Text variant="bodySmall" style={{ color: brand.amber700, fontWeight: '700' }}>{t('relief.movesToNext', { amount: formatINR(Number(item.balance_paise) - payNow(item)) })}</Text> : null}
             <Text variant="bodySmall" style={{ color: brand.muted }}>{`${t('bill.rent')} ${formatINR(item.monthly_rent_paise)} · ${t('tenant.deposit')} ${formatINR(item.deposit_held_paise)}${item.status === 'ended' ? ` · ${t('tenant.endedTag')}` : ''}`}</Text>
             <Text variant="bodySmall" style={{ color: brand.muted }}>{`${t('dates.since', { date: fmtDate(item.start_date) })}${item.latest_invoice?.due_date && payNow(item) > 0 ? ` · ${t('dates.nextDue', { date: fmtDate(item.latest_invoice.due_date) })}` : ''}`}</Text>
             {item.status === 'active' ? (

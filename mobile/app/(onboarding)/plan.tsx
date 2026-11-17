@@ -13,7 +13,7 @@ import { ActionOtp, otpReady } from '@/components/ActionOtp';
 import { AppButton } from '@/components/Buttons';
 import { RelationshipPicker, Relationship } from '@/components/RelationshipPicker';
 import { ErrorBanner, Field, PricingCards, Screen } from '@/components/ui';
-import { brand } from '@/theme';
+import { brand, radius } from '@/theme';
 import { api, newIdempotencyKey, reachable } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { fmtDate } from '@/lib/dates';
@@ -71,7 +71,7 @@ export default function Plan() {
         <Text style={{ color: brand.muted, fontSize: 16, textAlign: 'center' }}>{t('pricing.chooseSub')}</Text>
       </View>
       {cur ? (
-        <View style={{ backgroundColor: brand.teal50, borderRadius: 16, borderWidth: 2, borderColor: brand.teal700, paddingVertical: 12, paddingHorizontal: 14, gap: 4 }} testID="current-plan">
+        <View style={{ backgroundColor: brand.teal50, borderRadius: radius.md, borderWidth: 2, borderColor: brand.teal700, paddingVertical: 12, paddingHorizontal: 14, gap: 4 }} testID="current-plan">
           <Text style={{ color: brand.teal700, fontWeight: '800', fontSize: 12, letterSpacing: 0.6, textTransform: 'uppercase' }}>{t('pricing.current')}</Text>
           <Text style={{ color: '#000', fontSize: 20, fontWeight: '800' }}>{t(`pricing.name_${cur.plan_code}`, { defaultValue: cur.plan_code })}</Text>
           <Text style={{ color: '#000', fontSize: 15 }}>{t('pricing.validUntil', { date: fmtDate(String(cur.period_end ?? '')) })}</Text>

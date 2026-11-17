@@ -14,6 +14,7 @@ import { DONE_ID, DoneBar, ErrorBanner, Panel, Screen, UsageBar, useDoneTick } f
 import { ApiError, api, newIdempotencyKey } from '@/lib/api';
 import { Button } from '@/components/Buttons';
 import { ownerAccountId, useAuth } from '@/lib/auth';
+import { brand } from '@/theme';
 
 export default function Ai() {
   const { t, i18n } = useTranslation();
@@ -66,7 +67,7 @@ export default function Ai() {
           <UsageBar used={u.used} allowance={u.allowance} />
         </Panel>
       ) : null}
-      {exhausted ? <Text style={{ color: '#b45309' }}>{t('ai.exhausted')}</Text> : <ErrorBanner error={err} />}
+      {exhausted ? <Text style={{ color: brand.amber700 }}>{t('ai.exhausted')}</Text> : <ErrorBanner error={err} />}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <TextInput mode="outlined" style={{ flex: 1 }} value={q} onChangeText={(v) => { setQ(v); setVoice(false); }} placeholder={t('owner.askAi')} maxLength={300} returnKeyType="done" blurOnSubmit inputAccessoryViewID={DONE_ID} />
         <DoneBar />
@@ -76,7 +77,7 @@ export default function Ai() {
       {answer ? (
         <Panel title="AI" icon="creation" tone="blue">
           <Text>{answer.answer}</Text>
-          {answer.facts ? <Text variant="bodySmall" style={{ marginTop: 8, color: '#5B6B67' }}>{JSON.stringify(answer.facts, null, 1)}</Text> : null}
+          {answer.facts ? <Text variant="bodySmall" style={{ marginTop: 8, color: brand.muted }}>{JSON.stringify(answer.facts, null, 1)}</Text> : null}
         </Panel>
       ) : null}
       <Panel title={t('owner.reminders')} icon="bell-ring" tone="amber">

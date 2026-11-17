@@ -69,12 +69,12 @@ export function PayTabButton({ payer = true }: { payer?: boolean }) {
             accessible accessibilityRole="adjustable" accessibilityLabel={enabled ? t('pay.tab') : `${t('pay.tab')}: ${online ? t('pay.nothingDue') : t('offline.payNeedsInternet')}`}
             accessibilityState={{ disabled: !enabled }} accessibilityActions={enabled ? [{ name: 'activate', label: t('pay.tab') }] : []}
             onAccessibilityAction={() => enabled && go()}
-            style={[styles.track, { backgroundColor: enabled ? '#DCE8F7' : brand.disabledBg }]}>
+            style={[styles.track, { backgroundColor: enabled ? brand.blue100 : brand.disabledBg }]}>
         <Animated.View style={{ position: 'absolute', right: 8, opacity: fade }}>
-          <Icon source="chevron-double-right" size={20} color={enabled ? '#003472' : '#B8C4C0'} />
+          <Icon source="chevron-double-right" size={20} color={enabled ? brand.blue600 : '#B8C4C0'} />
         </Animated.View>
         <Animated.View onLayout={(e) => setHandleW(e.nativeEvent.layout.width)}
-                       style={[styles.handle, { backgroundColor: enabled ? '#003472' : '#D5DEDB', transform: [{ translateX: x }] }, enabled && shadow]}>
+                       style={[styles.handle, { backgroundColor: enabled ? brand.blue600 : '#D5DEDB', transform: [{ translateX: x }] }, enabled && shadow]}>
           {enabled ? <Text numberOfLines={1} style={{ fontWeight: '800', fontSize: 14, color: '#fff' }}>{t('pay.tab')}</Text>
                  : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon source="lock-outline" size={16} color="#9AA9A5" /><Text numberOfLines={1} style={{ fontWeight: '800', fontSize: 14, color: brand.disabled }}>{t('pay.tab')}</Text></View>}
         </Animated.View>

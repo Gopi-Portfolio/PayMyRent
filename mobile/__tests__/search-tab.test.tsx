@@ -62,6 +62,7 @@ test('Renters lists the renters, + adds a renter, and the filter button sits in 
   fireEvent.press(ui.getByTestId('search-mode'));
   fireEvent.press(ui.getByTestId('search-mode-renters'));
   await waitFor(() => expect(ui.getByText('Meena Devi')).toBeTruthy());
+  expect(ui.queryByText('M')).toBeNull();                                 // no first-letter circle on a renter row
   fireEvent.press(ui.getByTestId('search-add'));
   expect(mockPush).toHaveBeenCalledWith('/(app)/owner/add-tenant');
   expect(ui.queryByTestId('search-filters')).toBeNull();

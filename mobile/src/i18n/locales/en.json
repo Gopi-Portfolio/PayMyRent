@@ -127,6 +127,8 @@
     "verifyFirst": "Verify this number first"
   },
   "owner": {
+    "allRenters": "All Renters",
+    "allProperties": "All Properties",
     "collected": "Collected",
     "pending": "Due Now",
     "overdue": "Overdue",

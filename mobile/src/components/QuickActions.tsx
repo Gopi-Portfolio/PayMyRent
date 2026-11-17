@@ -69,13 +69,37 @@ export function ActionCarousel({ cards }: { cards: ActionCard[] }) {
   );
 }
 
+/** The same main actions as ActionCarousel, stacked one below another so all of them are visible at once with no swiping. The whole card is the button. */
+export function ActionStack({ cards }: { cards: ActionCard[] }) {
+  return (
+    <View testID="action-stack" style={{ gap: 12 }}>
+      {cards.map((c) => (
+        <Pressable key={c.key} onPress={c.onPress} testID={c.testID} accessibilityRole="button" accessibilityLabel={`${c.title}. ${c.message}${c.footnote ? `. ${c.footnote}` : ''}`}
+                   android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
+                   style={({ pressed }) => [styles.card, shadow, { overflow: 'hidden' }, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
+          <LinearGradient pointerEvents="none" colors={c.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          <View style={[styles.cardIcon, { backgroundColor: 'rgba(255,255,255,0.24)' }]}><Icon source={c.icon} size={26} color="#fff" /></View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <View style={styles.cardTitleRow}>
+              <Text style={[styles.cardTitle, { color: '#fff' }]}>{c.title}</Text>
+              {c.footnote ? <View style={[styles.cardNote, { backgroundColor: 'rgba(255,255,255,0.24)' }]}><Text style={[styles.cardNoteText, { color: '#fff' }]}>{c.footnote}</Text></View> : null}
+            </View>
+            <Text style={[styles.cardMessage, { color: 'rgba(255,255,255,0.92)' }]} numberOfLines={2}>{c.message}</Text>
+          </View>
+          <Icon source="chevron-right" size={24} color="#fff" />
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 /** A small button for the other shortcuts: tinted icon, short label, an optional number (waiting items) and a selected state. */
-export function MiniAction({ icon, label, fg, bg, count, clearText, active, onPress, testID }: {
-  icon: string; label: string; fg: string; bg: string; count?: number; clearText?: string; active?: boolean; onPress: () => void; testID?: string;
+export function MiniAction({ icon, label, fg, bg, tint, count, clearText, active, onPress, testID }: {
+  icon: string; label: string; fg: string; bg: string; tint?: string; count?: number; clearText?: string; active?: boolean; onPress: () => void; testID?: string;
 }) {
   return (
     <Pressable onPress={onPress} testID={testID} accessibilityRole="button" accessibilityState={{ selected: !!active }} accessibilityLabel={count ? `${label}, ${count}` : clearText ? `${label}, ${clearText}` : label}
-               style={({ pressed }) => [styles.mini, shadow, active && { backgroundColor: bg }, pressed && { transform: [{ scale: 0.96 }], backgroundColor: bg }]}>
+               style={({ pressed }) => [styles.mini, shadow, tint && { backgroundColor: tint }, active && { backgroundColor: bg }, pressed && { transform: [{ scale: 0.96 }], backgroundColor: bg }]}>
       <View style={[styles.miniIcon, { backgroundColor: active ? '#fff' : bg }]}>
         <Icon source={icon} size={20} color={fg} />
         {count ? <View style={[styles.count, { backgroundColor: fg }]} testID="mini-count"><Text style={styles.countText}>{count > 99 ? '99+' : count}</Text></View>
@@ -131,7 +155,7 @@ const wide = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 14 },
   icon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   label: { fontSize: 15, fontWeight: '800', color: '#10201D' },
-  sub: { fontSize: 12, color: '#5B6B67', marginTop: 1 },
+  sub: { fontSize: 12, color: brand.muted, marginTop: 1 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 28, height: 26, borderRadius: 13, paddingHorizontal: 9, justifyContent: 'center' },
   pillText: { color: '#fff', fontSize: 12, fontWeight: '800' },
 });

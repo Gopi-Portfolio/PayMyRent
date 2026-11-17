@@ -9,6 +9,7 @@ import { Icon, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { AppButton } from '@/components/Buttons';
+import { KindBadge } from '@/components/KindBadge';
 import { ErrorBanner, Panel, Screen, StatusPill } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
@@ -29,16 +30,16 @@ export default function MyProperties() {
                    style={[{ backgroundColor: '#fff', borderRadius: radius.lg, padding: 14, gap: 8, borderWidth: w.owner_account_id === current ? 2 : 1,
                              borderColor: w.owner_account_id === current ? brand.teal700 : brand.line }, shadow]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Icon source="home-city-outline" size={24} color={brand.teal700} />
+            {w.property ? <KindBadge kind={w.property.kind} size={28} testID={`kind-${w.owner_account_id}`} /> : <Icon source="home-plus-outline" size={24} color={brand.teal700} />}
             <Text variant="titleSmall" style={{ flex: 1, fontWeight: '800' }} numberOfLines={1}>{w.property?.name || w.property?.address || t('property.newProperty')}</Text>
             {w.property ? <StatusPill status={w.property.verification_status === 'submitted' ? t('property.statusSubmitted') : w.property.verification_status === 'verified' ? t('property.statusVerified') : t('property.statusRejected')} /> : null}
           </View>
           {w.property ? <Text variant="bodySmall" style={{ color: brand.muted }} numberOfLines={2}>{`${w.property.address}, ${w.property.city} ${w.property.pincode}`}</Text>
-                      : <Text variant="bodySmall" style={{ color: '#B45309' }}>{t('property.addYourProperty')}</Text>}
+                      : <Text variant="bodySmall" style={{ color: brand.amber700 }}>{t('property.addYourProperty')}</Text>}
           <View style={{ flexDirection: 'row', gap: 16 }}>
             <Text style={{ fontWeight: '700' }}>{w.plan ? `${t('property.plan')}: ${String(w.plan).charAt(0).toUpperCase()}${String(w.plan).slice(1)}` : t('property.noPlan')}</Text>
             <Text style={{ fontWeight: '700' }}>{t('property.unitsOf', { used: w.active_units, cap: w.units_capacity })}</Text>
-            <Text style={{ fontWeight: '700', color: w.vacant_units ? '#B45309' : brand.muted }}>{`${t('property.vacant')}: ${w.vacant_units}`}</Text>
+            <Text style={{ fontWeight: '700', color: w.vacant_units ? brand.amber700 : brand.muted }}>{`${t('property.vacant')}: ${w.vacant_units}`}</Text>
           </View>
           {w.property && w.role === 'owner' ? (
             <Button textColor="crimson" icon="home-remove-outline" testID={`remove-property-${w.property.id}`} onPress={() => {

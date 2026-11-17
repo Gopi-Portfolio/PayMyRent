@@ -49,9 +49,9 @@ export default function OwnerNumbers() {
         ))}
         {(d?.declared ?? []).filter((x: any) => !x.joined).map((x: any) => (
           <View key={x.phone} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 }}>
-            <Icon source="clock-outline" size={22} color="#B45309" />
+            <Icon source="clock-outline" size={22} color={brand.amber700} />
             <Text style={{ flex: 1, fontWeight: '700' }}>{`${x.phone} · ${t(`ownerNumbers.rel_${x.relationship}`)}`}</Text>
-            <Text style={{ color: '#B45309' }}>{t('ownerNumbers.waiting')}</Text>
+            <Text style={{ color: brand.amber700 }}>{t('ownerNumbers.waiting')}</Text>
           </View>
         ))}
       </Panel>

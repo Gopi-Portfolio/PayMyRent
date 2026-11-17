@@ -44,7 +44,7 @@ export type Me = {
   contacts: { id: string; kind: 'mobile' | 'email'; value: string; is_primary: boolean; verified: boolean; for_mobile_id?: string | null }[];
   notification_preferences: Record<string, any> | null;
   owner_accounts: { owner_account_id: string; role: string; state: 'active' | 'grace' | 'read_only' | 'none'; verification?: 'submitted' | 'verified' | 'rejected' | null;
-    property_name?: string | null; property_address?: string | null; property_status?: 'submitted' | 'verified' | 'rejected' | null;
+    property_name?: string | null; property_address?: string | null; property_status?: 'submitted' | 'verified' | 'rejected' | null; property_kind?: 'residential' | 'commercial' | 'mixed' | null;
     property_count?: number; property_capacity?: number }[];     // how many properties this account holds, and how many its plan allows (Max: up to 100)
   pending_invitations: number; action_codes_required?: boolean; identity_status?: 'none' | 'pending' | 'verified' | 'manual_review' | 'failed' | 'rejected';
 };

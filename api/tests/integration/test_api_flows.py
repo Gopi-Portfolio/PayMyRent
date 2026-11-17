@@ -162,6 +162,13 @@ def test_dashboard_boxes_have_detail_rows(actor):
     pend = owner.get("/api/v1/owner/dashboard/pending").json()
     assert [i["tenancy_id"] for i in pend["items"]] == [t["tenancy_id"]] and int(pend["items"][0]["amount_paise"]) == 1000000
     assert owner.get("/api/v1/owner/dashboard/units").json()["items"][0]["tenant_name"] == "Ravi Kumar"
+    # the home boxes All renters and All properties: a count in the dashboard, and the rows behind each
+    metrics = owner.get("/api/v1/owner/dashboard").json()["metrics"]
+    assert metrics["renters"] == 1 and metrics["properties"] == 1
+    ren = owner.get("/api/v1/owner/dashboard/renters").json()
+    assert [i["tenancy_id"] for i in ren["items"]] == [t["tenancy_id"]] and ren["items"][0]["tenant_name"] == "Ravi Kumar" and ren["total_paise"] is None
+    prop = owner.get("/api/v1/owner/dashboard/properties").json()
+    assert len(prop["items"]) == 1 and prop["items"][0]["unit_count"] >= 1 and prop["total_paise"] is None
     owner.post(f"/api/v1/owner/tenancies/{t['tenancy_id']}/payments/cash", json={"amount": "4000", "paid_on": TODAY.isoformat(), "idempotency_key": uuid.uuid4().hex})
     col = owner.get("/api/v1/owner/dashboard/collected").json()
     assert len(col["items"]) == 1 and int(col["total_paise"]) == 400000
@@ -269,7 +276,7 @@ def test_reports_and_statements_download(actor):
     tid = onboard(owner, tenant.phone)["tenancy_id"]
     accept_all(tenant)
     owner.post(f"/api/v1/owner/tenancies/{tid}/invoices", params={"month": M0.isoformat()})
-    for kind in ("collected", "pending", "overdue", "units"):
+    for kind in ("collected", "pending", "overdue", "units", "renters", "properties"):
         x = owner.get(f"/api/v1/owner/dashboard/{kind}/export", params={"format": "xlsx"})
         assert x.status_code == 200 and "spreadsheetml" in x.headers["content-type"], (kind, x.text[:200])
         assert load_workbook(io.BytesIO(x.content)).worksheets[0]["A1"].value.startswith("RentMeezy")

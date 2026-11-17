@@ -15,6 +15,7 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { Segmented } from '@/components/Segmented';
 import { SlotRow, UploadSlot } from '@/components/UploadSlot';
 import { ErrorBanner, Field, Panel, Screen } from '@/components/ui';
+import { cameraAllowed } from '@/lib/cameraAccess';
 import { uploadPart } from '@/lib/uploadPart';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
@@ -59,8 +60,9 @@ export function OwnerDocumentCheck({ docs }: { docs: { items: { kind: Kind; uplo
 
   async function pick(kind: Kind, source: 'camera' | 'gallery') {
     setErr(null);
-    const perm = source === 'camera' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { setErr(new Error(t('docCheck.permission'))); return; }
+    // The camera needs permission (and sends the person to Settings if it was refused). The gallery needs none: the phone's own picker shows only what is chosen,
+    // so it must open even when photo access was never granted or was limited.
+    if (source === 'camera' && !(await cameraAllowed())) return;
     const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.7, allowsEditing: false,
       ...(kind === 'selfie' ? { cameraType: ImagePicker.CameraType.front } : {}) };
     const r = source === 'camera' ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);

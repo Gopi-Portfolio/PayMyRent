@@ -6,13 +6,14 @@ import { Icon, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { useOnline } from '@/lib/network';
+import { brand } from '@/theme';
 
 export function NeedsInternet() {
   const { t } = useTranslation();
   const online = useOnline();
   if (online) return null;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FEF3C7', borderRadius: 14, padding: 12 }} testID="needs-internet" accessibilityLiveRegion="polite">
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: brand.amber100, borderRadius: 14, padding: 12 }} testID="needs-internet" accessibilityLiveRegion="polite">
       <Icon source="cloud-off-outline" size={22} color="#7C4A03" />
       <Text style={{ flex: 1, color: '#7C4A03', fontWeight: '700', lineHeight: 20 }}>{t('offline.needsInternet')}</Text>
     </View>

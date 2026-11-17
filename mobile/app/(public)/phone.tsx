@@ -38,7 +38,7 @@ function Choice({ door }: { door: 'owner' | 'tenant' | null }) {
   const owner = door === 'owner';
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: brand.teal50, borderRadius: radius.lg, padding: 14 }} testID="chosen-role">
-      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: brand.teal700, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 44, height: 44, borderRadius: radius.lg, backgroundColor: brand.teal700, alignItems: 'center', justifyContent: 'center' }}>
         <Icon source={owner ? 'office-building-outline' : 'key-variant'} size={24} color="#fff" />
       </View>
       <View style={{ flex: 1 }}>

@@ -44,7 +44,7 @@ export default function Role() {
       {CHOICES.map((c) => (
         <Pressable key={c.key} onPress={() => !busy && choose(c.roles)} accessibilityRole="button" testID={`role-${c.key}`}
                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: '#fff', borderRadius: radius.lg, padding: 18, minHeight: 76 }, shadow, pressed && { backgroundColor: brand.teal50, transform: [{ scale: 0.98 }] }]}>
-          <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: brand.teal100, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 52, height: 52, borderRadius: radius.md, backgroundColor: brand.teal100, alignItems: 'center', justifyContent: 'center' }}>
             <Icon source={c.icon} size={28} color={brand.teal700} />
           </View>
           <Text variant="titleMedium" style={{ flex: 1, fontWeight: '700' }}>{t(`role.${c.key}`)}</Text>

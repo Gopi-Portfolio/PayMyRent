@@ -91,7 +91,7 @@ export default function OwnerTenancy() {
             <Avatar name={d.contact?.name ?? d.unit.identifier} size={52} />
             <View style={{ flex: 1 }}>
               <Text variant="titleMedium" style={{ fontWeight: '800' }}>{d.contact?.name ?? d.unit.identifier}</Text>
-              <Text variant="bodySmall" style={{ color: '#5B6B67' }}>{`${d.unit.identifier} · ${t('dates.since', { date: fmtDate(d.tenancy.start_date) })}${d.tenancy.end_date ? ` – ${fmtDate(d.tenancy.end_date)}` : ''}`}</Text>
+              <Text variant="bodySmall" style={{ color: brand.muted }}>{`${d.unit.identifier} · ${t('dates.since', { date: fmtDate(d.tenancy.start_date) })}${d.tenancy.end_date ? ` – ${fmtDate(d.tenancy.end_date)}` : ''}`}</Text>
             </View>
             <StatusPill status={d.tenancy.status} />
           </View>
@@ -125,7 +125,7 @@ export default function OwnerTenancy() {
             return (
               <Panel>
                 <Text variant="titleMedium" style={{ fontWeight: '800', color: 'crimson' }}>{t('tenancy.vacateTitle')}</Text>
-                <Text variant="bodySmall" style={{ color: '#5B6B67', marginBottom: 8 }}>{t('tenancy.vacateHelp')}</Text>
+                <Text variant="bodySmall" style={{ color: brand.muted, marginBottom: 8 }}>{t('tenancy.vacateHelp')}</Text>
                 <Text style={{ fontWeight: '700', marginBottom: 8 }}>{t('tenancy.vacateInfo', { held: formatINR(d?.deposit_held_paise ?? 0), due: formatINR(Math.max(d?.balance_paise ?? 0, 0)) })}</Text>
                 <Field label={t('tenancy.vacatedOn')} value={vac.date} onChangeText={(v) => setVac({ ...vac, date: v })} kind="date" error={okDate ? undefined : 'date_invalid'} />
                 <Field label={t('tenancy.depositNote')} value={vac.deposit} onChangeText={(v) => setVac({ ...vac, deposit: v })} kind="reason" />
@@ -170,16 +170,16 @@ export default function OwnerTenancy() {
       ) : null}
       {tab === 'terms' ? (
         <>
-          <Text variant="bodySmall" style={{ color: '#5B6B67' }}>{t('terms.hint')}</Text>
+          <Text variant="bodySmall" style={{ color: brand.muted }}>{t('terms.hint')}</Text>
           <Field label={t('tenancy.rent')} value={terms.rent} onChangeText={(v) => setTerms({ ...terms, rent: v })} kind="amount" />
           <Field label={t('terms.effective')} value={terms.from} onChangeText={(v) => setTerms({ ...terms, from: v })} kind="date" />
           <Field label={t('tenancy.dueDay')} value={terms.due} onChangeText={(v) => setTerms({ ...terms, due: v })} kind="day" maxNumber={31} min={1} />
           <Field label={t('terms.grace')} value={terms.grace} onChangeText={(v) => setTerms({ ...terms, grace: v })} kind="day" maxNumber={60} min={0} />
           <Field label={t('terms.advance')} value={terms.advance} onChangeText={(v) => setTerms({ ...terms, advance: v })} kind="amount" />
           <Field label={t('agreement.yearlyIncrease')} value={terms.increase} onChangeText={(v) => setTerms({ ...terms, increase: v })} kind="percent" maxNumber={100} testID="terms-increase" />
-          <Text variant="bodySmall" style={{ color: '#5B6B67', marginTop: -6 }}>{t('agreement.yearlyIncreaseHelp')}</Text>
+          <Text variant="bodySmall" style={{ color: brand.muted, marginTop: -6 }}>{t('agreement.yearlyIncreaseHelp')}</Text>
           <Field label={t('tenancy.itemsProvided')} value={terms.items} onChangeText={(v) => setTerms({ ...terms, items: v })} multiline lines={4} maxLength={2000} testID="terms-items" />
-          <Text variant="bodySmall" style={{ color: '#5B6B67', marginTop: -6 }}>{t('tenancy.itemsHelp')}</Text>
+          <Text variant="bodySmall" style={{ color: brand.muted, marginTop: -6 }}>{t('tenancy.itemsHelp')}</Text>
           {saved ? <Text style={{ color: brand.green600, fontWeight: '700' }}>{t('terms.saved')}</Text> : null}
           <Button mode="contained" icon="content-save-outline" disabled={parseRupeesToPaise(terms.rent) === null || !dmyToIso(terms.from) || !terms.due || +terms.due < 1 || +terms.due > 31 || +terms.grace > 60}
                   onPress={() => run(async () => {
@@ -204,10 +204,10 @@ export default function OwnerTenancy() {
       {tab === 'deposit' ? (
         <>
           <AmountHero label={t('tenant.deposit')} paise={d?.deposit_held_paise ?? 0} icon="shield-lock-outline" tone="green" />
-          <Text variant="bodySmall" style={{ color: '#5B6B67' }}>{`${t('terms.advance')}: ${formatINR(d?.tenancy.deposit_agreed_paise ?? 0)}`}</Text>
+          <Text variant="bodySmall" style={{ color: brand.muted }}>{`${t('terms.advance')}: ${formatINR(d?.tenancy.deposit_agreed_paise ?? 0)}`}</Text>
           <SearchableSelect label={t('deposit.action')} value={dep.type} onChange={(v) => setDep({ ...dep, type: v, amount: capToDue(dep.amount, depositLimit(v)).text })}
             options={[{ value: 'received', label: t('deposit.received') }, { value: 'applied_to_dues', label: t('deposit.adjust') }, { value: 'refund', label: t('deposit.refund') }]} />
-          {depLimit === 0 ? <Text style={{ color: '#B45309', fontWeight: '700' }} testID="deposit-nothing">{t(`deposit.none_${dep.type}`)}</Text> : null}
+          {depLimit === 0 ? <Text style={{ color: brand.amber700, fontWeight: '700' }} testID="deposit-nothing">{t(`deposit.none_${dep.type}`)}</Text> : null}
           <Field label={t('pay.amount')} value={dep.amount} onChangeText={(v) => setDep({ ...dep, amount: v })} kind="amount" maxPaise={depLimit} />
           <Field label={t('deposit.reason')} value={dep.reason} onChangeText={(v) => setDep({ ...dep, reason: v })} kind="reason" />
           <Button mode="contained" disabled={!parseRupeesToPaise(dep.amount) || (parseRupeesToPaise(dep.amount) ?? 0) > depLimit} onPress={() => run(async () => {

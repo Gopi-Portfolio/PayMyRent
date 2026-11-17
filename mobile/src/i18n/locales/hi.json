@@ -127,6 +127,8 @@
     "verifyFirst": "पहले इस नंबर को सत्यापित करें"
   },
   "owner": {
+    "allRenters": "सभी किरायेदार",
+    "allProperties": "सभी संपत्तियाँ",
     "collected": "वसूल हुआ",
     "pending": "अभी देय",
     "overdue": "विलंबित",

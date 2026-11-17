@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useOnline } from '@/lib/network';
 import { useOutbox } from '@/lib/offline';
+import { brand } from '@/theme';
 
 export function OfflineBanner() {
   const { t } = useTranslation();
@@ -19,13 +20,13 @@ export function OfflineBanner() {
   const { pending, failed, sending, authBlocked } = useOutbox();
   if (online && pending === 0 && failed === 0 && !authBlocked) return null;
 
-  let tone = { bg: '#FEF3C7', fg: '#7C4A03', icon: 'clock-outline' };
+  let tone = { bg: brand.amber100, fg: '#7C4A03', icon: 'clock-outline' };
   let text = t('offline.waiting', { count: pending });
   let busy = false;
-  if (authBlocked) { tone = { bg: '#FEE2E2', fg: '#8A1C14', icon: 'account-alert-outline' }; text = t('offline.signIn'); }
-  else if (!online) { tone = { bg: '#FEF3C7', fg: '#7C4A03', icon: 'cloud-off-outline' }; text = pending > 0 ? `${t('offline.banner')} ${t('offline.waiting', { count: pending })}.` : t('offline.banner'); }
-  else if (failed > 0) { tone = { bg: '#FEE2E2', fg: '#8A1C14', icon: 'alert-circle-outline' }; text = t('offline.attention', { count: failed }); }
-  else if (sending) { tone = { bg: '#DCE8F7', fg: '#00346F', icon: 'cloud-sync-outline' }; text = t('offline.sending'); busy = true; }
+  if (authBlocked) { tone = { bg: brand.red100, fg: '#8A1C14', icon: 'account-alert-outline' }; text = t('offline.signIn'); }
+  else if (!online) { tone = { bg: brand.amber100, fg: '#7C4A03', icon: 'cloud-off-outline' }; text = pending > 0 ? `${t('offline.banner')} ${t('offline.waiting', { count: pending })}.` : t('offline.banner'); }
+  else if (failed > 0) { tone = { bg: brand.red100, fg: '#8A1C14', icon: 'alert-circle-outline' }; text = t('offline.attention', { count: failed }); }
+  else if (sending) { tone = { bg: brand.blue100, fg: '#00346F', icon: 'cloud-sync-outline' }; text = t('offline.sending'); busy = true; }
 
   return (
     <Pressable onPress={() => router.push('/sync')} accessibilityRole="button" accessibilityLabel={text} testID="offline-banner"

@@ -13,7 +13,7 @@ type Props = {
 
 const PALETTE = {  // getters: read when drawn, so the colours follow the role in use
   get primary() { return { bg: [brand.teal600, brand.teal700] as const, bgPressed: [brand.teal900, brand.teal900] as const, fg: '#fff' }; },
-  get accent() { return { bg: ['#FBBF24', brand.amber500] as const, bgPressed: ['#D97706', '#B45309'] as const, fg: '#3B2300' }; },
+  get accent() { return { bg: ['#FBBF24', brand.amber500] as const, bgPressed: ['#D97706', brand.amber700] as const, fg: '#3B2300' }; },
   get green() { return { bg: [brand.green600, brand.green600] as const, bgPressed: ['#176B01', '#176B01'] as const, fg: '#fff' }; },   // owner actions
   get blue() { return { bg: [brand.blue600, brand.blue600] as const, bgPressed: ['#00244F', '#00244F'] as const, fg: '#fff' }; },     // renter actions
   get outline() { return { bg: ['#fff', '#fff'] as const, bgPressed: [brand.teal100, brand.teal100] as const, fg: brand.teal700 }; },

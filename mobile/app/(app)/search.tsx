@@ -10,12 +10,13 @@ import { useTranslation } from 'react-i18next';
 import { PropertyCards } from '@/components/PropertyCards';
 import { ReliefChip } from '@/components/RentRelief';
 import { SearchBox } from '@/components/SearchBox';
-import { Avatar, DemoBanner, ErrorBanner, FilterBar, ListFilter, NO_FILTER, SlideIn, applyFilter } from '@/components/ui';
+import { DemoBanner, ErrorBanner, FilterBar, ListFilter, NO_FILTER, SlideIn, applyFilter } from '@/components/ui';
 import { api } from '@/lib/api';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { fmtDate } from '@/lib/dates';
 import { formatINR, payNow } from '@/lib/format';
-import { floorLabel, kindIcon } from '@/lib/units';
+import { KindBadge } from '@/components/KindBadge';
+import { floorLabel } from '@/lib/units';
 import { brand, radius, shadow } from '@/theme';
 
 type Mode = 'properties' | 'renters';
@@ -104,11 +105,10 @@ export default function SearchTab() {
             : renters && !list.isLoading ? <Text style={{ color: brand.muted, textAlign: 'center', padding: 24 }}>{t('searchTab.noRenters')}</Text> : undefined}
           renderItem={({ item }) => (
             <Pressable onPress={() => router.push(`/(app)/owner/tenancy/${item.id}`)} style={({ pressed }) => [rowStyle, shadow, pressed && { backgroundColor: brand.teal50, transform: [{ scale: 0.99 }] }]}>
-              <Avatar name={item.tenant_name ?? item.identifier} />
               <View style={{ flex: 1 }}>
                 <Text variant="titleSmall" style={{ fontWeight: '700' }}>{item.tenant_name ?? item.identifier}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Icon source={kindIcon(item.unit_kind)} size={14} color={brand.muted} />
+                  <KindBadge kind={item.unit_kind} size={18} />
                   <Text variant="bodySmall" style={{ color: brand.muted }}>
                     {`${item.identifier}${item.unit_floor !== null && item.unit_floor !== undefined ? ` · ${floorLabel(item.unit_floor, t, i18n.language)}` : ''} · ${item.status === 'invited' ? t('tenancy.invited') : t('dates.since', { date: fmtDate(item.start_date) })}`}
                   </Text>
@@ -117,7 +117,7 @@ export default function SearchTab() {
               </View>
               {/* the same "due now" figure the renter sees on their card; anything relief moves to next month is noted, not added in */}
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={{ fontWeight: '800', fontSize: 16, color: payNow(item) > 0 ? '#B45309' : brand.green600 }}>{formatINR(payNow(item))}</Text>
+                <Text style={{ fontWeight: '800', fontSize: 16, color: payNow(item) > 0 ? brand.amber700 : brand.green600 }}>{formatINR(payNow(item))}</Text>
                 {Number(item.balance_paise) > payNow(item) ? <Text variant="labelSmall" style={{ color: brand.muted }}>{t('relief.movesToNext', { amount: formatINR(Number(item.balance_paise) - payNow(item)) })}</Text> : null}
               </View>
               <Icon source="chevron-right" size={20} color={brand.muted} />

@@ -13,7 +13,7 @@ export function AgreementLink({ tenancyId, endDate }: { tenancyId: string; endDa
   const days = endDate ? Math.round((new Date(`${endDate}T00:00:00`).getTime() - new Date(new Date().toDateString()).getTime()) / 86400000) : null;
   const lapsed = days !== null && days < 0;
   const soon = days !== null && days >= 0 && days <= 30;
-  const color = lapsed ? brand.red600 : soon ? '#B45309' : brand.teal700;
+  const color = lapsed ? brand.red600 : soon ? brand.amber700 : brand.teal700;
   return (
     <Pressable onPress={() => router.push(`/agreement/${tenancyId}`)} accessibilityRole="button" testID="agreement-link"
                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: radius.md, padding: 12, borderLeftWidth: 4, borderLeftColor: color }, shadow, pressed && { backgroundColor: brand.teal50 }]}>

@@ -8,8 +8,9 @@ import { Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { PropertySwitcher } from '@/components/PropertySwitcher';
-import { ActionCarousel, MiniAction } from '@/components/QuickActions';
-import { KIND_GROUPS, floorLabel, kindIcon } from '@/lib/units';
+import { ActionStack, MiniAction } from '@/components/QuickActions';
+import { KindBadge } from '@/components/KindBadge';
+import { KIND_GROUPS, floorLabel } from '@/lib/units';
 import { DemoBanner, ErrorBanner, SlideIn, IdentityRow, Metric, useRoleSwitch } from '@/components/ui';
 import { brand, radius, shadow } from '@/theme';
 import { api } from '@/lib/api';
@@ -121,25 +122,29 @@ export default function OwnerHome() {
           <View style={{ gap: 16, marginBottom: 6 }}>
             <PropertySwitcher />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              <Metric label={t('owner.collected')} paise={m?.collected_paise?.value ?? 0} detail={split(m, 'collected', t)} icon="check-circle-outline" tone="green" onPress={guard(() => router.push('/(app)/owner/report/collected'))} />
-              <Metric label={t('owner.pending')} paise={m?.pending_paise?.value ?? 0} detail={split(m, 'pending', t)} icon="clock-outline" tone="amber" onPress={guard(() => router.push('/(app)/owner/report/pending'))} />
-              <Metric label={t('owner.overdue')} paise={m?.overdue_paise?.value ?? 0} detail={split(m, 'overdue', t)} icon="alert-circle-outline" tone="red" onPress={guard(() => router.push('/(app)/owner/report/overdue'))} />
-              {/* every place the owner lets out, with how many of each kind: residential and commercial */}
-              <Metric label={t('owner.allUnits')} count={m?.units ?? 0} icon="home-city-outline" tone="blue"
-                      detail={KIND_GROUPS.map((g) => `${m?.[g.total] ?? 0} ${t(g.label)}`).join('\n')}
-                      onPress={guard(() => router.push('/(app)/owner/report/units'))} />
+              <Metric tinted label={t('owner.collected')} paise={m?.collected_paise?.value ?? 0} detail={split(m, 'collected', t)} icon="check-circle-outline" tone="green" onPress={guard(() => router.push('/(app)/owner/report/collected'))} />
+              <Metric tinted label={t('owner.pending')} paise={m?.pending_paise?.value ?? 0} detail={split(m, 'pending', t)} icon="clock-outline" tone="amber" onPress={guard(() => router.push('/(app)/owner/report/pending'))} />
             </View>
-            {/* the three things done most are wide cards you swipe left and right, each with a sentence saying what it does; then one row of Reminders, Ask AI and Approvals */}
-            <ActionCarousel cards={[
+            {/* three tiles in one row: everyone renting, every unit, every property (what is behind each opens on tap) */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Metric compact tinted label={t('owner.allRenters')} count={m?.renters ?? 0} icon="account-group-outline" tone="violet" testID="metric-renters"
+                      onPress={guard(() => router.push('/(app)/owner/report/renters'))} />
+              <Metric compact tinted label={t('owner.allUnits')} count={m?.units ?? 0} icon="home-city-outline" tone="blue" testID="metric-units"
+                      onPress={guard(() => router.push('/(app)/owner/report/units'))} />
+              <Metric compact tinted label={t('owner.allProperties')} count={m?.properties ?? 0} icon="office-building-outline" tone="teal" testID="metric-properties"
+                      onPress={guard(() => router.push('/(app)/owner/report/properties'))} />
+            </View>
+            {/* the three things done most are wide cards, one below another, each with a sentence saying what it does; then one row of Reminders, Ask AI and Approvals */}
+            <ActionStack cards={[
               { key: 'property', icon: 'home-plus', title: t('owner.addProperty'), message: t('owner.addPropertyMsg'), footnote: vacant.data ? `${vacantUnits.length} ${t('property.vacant')}` : undefined,
-                colors: ['#176F01', '#1F8A02'], onPress: () => router.push('/(app)/owner/add-property'), testID: 'add-property' },
+                colors: ['#176F01', brand.green600], onPress: () => router.push('/(app)/owner/add-property'), testID: 'add-property' },
               { key: 'renter', icon: 'account-plus', title: t('owner.addTenant'), message: t('owner.addRenterMsg'), colors: ['#00346F', '#0B58A8'],
                 onPress: guard(() => router.push('/(app)/owner/add-tenant')), testID: 'add-tenant' },
               { key: 'allot', icon: 'home-account', title: t('owner.allotRenter'), message: t('owner.allotRenterMsg'),
                 colors: ['#E0620C', '#F97A1B'], onPress: guard(() => router.push('/(app)/owner/allot')), testID: 'allot-renter' },
             ]} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <MiniAction icon="bell-ring" label={t('owner.reminders')} fg="#B45309" bg={brand.amber100} onPress={guard(() => router.push('/(app)/owner/ai'))} />
+              <MiniAction icon="bell-ring" label={t('owner.reminders')} fg={brand.amber700} bg={brand.amber100} onPress={guard(() => router.push('/(app)/owner/ai'))} />
               <MiniAction icon="creation" label={t('owner.askAi')} fg={brand.blue600} bg={brand.blue100} onPress={guard(() => router.push('/(app)/owner/ai'))} />
               <MiniAction icon="thumb-up-outline" label={t('owner.approvals')} fg={brand.red600} bg={brand.red100} count={m?.approvals_pending ?? 0} clearText={t('owner.allClear')} testID="approvals"
                           onPress={guard(() => router.push('/(app)/owner/approvals'))} />
@@ -150,9 +155,9 @@ export default function OwnerHome() {
             </View>
             {/* removing: both open a list of everything (every property together), each with its own Remove button */}
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <MiniAction icon="account-remove-outline" label={t('renter.remove')} fg={brand.red600} bg={brand.red100} testID="remove-renter-home"
+              <MiniAction icon="account-remove-outline" label={t('renter.remove')} fg={brand.red600} bg={brand.red100} tint="#FFF4F4" testID="remove-renter-home"
                           onPress={() => router.push('/(app)/owner/remove-renter')} />
-              <MiniAction icon="home-remove-outline" label={t('property.remove')} fg={brand.red600} bg={brand.red100} testID="remove-property-home"
+              <MiniAction icon="home-remove-outline" label={t('property.remove')} fg={brand.red600} bg={brand.red100} tint="#FFF4F4" testID="remove-property-home"
                           onPress={() => router.push('/(app)/owner/properties')} />
             </View>
             {me?.identity_status !== 'verified' ? <IdentityRow /> : null}
@@ -161,13 +166,11 @@ export default function OwnerHome() {
         ListEmptyComponent={showVacant ? <Text style={{ color: brand.muted, textAlign: 'center', padding: 24 }}>{t('property.noVacant')}</Text> : undefined}
         renderItem={({ item }) => (
           <View style={[rowStyle, shadow]}>
-            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: brand.amber100, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon source={kindIcon(item.kind)} size={24} color="#B45309" />
-            </View>
+            <KindBadge kind={item.kind} size={40} />
             <View style={{ flex: 1 }}>
               <Text variant="titleSmall" style={{ fontWeight: '800' }} numberOfLines={1}>{t('property.unitNo', { unit: item.identifier })}{item.floor !== null && item.floor !== undefined ? ` · ${floorLabel(item.floor, t, i18n.language)}` : ''}</Text>
               <Text variant="bodySmall" style={{ color: brand.muted }} numberOfLines={1}>{item.property_name ?? item.address}</Text>
-              <Text variant="bodySmall" style={{ color: '#B45309', fontWeight: '700' }}>{item.vacant_since ? t('property.vacantSince', { date: fmtDate(item.vacant_since) }) : t('property.neverLet')}</Text>
+              <Text variant="bodySmall" style={{ color: brand.amber700, fontWeight: '700' }}>{item.vacant_since ? t('property.vacantSince', { date: fmtDate(item.vacant_since) }) : t('property.neverLet')}</Text>
               {item.last_rent_paise ? <Text variant="bodySmall" style={{ color: brand.muted }}>{`${t('tenancy.rent')}: ${formatINR(item.last_rent_paise)}`}</Text> : null}
             </View>
             <Pressable onPress={() => { if (item._owner) selectOwner(item._owner); router.push('/(app)/owner/allot'); }}

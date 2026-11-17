@@ -101,7 +101,7 @@ export function PayFlow({ id, onClose }: { id: string; onClose?: () => void }) {
         <TextInput mode="outlined" {...amountDone} value={amount} onChangeText={(v) => { edited.current = true; const c = capToDue(sanitize('amount', v), due); setAmount(c.text); setCapped(c.capped); }} keyboardType="decimal-pad" inputAccessoryViewID={DONE_ID} maxLength={12} placeholder="0" left={<TextInput.Affix text="₹" />}
                    outlineStyle={{ borderRadius: radius.md }} style={{ backgroundColor: '#fff', fontSize: 28, fontWeight: '800', height: 68 }} error={!!amount && !paise}
                    accessibilityLabel={t('pay.amount')} testID="pay-amount" />
-        {capped ? <Text style={{ color: '#B45309', fontWeight: '700' }} accessibilityLiveRegion="polite">{t('pay.maxIsDue', { amount: formatINR(due) })}</Text> : null}
+        {capped ? <Text style={{ color: brand.amber700, fontWeight: '700' }} accessibilityLiveRegion="polite">{t('pay.maxIsDue', { amount: formatINR(due) })}</Text> : null}
         <BalancePreview duePaise={due} paise={paise} />
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <Chip2 icon="check-all" label={`${t('pay.full')} ${formatINR(due)}`} onPress={() => setAmount(String(due / 100))} />

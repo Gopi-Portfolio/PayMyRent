@@ -80,14 +80,13 @@ describe('Allot Renter', () => {
     expect(outbox.getSnapshot()).toEqual([]);
   });
 
-  test('there is one way to add a property/unit (the button by the renter), not a second one below; a Done button closes the screen', async () => {
+  test('there is one way to add a property/unit (the button by the renter), not a second one below, and no Done button (Back already leaves the screen)', async () => {
     const ui = wrap(<AllotRenter />);
     await waitFor(() => ui.getByTestId('allot-panel-r1'));
     await waitFor(() => ui.getByTestId('places-dropdown'));
     expect(ui.getAllByText('Add property/unit')).toHaveLength(1);        // the other waiting renter's button; the open one says Close, and none is inside the panel
     expect(ui.queryByTestId('add-unit-link')).toBeNull();
-    fireEvent.press(ui.getByTestId('allot-done-button'));
-    expect(mockRouter.back).toHaveBeenCalled();
+    expect(ui.queryByTestId('allot-done-button')).toBeNull();
   });
 
   test('Remove renter asks once, then deletes the renter from the waiting list; Cancel does nothing', async () => {

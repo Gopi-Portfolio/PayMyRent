@@ -19,8 +19,8 @@ import { brand } from '@/theme';
 
 const BG = require('../../assets/brand/landing-bg.jpg');       // 1024 x 1536: sky, home, shops, office and commercial, with an empty pale area below
 const BG_RATIO = 1536 / 1024;
-const BLUE = '#003472';
-const GREEN = '#1F8A02';
+const BLUE = brand.blue600;
+const GREEN = brand.green600;
 const SHOP_ORANGE = '#F96A10';       // the orange of the "Shops" label in the picture
 
 /** One of the two doors: an icon tile, a title, one line of help and a chevron. */
@@ -93,7 +93,7 @@ export default function Welcome() {
           ) : (
             <>
               <Door icon="home-outline" tint="#E4F3DF" color={GREEN} title={t('welcome.loginOwner')} sub={t('welcome.loginOwnerSub')} onPress={() => go('owner')} testID="cta-owner-registered" />
-              <Door icon="account-group" tint="#DCE8F7" color={BLUE} title={t('welcome.loginRenter')} sub={t('welcome.loginRenterSub')} onPress={() => go('tenant')} testID="cta-renter" />
+              <Door icon="account-group" tint={brand.blue100} color={BLUE} title={t('welcome.loginRenter')} sub={t('welcome.loginRenterSub')} onPress={() => go('tenant')} testID="cta-renter" />
               <Text style={styles.notOwner}>{t('welcome.notOwner')}</Text>
               <Pressable onPress={() => router.push('/(public)/plans')} accessibilityRole="button" testID="cta-plans" style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }]}>
                 <Icon source="crown" size={22} color="#fff" />

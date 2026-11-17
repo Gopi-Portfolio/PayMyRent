@@ -29,7 +29,7 @@ export function BillView({ bill }: { bill: any }) {
         <View style={{ flex: 1 }}>
           <Text variant="titleMedium" style={{ fontWeight: '800' }}>{t('bill.title', { month: fmtMonth(bill.period_month) })}</Text>
           <Text variant="bodySmall" style={{ color: brand.muted }}>{t('dates.period', { from: fmtDate(bill.period_month), to: fmtDate(monthEndIso(bill.period_month)) })}</Text>
-          {bill.due_date ? <Text variant="bodySmall" style={{ color: '#B45309', fontWeight: '700' }}>{t('dates.dueOn', { date: fmtDate(bill.due_date) })}</Text> : null}
+          {bill.due_date ? <Text variant="bodySmall" style={{ color: brand.amber700, fontWeight: '700' }}>{t('dates.dueOn', { date: fmtDate(bill.due_date) })}</Text> : null}
           {bill.invoice_number ? <Text variant="bodySmall" style={{ color: brand.muted }}>{bill.invoice_number}</Text> : null}
         </View>
         <StatusPill status={bill.status} />
@@ -45,7 +45,7 @@ export function BillView({ bill }: { bill: any }) {
       {s.advance_credit_paise ? <Row icon="piggy-bank-outline" k={t('bill.credit')} v={-s.advance_credit_paise} good /> : null}
       <View style={live.total}>
         <Text variant="titleMedium" style={{ fontWeight: '800' }}>{t('bill.totalDue')}</Text>
-        <Text style={{ fontSize: 24, fontWeight: '800', color: s.total_due_paise > 0 ? '#B45309' : brand.green600, fontVariant: ['tabular-nums'] }}>{formatINR(s.total_due_paise)}</Text>
+        <Text style={{ fontSize: 24, fontWeight: '800', color: s.total_due_paise > 0 ? brand.amber700 : brand.green600, fontVariant: ['tabular-nums'] }}>{formatINR(s.total_due_paise)}</Text>
       </View>
       {s.payable_now_paise !== undefined && s.payable_now_paise !== s.total_due_paise ? (
         <View style={{ marginTop: 8, gap: 2 }} testID="pay-now-split">
@@ -55,7 +55,7 @@ export function BillView({ bill }: { bill: any }) {
       ) : null}
       {bill.submissions?.filter((x: any) => x.status === 'proposed').map((x: any) => (
         <View key={x.id} style={styles.proposed}>
-          <Icon source="clock-outline" size={16} color="#B45309" />
+          <Icon source="clock-outline" size={16} color={brand.amber700} />
           <Text variant="bodySmall" style={{ flex: 1 }}>{`${label(x.category)} ${formatINR(x.amount_paise)} — ${t('bill.proposed')}`}</Text>
         </View>
       ))}
@@ -85,6 +85,6 @@ const styles = StyleSheet.create({
 
 const live = {   // read when drawn, so they follow the role in use
   get badge(): ViewStyle { return { width: 46, height: 46, borderRadius: 15, backgroundColor: brand.teal100, alignItems: 'center', justifyContent: 'center' }; },
-  get rowIcon(): ViewStyle { return { width: 32, height: 32, borderRadius: 10, backgroundColor: brand.teal50, alignItems: 'center', justifyContent: 'center' }; },
+  get rowIcon(): ViewStyle { return { width: 32, height: 32, borderRadius: radius.sm, backgroundColor: brand.teal50, alignItems: 'center', justifyContent: 'center' }; },
   get total(): ViewStyle { return { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, padding: 14, backgroundColor: brand.teal50, borderRadius: radius.md }; },
 };

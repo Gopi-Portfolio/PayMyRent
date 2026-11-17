@@ -236,6 +236,8 @@ def dashboard(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db,
         (SELECT COALESCE(sum(v.open_paise), 0) FROM v_invoice_status v JOIN tenancies t ON t.id = v.tenancy_id JOIN units u ON u.id = t.unit_id
            WHERE v.owner_account_id = :o AND v.due_date < rg_today() AND u.kind = 'commercial') AS overdue_commercial_paise,
         (SELECT count(*) FROM units WHERE owner_account_id = :o AND status = 'active') AS units,
+        (SELECT count(*) FROM tenancies WHERE owner_account_id = :o AND status = 'active') AS renters,
+        (SELECT count(*) FROM properties WHERE owner_account_id = :o AND archived_at IS NULL AND verification_status <> 'rejected') AS properties,
         (SELECT count(*) FROM units WHERE owner_account_id = :o AND status = 'active' AND kind = 'residential') AS residential,
         (SELECT count(*) FROM units WHERE owner_account_id = :o AND status = 'active' AND kind = 'commercial') AS commercial,
         (SELECT count(*) FROM charge_submissions s JOIN tenancies t ON t.id = s.tenancy_id WHERE t.owner_account_id = :o AND s.status = 'proposed') AS approvals_pending,
@@ -251,7 +253,7 @@ def dashboard(scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db,
 
 
 @router.get("/owner/dashboard/{kind}")
-def dashboard_detail(kind: Literal["collected", "pending", "overdue", "units"], scope: OwnerScope = Depends(owner_scope),
+def dashboard_detail(kind: Literal["collected", "pending", "overdue", "units", "renters", "properties"], scope: OwnerScope = Depends(owner_scope),
                      db: Db = Depends(get_db, scope="function")) -> dict:
     """The rows behind each dashboard box, so a tap shows exactly what makes up the number."""
     o = scope.owner_account_id
@@ -273,6 +275,18 @@ def dashboard_detail(kind: Literal["collected", "pending", "overdue", "units"], 
                           FROM v_invoice_status v JOIN tenancies t ON t.id = v.tenancy_id JOIN units u ON u.id = t.unit_id
                           WHERE v.owner_account_id = :o AND v.due_date < rg_today() AND v.open_paise > 0
                           ORDER BY v.due_date, u.identifier LIMIT 300""", o=o)
+    elif kind == "renters":
+        rows = db.all(f"""SELECT t.id AS tenancy_id, u.identifier, {who} AS tenant_name, p.name AS property_name, p.address,
+                                 t.monthly_rent_paise AS amount_paise
+                          FROM tenancies t JOIN units u ON u.id = t.unit_id JOIN properties p ON p.id = u.property_id
+                          WHERE t.owner_account_id = :o AND t.status = 'active' ORDER BY p.name, u.identifier LIMIT 300""", o=o)
+    elif kind == "properties":
+        rows = db.all("""SELECT p.id, p.name AS property_name, p.address, p.city,
+                                (SELECT count(*) FROM units u WHERE u.property_id = p.id AND u.status = 'active') AS unit_count,
+                                (SELECT count(*) FROM units u WHERE u.property_id = p.id AND u.status = 'active'
+                                   AND NOT EXISTS (SELECT 1 FROM tenancies t WHERE t.unit_id = u.id AND t.status IN ('invited','active'))) AS vacant_count
+                         FROM properties p WHERE p.owner_account_id = :o AND p.archived_at IS NULL AND p.verification_status <> 'rejected'
+                         ORDER BY p.name NULLS LAST, p.address LIMIT 300""", o=o)
     else:
         rows = db.all(f"""SELECT u.id, u.identifier, u.kind, u.floor, p.name AS property_name, p.address, t.id AS tenancy_id, t.status AS tenancy_status,
                                  t.monthly_rent_paise AS amount_paise, {who} AS tenant_name
@@ -280,7 +294,7 @@ def dashboard_detail(kind: Literal["collected", "pending", "overdue", "units"], 
                           LEFT JOIN tenancies t ON t.unit_id = u.id AND t.status IN ('invited','active')
                           WHERE u.owner_account_id = :o AND u.status = 'active' ORDER BY p.name, u.identifier LIMIT 300""", o=o)
     items = [dict(r) for r in rows]
-    total = sum(int(r.get("amount_paise") or 0) for r in items) if kind != "units" else None
+    total = sum(int(r.get("amount_paise") or 0) for r in items) if kind in ("collected", "pending", "overdue") else None
     return {"kind": kind, "items": items, "total_paise": total, "total_display": format_inr(total) if total is not None else None}
 
 
@@ -317,7 +331,7 @@ def _file(name: str, fmt: str, title: str, subtitle: str, tables: list) -> Respo
 
 
 @router.get("/owner/dashboard/{kind}/export")
-def dashboard_export(kind: Literal["collected", "pending", "overdue", "units"], fmt: Literal["xlsx", "pdf"] = Query("xlsx", alias="format"),
+def dashboard_export(kind: Literal["collected", "pending", "overdue", "units", "renters", "properties"], fmt: Literal["xlsx", "pdf"] = Query("xlsx", alias="format"),
                      scope: OwnerScope = Depends(owner_scope), db: Db = Depends(get_db, scope="function")) -> Response:
     """The rows behind a home-screen box as an Excel sheet or PDF. Works in every subscription state."""
     d = dashboard_detail(kind, scope, db)
@@ -335,11 +349,19 @@ def dashboard_export(kind: Literal["collected", "pending", "overdue", "units"], 
         head = ["Unit", "Renter", "Month", "Due date", "Days overdue", "Amount overdue"]
         rows = [[i["identifier"], i["tenant_name"], i["period_month"].strftime("%b %Y"), i["due_date"], i["days_overdue"], i["amount_paise"]] for i in items]
         money = [5]
+    elif kind == "renters":
+        head = ["Renter", "Unit", "Property", "Address", "Monthly rent"]
+        rows = [[i["tenant_name"], i["identifier"], i["property_name"], i["address"], i["amount_paise"]] for i in items]
+        money = [4]
+    elif kind == "properties":
+        head = ["Property", "Address", "City", "Units", "Vacant"]
+        rows = [[i["property_name"], i["address"], i["city"], i["unit_count"], i["vacant_count"]] for i in items]
+        money = []
     else:
         head = ["Unit", "Type", "Floor", "Property", "Address", "Renter", "Monthly rent"]
         rows = [[i["identifier"], i["kind"], floor_name(i.get("floor")), i["property_name"], i["address"], i["tenant_name"] or "Vacant", i["amount_paise"] or 0] for i in items]
         money = [6]
-    names = {"collected": "Collected this month", "pending": "Pending", "overdue": "Overdue", "units": "Residential and commercial"}
+    names = {"collected": "Collected this month", "pending": "Pending", "overdue": "Overdue", "units": "Residential and commercial", "renters": "All renters", "properties": "All properties"}
     total = (("Total", int(d["total_paise"])) if d["total_paise"] is not None else None)
     t = _t(names[kind], head, rows, money, total)
     return _file(f"rentmeezy-{kind}-{today:%Y%m%d}", fmt, f"RentMeezy — {names[kind]}", f"As on {today:%d-%m-%Y}", [t])

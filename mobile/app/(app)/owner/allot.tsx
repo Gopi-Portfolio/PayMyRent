@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { AppButton, Button } from '@/components/Buttons';
 import { type Place, PlaceSelect, isLocked } from '@/components/PlaceSelect';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import { Avatar, ErrorBanner, Field, Panel, Screen, goBack } from '@/components/ui';
+import { Avatar, ErrorBanner, Field, Panel, Screen } from '@/components/ui';
 import { addMonthsDMY, dmyToIso, todayDMY } from '@/lib/dates';
 import { ownerAccountId, useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
@@ -70,7 +70,7 @@ function AllotPanel({ renter, owner, onDone }: { renter: Renter; owner: string |
     <View style={{ gap: 12, marginTop: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: brand.line }} testID={`allot-panel-${renter.id}`}>
       {!items.length ? (
         <View style={{ gap: 8 }}>
-          <Text style={{ color: '#B45309', lineHeight: 21 }}>{t('property.addYourProperty')}</Text>
+          <Text style={{ color: brand.amber700, lineHeight: 21 }}>{t('property.addYourProperty')}</Text>
           <Button mode="outlined" icon="home-plus-outline" onPress={() => router.push('/(app)/owner/add-property')}>{t('property.add')}</Button>
         </View>
       ) : (
@@ -88,7 +88,7 @@ function AllotPanel({ renter, owner, onDone }: { renter: Renter; owner: string |
           {units.length ? <PlaceSelect places={units} selectedId={place?.id ?? null} onPick={setPlace} />
             : (
               <View style={{ gap: 8 }}>
-                <Text style={{ color: '#B45309', lineHeight: 21 }} testID="no-places">{t('tenancy.noPlaces')}</Text>
+                <Text style={{ color: brand.amber700, lineHeight: 21 }} testID="no-places">{t('tenancy.noPlaces')}</Text>
                 <Button mode="outlined" icon="door-open" onPress={() => router.push({ pathname: '/(app)/owner/add-property', params: chosen ? { propertyId: String(chosen) } : {} })} testID="add-unit-link">{t('property.addPlace')}</Button>
               </View>
             )}
@@ -173,7 +173,6 @@ export default function AllotRenter() {
         </Panel>
       ))}
       {!items.length && !q.isLoading ? <Text style={{ color: brand.muted, textAlign: 'center', padding: 20, lineHeight: 22 }} testID="no-renters">{t('renter.noneWaiting')}</Text> : null}
-      <Button mode="contained" icon="check" onPress={goBack} contentStyle={{ height: 52 }} testID="allot-done-button">{t('common.done')}</Button>
       <Button mode="outlined" icon="account-plus" onPress={() => router.push('/(app)/owner/add-tenant')} testID="allot-add-renter">{t('owner.addTenant')}</Button>
     </Screen>
   );

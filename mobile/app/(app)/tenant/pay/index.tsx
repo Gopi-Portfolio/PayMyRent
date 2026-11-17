@@ -67,7 +67,7 @@ export default function PayManyRentals() {
             const ok = s === 'confirmed';
             return (
               <View key={i.tenancy_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 }}>
-                <Icon source={ok ? 'check-circle' : s === 'failed' ? 'close-circle' : 'clock-outline'} size={24} color={ok ? brand.green600 : s === 'failed' ? '#B42318' : '#B45309'} />
+                <Icon source={ok ? 'check-circle' : s === 'failed' ? 'close-circle' : 'clock-outline'} size={24} color={ok ? brand.green600 : s === 'failed' ? '#B42318' : brand.amber700} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: '700' }} numberOfLines={1}>{r ? `${r.property_name ?? r.address} · ${r.identifier}` : i.tenancy_id}</Text>
                   <Text variant="bodySmall" style={{ color: brand.muted }}>{i.error ? i.error.message : ok ? `${p.receipt_number ?? ''}` : s === 'failed' ? t('pay.failed') : t('pay.pending')}</Text>
@@ -94,15 +94,15 @@ export default function PayManyRentals() {
             <Pressable key={item.id} onPress={() => setOff((o) => (on ? [...o, item.id] : o.filter((x) => x !== item.id)))} testID={`pay-${item.id}`}
                        accessibilityRole="checkbox" accessibilityState={{ checked: on }}
                        style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 6, borderRadius: radius.md }, pressed && { backgroundColor: brand.teal50 }]}>
-              <Icon source={on ? 'checkbox-marked' : 'checkbox-blank-outline'} size={26} color={on ? '#003472' : brand.muted} />
+              <Icon source={on ? 'checkbox-marked' : 'checkbox-blank-outline'} size={26} color={on ? brand.blue600 : brand.muted} />
               <View style={{ flex: 1 }}>
                 <Text variant="titleSmall" style={{ fontWeight: '700' }} numberOfLines={1}>{item.property_name ?? item.address} · {item.identifier}</Text>
                 <Text variant="bodySmall" style={{ color: item.color.fg, fontWeight: '700' }} numberOfLines={1}>{item.owner_name}</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={{ fontWeight: '800', fontSize: 16, color: '#B45309' }}>{formatINR(payNow(item))}</Text>
+                <Text style={{ fontWeight: '800', fontSize: 16, color: brand.amber700 }}>{formatINR(payNow(item))}</Text>
                 <Pressable onPress={() => router.replace(`/(app)/tenant/pay/${item.id}`)} hitSlop={8} accessibilityLabel={t('pay.partOnly')}>
-                  <Text variant="labelSmall" style={{ color: '#003472', fontWeight: '700' }}>{t('pay.partOnly')}</Text>
+                  <Text variant="labelSmall" style={{ color: brand.blue600, fontWeight: '700' }}>{t('pay.partOnly')}</Text>
                 </Pressable>
               </View>
             </Pressable>
@@ -120,7 +120,7 @@ export default function PayManyRentals() {
                 <Text variant="titleSmall" style={{ fontWeight: '700' }} numberOfLines={1}>{item.property_name ?? item.address} · {item.identifier}</Text>
                 <Text variant="bodySmall" style={{ color: item.color.fg, fontWeight: '700' }} numberOfLines={1}>{item.owner_name}</Text>
               </View>
-              <Text style={{ fontWeight: '800', fontSize: 16, color: '#B45309' }}>{formatINR(payNow(item))}</Text>
+              <Text style={{ fontWeight: '800', fontSize: 16, color: brand.amber700 }}>{formatINR(payNow(item))}</Text>
               <Icon source="chevron-right" size={20} color={brand.muted} />
             </Pressable>
           ))}

@@ -54,7 +54,7 @@ export function RenterScan({ owner, onRead }: { owner?: string | null; onRead: (
         <View style={{ flex: 1 }}><AppButton variant="outline" compact icon="image-outline" label={t('scan.photos')} disabled={!online || busy} onPress={() => scan('gallery')} testID="scan-gallery" /></View>
       </View>
       {busy ? <Text style={{ color: brand.teal700, fontWeight: '700' }} testID="scan-reading">{t('scan.reading')}</Text> : null}
-      {note ? <Text style={{ color: note.tone === 'ok' ? brand.green600 : '#B45309', fontWeight: '700', lineHeight: 20 }} testID="scan-note">{note.text}</Text> : null}
+      {note ? <Text style={{ color: note.tone === 'ok' ? brand.green600 : brand.amber700, fontWeight: '700', lineHeight: 20 }} testID="scan-note">{note.text}</Text> : null}
     </View>
   );
 }

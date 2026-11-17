@@ -40,7 +40,7 @@ export default function SavedChanges() {
         return (
           <View key={item.id} style={[{ backgroundColor: '#fff', borderRadius: radius.md, padding: 14, gap: 8, borderWidth: 1.5, borderColor: failed ? '#F5B5B0' : '#F4DFA6' }, shadow]} testID={`saved-${item.id}`}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Icon source={failed ? 'alert-circle-outline' : 'clock-outline'} size={20} color={failed ? '#B42318' : '#B45309'} />
+              <Icon source={failed ? 'alert-circle-outline' : 'clock-outline'} size={20} color={failed ? '#B42318' : brand.amber700} />
               <Text style={{ flex: 1, fontWeight: '800', color: brand.ink }}>{item.label}</Text>
             </View>
             <Text style={{ fontSize: 12, color: brand.muted }}>{`${when(item.createdAt)} · ${failed ? t('offline.statusFailed') : t('offline.statusWaiting')}`}</Text>

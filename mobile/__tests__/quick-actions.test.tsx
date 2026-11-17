@@ -3,7 +3,7 @@ import React from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PaperProvider } from 'react-native-paper';
 
-import { ActionCarousel, MiniAction } from '@/components/QuickActions';
+import { ActionCarousel, ActionStack, MiniAction } from '@/components/QuickActions';
 
 const wrap = (ui: React.ReactElement) => render(<PaperProvider>{ui}</PaperProvider>);
 
@@ -114,4 +114,21 @@ test('a tap anywhere on the card opens it: the card itself is the button, and th
   expect(card.props.accessibilityRole).toBe('button');
   fireEvent.press(ui.getByText('Add Property'));       // pressing the text, the icon or the empty part is the same press
   expect(onPress).toHaveBeenCalledTimes(1);
+});
+
+test('ActionStack shows every main action at once, one below another, and each whole card opens its screen', () => {
+  const onPress = jest.fn();
+  const ui = render(<PaperProvider><ActionStack cards={CARDS(onPress)} /></PaperProvider>);
+  expect(ui.getByTestId('action-stack')).toBeTruthy();
+  expect(ui.queryByTestId('action-carousel')).toBeNull();
+  for (const c of CARDS()) expect(ui.getByText(c.title)).toBeTruthy();
+  fireEvent.press(ui.getByTestId(CARDS()[1].testID as string));
+  expect(onPress).toHaveBeenCalledTimes(1);
+});
+
+test('a MiniAction with a tint has that light colour behind the whole button', () => {
+  const ui = wrap(<MiniAction icon="home-remove-outline" label="Remove Property" fg="#DC2626" bg="#FEE2E2" tint="#FFF4F4" onPress={jest.fn()} testID="rm" />);
+  expect(JSON.stringify(ui.getByTestId('rm').props.style)).toContain('#FFF4F4');
+  const plain = wrap(<MiniAction icon="bell-ring" label="Reminders" fg="#B45309" bg="#FEF3C7" onPress={jest.fn()} testID="rem" />);
+  expect(JSON.stringify(plain.getByTestId('rem').props.style)).not.toContain('#FFF4F4');
 });

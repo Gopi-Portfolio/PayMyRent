@@ -38,7 +38,7 @@ export default function AddProperty() {
   const paid = acct?.state === 'active' || acct?.state === 'grace';
   const room = (acct?.property_capacity ?? 1) > (acct?.property_count ?? 0);          // the plan has room for another property in THIS account (Max)
   const addHere = paid && (!hasProperty || room);                                       // paid, and the property goes straight into this account
-  const params = useLocalSearchParams<{ propertyId?: string }>();
+  const params = useLocalSearchParams<{ propertyId?: string; units?: string }>();
   const props = useQuery({ queryKey: ['properties', owner], queryFn: () => api<any>('/api/v1/owner/properties', { ownerAccount: owner }) });
   const existing: any[] = props.data?.items ?? [];
   // one screen for properties AND their places: a new property, or an existing one to add places to (the only place in the app where a place is entered)
@@ -46,7 +46,8 @@ export default function AddProperty() {
   const [another, setAnother] = useState(false);           // the plan is full and the owner chose to add one more under its own plan
   const cap = acct?.property_capacity ?? 1;
   const full = hasProperty && !room;                       // the chosen plan's properties are all used
-  const cur = target ?? NEW;            // Add property always opens the new-property form; an existing property's places only when chosen (or opened with a propertyId)
+  const wantUnits = !!params.units && !params.propertyId;          // opened from the + beside All Units: add a unit to this account's property
+  const cur = target ?? (wantUnits && existing[0] ? existing[0].id : NEW);            // Add property always opens the new-property form; an existing property's places only when chosen (or opened with a propertyId)
   const [f, setF] = useState<PropertyDraft>(getPropertyDraft() ?? EMPTY);
   const [err, setErr] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
@@ -117,20 +118,7 @@ export default function AddProperty() {
       </Screen>
     );
   }
-  // The server runs the automatic owner check and this account has not passed it: Add property always starts there, so every owner sees the same one form afterwards.
-  if (checked && !auto) {
-    return (
-      <Screen>
-        <NeedsInternet />
-        {chooser}
-        <Panel title={t('property.photoId')} icon="card-account-details-outline" tone="amber">
-          <Text style={{ lineHeight: 21 }}>{t('property.photoIdNeeded')}</Text>
-          <AppButton compact icon="face-recognition" label={t('property.verifyPhotoId')} onPress={() => router.push(idPage)} testID="verify-photo-id" />
-        </Panel>
-      </Screen>
-    );
-  }
-  if (docs.isLoading) return <Screen><ActivityIndicator /></Screen>;      // not known yet whether the check applies: do not flash the other form
+  if (docs.isLoading || (wantUnits && props.isLoading)) return <Screen><ActivityIndicator /></Screen>;      // not known yet whether the check applies: do not flash the other form
   return (
     <Screen>
       <NeedsInternet />
@@ -168,12 +156,12 @@ export default function AddProperty() {
       </Pressable>
       {addHere && !auto ? <ActionOtp action="property" code={code} onChange={setCode} ownerAccount={owner} /> : null}
       <ErrorBanner error={err} />
-      {hasProperty && !addHere ? <Text style={{ color: '#B45309', lineHeight: 21 }}>{t('property.anotherNote')}</Text> : null}
+      {hasProperty && !addHere ? <Text style={{ color: brand.amber700, lineHeight: 21 }}>{t('property.anotherNote')}</Text> : null}
       {(() => {
         // say why Save cannot be pressed yet, instead of a silently grey button
         const needCode = addHere && !auto && !otpReady(code);
         const msg = !idOk ? t('property.whyPhotoId') : !complete ? t('property.whyFields') : needCode ? t('property.whyCode') : null;
-        return msg ? <Text style={{ color: '#B45309', fontWeight: '700', lineHeight: 21 }} accessibilityLiveRegion="polite" testID="why-disabled">{msg}</Text> : null;
+        return msg ? <Text style={{ color: brand.amber700, fontWeight: '700', lineHeight: 21 }} accessibilityLiveRegion="polite" testID="why-disabled">{msg}</Text> : null;
       })()}
       <AppButton compact label={addHere ? t('property.save') : t('property.check')} icon="shield-check" loading={busy} disabled={busy || !idOk || (touched && !complete) || (addHere && !auto && !otpReady(code))} onPress={go} testID="check-property" />
     </Screen>

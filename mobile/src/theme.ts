@@ -22,6 +22,7 @@ export const brand = {
   get tealSoft() { return current.soft; },
   amber500: '#F59E0B',
   amber100: '#FEF3C7',
+  amber700: '#B45309',     // text and icons that warn: due soon, vacant, waiting (the one dark amber used across the screens)
   red600: '#DC2626',
   red100: '#FEE2E2',
   green600: '#1F8A02',        // the logo's green: use this (or brand.green100 for its tint) for every green in the app

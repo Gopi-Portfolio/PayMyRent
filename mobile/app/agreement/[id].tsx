@@ -23,7 +23,7 @@ function Label({ k, v, strong, tone }: { k: string; v: string; strong?: boolean;
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 5 }}>
       <Text style={{ flex: 1, color: brand.muted, fontWeight: '600' }}>{k}</Text>
-      <Text style={{ fontWeight: strong ? '800' : '700', color: tone === 'warn' ? '#B45309' : tone === 'good' ? brand.green600 : brand.ink, fontVariant: ['tabular-nums'] }}>{v}</Text>
+      <Text style={{ fontWeight: strong ? '800' : '700', color: tone === 'warn' ? brand.amber700 : tone === 'good' ? brand.green600 : brand.ink, fontVariant: ['tabular-nums'] }}>{v}</Text>
     </View>
   );
 }
@@ -85,7 +85,7 @@ export default function Agreement() {
 
           {a.can_renew ? (
             <Panel icon="file-sign" title={t('agreement.renewTitle')} tone="teal">
-              <View style={{ alignSelf: 'flex-start', backgroundColor: a.will_be === 'new' ? brand.red100 : brand.green100, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 8 }}>
+              <View style={{ alignSelf: 'flex-start', backgroundColor: a.will_be === 'new' ? brand.red100 : brand.green100, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 8 }}>
                 <Text style={{ fontWeight: '800', fontSize: 12, color: a.will_be === 'new' ? brand.red600 : brand.green600 }} testID="will-be">
                   {t(a.will_be === 'new' ? 'agreement.willBeNew' : 'agreement.willBeExtension')}
                 </Text>
