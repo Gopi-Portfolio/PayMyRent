@@ -25,6 +25,7 @@ services:
       RG_APP_DATABASE_URL: postgresql+psycopg://pmr_app:pmr_app@db:5432/paymyrent # signed-in requests: limited role + row-level security
       RG_APP_DB_PASSWORD: pmr_app
       RG_DEMO_AUTO_VERIFY_PROPERTIES: "on"     # local demo only: a developer can add a property without a reviewer. Refused in production.
+      RG_DOC_AUTO_APPROVE: "true"              # the automatic owner document check (docs/DECISIONS.md D-21a): Add property shows the same screens for every developer
       RG_PUBLIC_BASE_URL: http://${LAN_IP:-localhost}:${API_PORT:-8000}
     ports: ["${API_PORT:-8000}:8000"]
     depends_on:
@@ -40,6 +41,7 @@ services:
       RG_DATABASE_URL: postgresql+psycopg://paymyrent:paymyrent@db:5432/paymyrent
       RG_APP_DATABASE_URL: postgresql+psycopg://pmr_app:pmr_app@db:5432/paymyrent
       RG_PUBLIC_BASE_URL: http://${LAN_IP:-localhost}:8000
+      RG_DOC_AUTO_APPROVE: "true"
     command: ["sh", "-c", "while true; do for j in generate_invoices send_reminders dispatch_notifications; do python -m app.cli $$j || true; done; sleep 900; done"]
     healthcheck:
       disable: true

@@ -26,6 +26,7 @@
     "voiceInput": "Voice input"
   },
   "pricing": {
+    "pickFirst": "Select a plan first, your first month is free. Then sign in.",
     "selectPlan": "Select a Plan",
     "props_one": "{{count}} property",
     "props_other": "Up to {{count}} properties",
@@ -42,7 +43,7 @@
     "b_email": "Up to {{count}} emails a month",
     "b_reports": "Download Excel and PDF reports",
     "b_renters": "Renters use RentMeezy free",
-    "firstMonthFree": "First month free",
+    "firstMonthFree": "* First one month free",
     "startFree": "Start My Free Month",
     "validUntil": "Valid until {{date}}",
     "noPlanNote": "Without a plan, you cannot add units or renters. Press back to go to the home page.",
@@ -66,6 +67,7 @@
     "current": "Your Current Plan"
   },
   "auth": {
+    "notRenter": "This mobile number is not registered as a renter. Ask your owner to add you, then sign in again.",
     "enterMobile": "Your mobile number",
     "mobileNumber": "Mobile Number",
     "yourPlan": "Your selected plan",

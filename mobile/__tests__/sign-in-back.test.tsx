@@ -35,3 +35,12 @@ test('the mobile-number screen draws no bare text outside a text element', () =>
   const ui = wrap();
   expect(strayStrings(ui.toJSON())).toEqual([]);
 });
+
+test('the mobile-number screen asks for the mobile number only: no name box, and Send OTP works with just a valid number', () => {
+  const ui = wrap();
+  expect(ui.queryByTestId('name-input')).toBeNull();
+  expect(ui.queryByText('Full name')).toBeNull();
+  expect(ui.getByText('Send OTP')).toBeTruthy();
+  fireEvent.changeText(ui.getByTestId('phone-input'), '9123456789');
+  expect(ui.getByTestId('phone-input').props.value).toBe('9123456789');
+});

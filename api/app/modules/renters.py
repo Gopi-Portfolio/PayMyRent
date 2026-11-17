@@ -14,10 +14,10 @@ from fastapi import APIRouter, Depends, File, Form, Header, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from ..core.auth import OwnerScope, owner_scope
+from ..core.auth import CurrentUser, OwnerScope, current_user, owner_scope
 from ..core.config import get_settings
 from ..core.crypto import decrypt_bytes, encrypt_bytes
-from ..core.db import Db, get_db
+from ..core.db import Db, get_db, transaction
 from ..core.errors import AppError
 from ..core.http import limiter
 from ..core.idempotency import fingerprint, idempotent
@@ -162,3 +162,18 @@ def allot_renter(renter_id: UUID, body: AllotIn, scope: OwnerScope = Depends(own
         db.audit(scope.user.id, owner, "renter.allotted", "renter", renter_id, after={"tenancy_id": res["tenancy_id"], "notified": res["notified"]})
         return res
     return idempotent(db, scope.user.id, idempotency_key, fingerprint("POST", f"/owner/renters/{renter_id}/allot", {**body.model_dump(mode="json"), "r": str(renter_id)}), work)
+
+
+@router.get("/me/renter-access")
+def renter_access(user: CurrentUser = Depends(current_user)) -> dict:
+    """Is this signed-in person known as a renter? True when an owner added their mobile number (Add Renter), invited it to a place, or
+    they already rent. The renter sign-in uses it to refuse a number nobody added. It is asked only AFTER the code is verified, so it
+    cannot be used to find out whether a stranger's number is registered."""
+    with transaction() as sdb:                       # the system connection: the renters table is private to each owner
+        phones = [r["value"] for r in sdb.all("""SELECT value FROM user_contacts WHERE user_id = :u AND kind = 'mobile'
+                                                 AND verified_at IS NOT NULL AND removed_at IS NULL""", u=user.id)]
+        known = bool(phones) and bool(sdb.scalar("SELECT 1 FROM renters WHERE phone = ANY(:p) LIMIT 1", p=phones))
+        if not known:
+            known = bool(sdb.scalar("""SELECT 1 FROM tenancies WHERE status IN ('invited', 'active', 'ended')
+                                       AND (tenant_user_id = :u OR invited_phone = ANY(:p)) LIMIT 1""", u=user.id, p=phones))
+    return {"registered": known}

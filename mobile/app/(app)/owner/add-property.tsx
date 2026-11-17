@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Icon, Text } from 'react-native-paper';
+import { ActivityIndicator, Icon, Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { ActionOtp, otpReady } from '@/components/ActionOtp';
@@ -46,7 +46,7 @@ export default function AddProperty() {
   const [another, setAnother] = useState(false);           // the plan is full and the owner chose to add one more under its own plan
   const cap = acct?.property_capacity ?? 1;
   const full = hasProperty && !room;                       // the chosen plan's properties are all used
-  const cur = target ?? (full && !another && existing[0] ? existing[0].id : NEW);
+  const cur = target ?? NEW;            // Add property always opens the new-property form; an existing property's places only when chosen (or opened with a propertyId)
   const [f, setF] = useState<PropertyDraft>(getPropertyDraft() ?? EMPTY);
   const [err, setErr] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
@@ -93,11 +93,11 @@ export default function AddProperty() {
                  { value: 'mixed', label: t('property.mixed'), icon: 'home-city-outline' }];
   const proofs = [{ value: 'property_tax', label: t('property.pt_property_tax'), icon: 'receipt-text-outline' }, { value: 'sale_deed', label: t('property.pt_sale_deed'), icon: 'file-sign' },
                   { value: 'electricity_bill', label: t('property.pt_electricity_bill'), icon: 'flash-outline' }, { value: 'lease_deed', label: t('property.pt_lease_deed'), icon: 'file-document-outline' }];
-  // "+ Add property" is offered only while the chosen plan has room for another property (a plan of 5 shows it until 5 are added)
+  // the picker: "+ Add property" (the new-property form, the default) or one of the existing properties (to add its places)
   const chooser = existing.length > 0 ? (
     <SearchableSelect label={t('tenancy.property')} value={cur} testID="property-target"
       options={[...existing.map((p: any) => ({ value: p.id, label: p.name || p.address, subtitle: p.name ? p.address : undefined })),
-                ...(!full || another ? [{ value: NEW, label: '+ ' + t('property.add') }] : [])]}
+                { value: NEW, label: '+ ' + t('property.add') }]}
       onChange={setTarget} />
   ) : null;
   if (cur !== NEW) {      // an existing property: nothing about it changes, only its places are added here
@@ -117,6 +117,20 @@ export default function AddProperty() {
       </Screen>
     );
   }
+  // The server runs the automatic owner check and this account has not passed it: Add property always starts there, so every owner sees the same one form afterwards.
+  if (checked && !auto) {
+    return (
+      <Screen>
+        <NeedsInternet />
+        {chooser}
+        <Panel title={t('property.photoId')} icon="card-account-details-outline" tone="amber">
+          <Text style={{ lineHeight: 21 }}>{t('property.photoIdNeeded')}</Text>
+          <AppButton compact icon="face-recognition" label={t('property.verifyPhotoId')} onPress={() => router.push(idPage)} testID="verify-photo-id" />
+        </Panel>
+      </Screen>
+    );
+  }
+  if (docs.isLoading) return <Screen><ActivityIndicator /></Screen>;      // not known yet whether the check applies: do not flash the other form
   return (
     <Screen>
       <NeedsInternet />

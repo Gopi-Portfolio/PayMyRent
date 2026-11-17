@@ -8,13 +8,15 @@ import { sanitize } from '@/lib/inputs';
 import { AppButton } from '@/components/Buttons';
 import { AuthShell, DONE_ID, DoneBar, ErrorBanner, goBack } from '@/components/ui';
 import { brand, radius } from '@/theme';
+import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { getPendingRole } from '@/lib/landing';
 import { otpSession } from '@/lib/otpSession';
 
 export default function Otp() {
   const [typing, setTyping] = React.useState(false);        // the code box is open for typing: show the tick that closes the keyboard
   const { t } = useTranslation();
-  const { verifyOtp, requestOtp } = useAuth();
+  const { verifyOtp, requestOtp, signOut } = useAuth();
   const [note, setNote] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -26,9 +28,19 @@ export default function Otp() {
     setBusy(true); setErr(null);
     try {
       await verifyOtp(s, code);
+      // The Renter door lets in only a number an owner added (Add Renter) or invited. Asked after the code is verified, so a stranger's number cannot be probed.
+      if (getPendingRole() === 'tenant') {
+        let registered = false;
+        try { registered = (await api<{ registered: boolean }>('/api/v1/me/renter-access')).registered; } catch { registered = false; }
+        if (!registered) { await signOut(); setErr(new Error(t('auth.notRenter'))); return; }
+      }
       otpSession.current = null;
       router.replace('/');
-    } catch (e) { setErr(friendly(e)); } finally { setBusy(false); }
+    } catch (e: any) {
+      // a first-time owner who has not chosen a plan: no token was issued, so send them to choose one (the first month is free), then sign in again
+      if (e?.code === 'PLAN_REQUIRED') { otpSession.current = null; router.replace({ pathname: '/(public)/plans', params: { first: '1' } }); return; }
+      setErr(friendly(e));
+    } finally { setBusy(false); }
   }
 
   /** Server messages are in English; show the reason in the user's language. */

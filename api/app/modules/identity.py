@@ -57,8 +57,25 @@ class PhoneIn(BaseModel):
     phone: str = Field(max_length=20)
 
 
-class OtpVerifyIn(PhoneIn):
+class SignInIntent(BaseModel):
+    """What the person chose on the landing page before signing in: the door (owner / renter) and, for a new owner, the plan."""
+    role: Literal["owner", "tenant"] | None = None
+    plan: str | None = Field(default=None, max_length=40)
+
+
+class OtpVerifyIn(PhoneIn, SignInIntent):
     code: str = Field(min_length=4, max_length=8)
+
+
+def _require_plan_for_new_owner(db: Db, phone: str, intent: SignInIntent) -> None:
+    """A first-time owner must have chosen a plan before signing in: a number nobody has used yet, coming through the owner door
+    without a plan, gets no sign-in token and no account. An owner who already has an account signs in as before."""
+    if intent.role != "owner" or intent.plan:
+        return
+    known = db.scalar("""SELECT 1 FROM user_contacts WHERE kind = 'mobile' AND value = :p AND verified_at IS NOT NULL
+                         AND removed_at IS NULL LIMIT 1""", p=phone)
+    if not known:
+        raise AppError("PLAN_REQUIRED", "choose a plan first, then sign in as a new owner", status=403)
 
 
 @router.post("/dev/otp/request", tags=["dev"])
@@ -80,6 +97,7 @@ def dev_otp_verify(body: OtpVerifyIn, db: Db = Depends(get_db, scope="function")
         raise AppError("NOT_FOUND")
     phone = normalize_indian_mobile(body.phone, "phone")
     _check_otp(db, phone, "dev_login", body.code)
+    _require_plan_for_new_owner(db, phone, body)          # (after the code, so it cannot be used to find out which numbers are registered)
     # Mirrors Firebase: the same number signs into the same uid; a signed-in user who verifies a
     # new number (change-mobile flow) keeps their uid.
     uid = None
@@ -93,13 +111,15 @@ def dev_otp_verify(body: OtpVerifyIn, db: Db = Depends(get_db, scope="function")
 
 # ───────────────────────── session / me ─────────────────────────
 @router.post("/auth/session")
-def create_session(identity: Identity = Depends(identity_dep), db: Db = Depends(get_db, scope="function")) -> dict:
+def create_session(body: SignInIntent | None = None, identity: Identity = Depends(identity_dep), db: Db = Depends(get_db, scope="function")) -> dict:
     """Called after OTP sign-in. Existing user → same account; new number → new account."""
     if not identity.phone:
         raise AppError("UNAUTHENTICATED", "phone-verified token required")
     phone = normalize_indian_mobile(identity.phone, "phone")
     uid = db.scalar("SELECT id FROM users WHERE firebase_uid = :f", f=identity.firebase_uid)
     if uid is None:
+        if body is not None:
+            _require_plan_for_new_owner(db, phone, body)      # no account is created for a first-time owner without a plan
         other = db.scalar("""SELECT user_id FROM user_contacts WHERE kind = 'mobile' AND value = :p
                              AND verified_at IS NOT NULL AND removed_at IS NULL""", p=phone)
         if other is not None:

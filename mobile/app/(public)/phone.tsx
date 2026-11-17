@@ -8,12 +8,11 @@ import { useTranslation } from 'react-i18next';
 import { sanitize } from '@/lib/inputs';
 import { AppButton } from '@/components/Buttons';
 import { Keyboard } from 'react-native';
-import { AuthShell, DONE_ID, DoneBar, ErrorBanner, Field, goBack, useDoneTick, type Plan } from '@/components/ui';
+import { AuthShell, DONE_ID, DoneBar, ErrorBanner, goBack, useDoneTick, type Plan } from '@/components/ui';
 import { api } from '@/lib/api';
 import { brand, radius } from '@/theme';
 import { useAuth } from '@/lib/auth';
-import { getPendingName, getPendingPlan, setPendingName, usePendingRole } from '@/lib/landing';
-import { nameSchema } from '@/lib/validation';
+import { getPendingPlan, usePendingRole } from '@/lib/landing';
 import { normalizeMobile } from '@/lib/format';
 import { otpSession } from '@/lib/otpSession';
 
@@ -53,18 +52,15 @@ function Choice({ door }: { door: 'owner' | 'tenant' | null }) {
 export default function Phone() {
   const { t } = useTranslation();
   const { requestOtp } = useAuth();
-  const [name, setName] = useState(getPendingName());
   const [raw, setRaw] = useState('');
   const phoneDone = useDoneTick('phone-input');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   const e164 = normalizeMobile(raw);
-  const nameCheck = nameSchema.safeParse(name);
   const door = usePendingRole();      // owners (and anyone who tapped a plan) are told what going back means
 
   async function send() {
-    if (!e164 || !nameCheck.success) return;
-    setPendingName(name.trim());
+    if (!e164) return;
     setBusy(true); setErr(null);
     try {
       otpSession.current = await requestOtp(e164);
@@ -75,15 +71,13 @@ export default function Phone() {
   return (
     <AuthShell title={t('auth.signInMobile')} subtitle={t('app.tagline')} note={door === 'owner' ? t('pricing.noPlanNote') : undefined}>
       <Choice door={door} />
-      <Field label={t('profile.fullName')} value={name} onChangeText={setName} kind="name"
-             error={name && !nameCheck.success ? nameCheck.error.issues[0].message : undefined} testID="name-input" />
       <TextInput mode="outlined" {...phoneDone} label={t('auth.mobileNumber')} outlineStyle={{ borderRadius: radius.md }} style={{ backgroundColor: '#fff', fontSize: 18, height: 60 }} left={<TextInput.Affix text="+91" />} keyboardType="phone-pad" textContentType="telephoneNumber"
                  autoComplete="tel" value={raw} onChangeText={(v) => { const m = sanitize('mobile', v); setRaw(m); if (m.length === 10) Keyboard.dismiss(); }} inputAccessoryViewID={DONE_ID} maxLength={14}
                  error={raw.length === 10 && !e164} accessibilityLabel={t('auth.enterMobile')} testID="phone-input" />
       <DoneBar />
       {raw.length === 10 && !e164 ? <Text style={{ color: 'crimson' }}>{t('error.mobile_10_digits')}</Text> : null}
       <ErrorBanner error={err} />
-      <AppButton label={t('auth.sendOtp')} icon="send" disabled={!e164 || !nameCheck.success} loading={busy} onPress={send} />
+      <AppButton label={t('auth.sendOtp')} icon="send" disabled={!e164} loading={busy} onPress={send} />
       <AppButton variant="outline" label={t('common.back')} icon="arrow-left" disabled={busy} onPress={goBack} testID="back-below" />
     </AuthShell>
   );

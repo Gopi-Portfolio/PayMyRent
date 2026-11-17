@@ -7,6 +7,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 
 import { ApiError, api } from './api';
 import { reportUnreachable } from './network';
+import { getPendingPlan, getPendingRole } from './landing';
 import { KEYS, clearOfflineData, switchUser } from './offlineData';
 import { registerPush, unregisterPush } from './push';
 import { queryClient } from './queryClient';
@@ -48,6 +49,11 @@ export type Me = {
   pending_invitations: number; action_codes_required?: boolean; identity_status?: 'none' | 'pending' | 'verified' | 'manual_review' | 'failed' | 'rejected';
 };
 
+/** The door and plan chosen on the landing page. The server uses them to refuse a first-time owner who has not chosen a plan (no account, no token). */
+function signInIntent(): { role?: 'owner' | 'tenant'; plan?: string } {
+  const role = getPendingRole(), plan = getPendingPlan();
+  return { ...(role ? { role } : {}), ...(plan ? { plan } : {}) };
+}
 type OtpSession = { phoneE164: string; confirm?: any; demoCode?: string };
 
 type Ctx = {
@@ -152,13 +158,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await getIdToken(true);
     } else {
       const r = await api<{ id_token: string }>('/api/v1/dev/otp/verify', {
-        body: { phone: s.phoneE164, code }, auth: linkToCurrent,
+        body: { phone: s.phoneE164, code, ...(linkToCurrent ? {} : signInIntent()) }, auth: linkToCurrent,
       });
       devToken = r.id_token;
       await SecureStore.setItemAsync(DEV_TOKEN_KEY, r.id_token);
     }
     if (!linkToCurrent) {
-      await api('/api/v1/auth/session', { method: 'POST' });
+      await api('/api/v1/auth/session', { method: 'POST', body: signInIntent() });
       await refresh();
     }
   }, [refresh]);

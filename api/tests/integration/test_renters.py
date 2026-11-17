@@ -233,3 +233,31 @@ def test_a_renter_who_is_also_an_owner_sees_the_invitation_and_can_accept_it(act
     assert len(inv) == 1, "the invitation must be visible to a person who is an owner elsewhere"
     assert both.post(f"/api/v1/tenant/invitations/{inv[0]['id']}/accept").status_code == 200
     assert len(both.get("/api/v1/tenant/rentals").json()["items"]) == 1
+
+
+def test_renter_sign_in_is_refused_for_a_number_no_owner_added(actor):
+    stranger = actor(roles=("tenant",))
+    assert stranger.get("/api/v1/me/renter-access").json() == {"registered": False}
+
+
+def test_a_number_an_owner_added_as_a_renter_is_known_even_before_a_place_is_allotted(actor, engine):
+    landlord = ready_owner(actor)
+    person = actor(roles=("tenant",))
+    assert person.get("/api/v1/me/renter-access").json()["registered"] is False
+    assert add(landlord, data=form(phone=person.phone)).status_code == 200
+    assert person.get("/api/v1/me/renter-access").json()["registered"] is True
+
+
+def test_an_invited_number_and_a_current_renter_are_known(actor, engine, sent):
+    landlord = ready_owner(actor)
+    person = actor(roles=("tenant",))
+    rid = add(landlord, data=form(phone=person.phone)).json()["id"]
+    assert landlord.post(f"/api/v1/owner/renters/{rid}/allot", json=terms(a_unit(landlord))).status_code == 200
+    assert person.get("/api/v1/me/renter-access").json()["registered"] is True
+    inv = person.get("/api/v1/tenant/invitations").json()["items"][0]["id"]
+    assert person.post(f"/api/v1/tenant/invitations/{inv}/accept").status_code == 200
+    assert person.get("/api/v1/me/renter-access").json()["registered"] is True
+
+
+def test_renter_access_needs_a_signed_in_user(actor):
+    assert actor(roles=("tenant",)).c.get("/api/v1/me/renter-access").status_code == 401

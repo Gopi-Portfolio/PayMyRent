@@ -547,6 +547,11 @@ export function PricingCards({ onSelect, selected, cardCta, currentPlan, freeMon
           <Pressable key={p.code} onPress={onSelect ? () => onSelect(p.code) : undefined} accessibilityRole="radio" accessibilityState={{ selected: active }} testID={`plan-${p.code}`}
                      style={({ pressed }) => [styles.planCard, shadow, { borderColor: active ? brand.green600 : popular ? '#8CC779' : '#E1E8E1', borderWidth: active ? 2.5 : 1.5 },
                        (active || popular) && { backgroundColor: brand.teal50 }, pressed && { backgroundColor: brand.teal100 }]}>
+            {freeMonth ? (
+              <View style={{ alignSelf: 'flex-start', backgroundColor: brand.amber500, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, marginBottom: 10 }} testID={`free-${p.code}`}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: '#3B2300' }}>{t('pricing.firstMonthFree')}</Text>
+              </View>
+            ) : null}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View style={[styles.planIcon, { backgroundColor: brand.teal100 }]}>
                 <Icon source={p.code === 'starter' ? 'sprout' : p.code === 'growth' ? 'crown' : p.code === 'max' ? 'crown-outline' : 'domain'} size={28} color={brand.green600} />
@@ -561,11 +566,6 @@ export function PricingCards({ onSelect, selected, cardCta, currentPlan, freeMon
                 <View style={styles.planBadge}><Text style={styles.planBadgeText}>{t('pricing.mostPopular')}</Text></View>
               ) : null}
             </View>
-            {freeMonth ? (
-              <View style={{ alignSelf: 'flex-start', backgroundColor: brand.green100, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, marginTop: 8 }} testID={`free-${p.code}`}>
-                <Text style={{ fontSize: 12, fontWeight: '800', color: brand.green600 }}>{t('pricing.firstMonthFree')}</Text>
-              </View>
-            ) : null}
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 12 }}>
               <View style={{ flex: 1, gap: 7 }}>
                 <Tick text={t('pricing.units', { count: p.max_units })} />
